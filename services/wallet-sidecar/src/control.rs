@@ -160,6 +160,51 @@ impl ControlDb {
         Ok(())
     }
 
+    /// Cheap, certain checks against the control DB that run before the (expensive, wallet-state
+    /// dependent) proposal decoding: unknown, expired, already executed, approval missing or used.
+    /// `reserve` repeats all of them atomically; this only orders denials sensibly.
+    pub fn precheck(&self, proposal_id: &str, now: u64) -> Result<(), Denial> {
+        let row: Option<(String, i64)> = self
+            .conn
+            .query_row(
+                "SELECT hash, expires_at FROM proposals WHERE id = ?1",
+                params![proposal_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| Denial::UnknownProposal)?;
+        let (hash, expires_at) = row.ok_or(Denial::UnknownProposal)?;
+        let executed = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM spends WHERE proposal_hash = ?1",
+                params![hash],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(|_| Denial::AlreadyExecuted)?
+            .is_some();
+        let approval: Option<Option<i64>> = self
+            .conn
+            .query_row(
+                "SELECT used_at FROM approvals WHERE proposal_hash = ?1",
+                params![hash],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|_| Denial::NoApproval)?;
+        match approval {
+            Some(Some(_)) => return Err(Denial::ApprovalAlreadyUsed),
+            _ if executed => return Err(Denial::AlreadyExecuted),
+            None => return Err(Denial::NoApproval),
+            Some(None) => {}
+        }
+        if (now as i64) >= expires_at {
+            return Err(Denial::ProposalExpired);
+        }
+        Ok(())
+    }
+
     /// Atomically: check expiry, binding, approval, caps; consume the approval; reserve budget.
     /// `recomputed_hash` is the hash of the summary re-derived from the stored proposal.
     pub fn reserve(
@@ -342,7 +387,9 @@ mod tests {
     fn w13_approval_reuse_denied() {
         let (mut db, s) = setup("p", 1_000_000, true);
         let pk = owner().verifying_key();
+        assert_eq!(db.precheck("p", NOW + 1), Ok(()));
         db.reserve(&pk, "regtest", "p", &s.hash(), NOW + 1).unwrap();
+        assert_eq!(db.precheck("p", NOW + 2), Err(Denial::ApprovalAlreadyUsed));
         assert_eq!(
             db.reserve(&pk, "regtest", "p", &s.hash(), NOW + 2),
             Err(Denial::ApprovalAlreadyUsed)

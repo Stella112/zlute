@@ -45,5 +45,11 @@ Mandate §13.3 describes the interactive approval as the owner typing `approve <
 - New dependency: `ed25519-dalek` 2.x (BSD-3-Clause), the mature 2.x line of the standard Rust Ed25519 crate. `sha2` 0.10, `hex` 0.4 and `prost` 0.14 were already in the tree via librustzcash.
 - `wallet send` (no approval) is now refused on every network except regtest.
 
+## D-010 — 2026-10-20 — Owner key registered
+Maris generated the owner key on her own machine with `lute-owner init` (Windows build from CI run 39502798819, `lute-owner.exe` sha256 a884ef7d…55e6). The private key file stays on her machine; no agent read it.
+- Owner public key: `32d83d54774894739ad3a1163632df37fd035598f0c09e0057a05e25b4725244`
+- Registered on the VPS as `/opt/zlute/owner.pub` (mode 0444); file sha256 `1da296dc0872777939426300eee4e42502242e97315f88c501b130ade9b3f9c4`.
+- Any change to that file must be treated as an incident (D-009 residual risk). Regtest evidence runs use a separate disposable key under `/opt/zlute/regtest-owner/`.
+
 ## D-004 — 2026-10-20 — Node version
 Installed Node is v26.4.0. The mandate asks for an LTS. Pin via `.nvmrc`/`engines` once the build host is fixed; if v26 is not LTS on the build date, use the current LTS line.

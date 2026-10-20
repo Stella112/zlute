@@ -173,6 +173,9 @@ impl Wallet {
     ) -> anyhow::Result<ExecuteOutcome> {
         let owner = load_owner(owner_pub)?;
         let mut control = self.control()?;
+        control
+            .precheck(proposal_id, now())
+            .map_err(|d| anyhow!("execution denied: {}", serde_json::to_string(&d).unwrap()))?;
         let (_, summary_json, bytes) = control
             .load_proposal(proposal_id)?
             .ok_or_else(|| anyhow!("unknown proposal"))?;

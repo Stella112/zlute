@@ -27,6 +27,13 @@ approve() { "$BIN" wallet --dir "$FUNDER" approve --proposal "$1" --signature "$
 execute() { "$BIN" wallet --dir "$FUNDER" execute --proposal "$1" --owner-pub "$PUB"; }
 
 step "binaries"; sha256sum "$BIN" "$OWNER"
+# Regtest fixture hygiene: start from an empty control DB so today's cap usage comes only from
+# this run. The previous DB is archived (not deleted). Never done for non-regtest wallets.
+if [ -f "$FUNDER/control.sqlite" ]; then
+  ARCH="$FUNDER/control-archived-$(date -u +%Y%m%dT%H%M%SZ).sqlite"
+  mv "$FUNDER/control.sqlite" "$ARCH"; rm -f "$FUNDER/control.sqlite-wal" "$FUNDER/control.sqlite-shm"
+  step "archived previous regtest control DB to $ARCH"
+fi
 mkdir -p /opt/zlute/regtest-owner && chmod 700 /opt/zlute/regtest-owner
 [ -f "$KEY" ] || "$OWNER" init --key "$KEY" > "$PUB" 2>/dev/null
 [ -f "$FORGER_KEY" ] || "$OWNER" init --key "$FORGER_KEY" > /dev/null 2>&1
@@ -56,7 +63,7 @@ approve "$PA" "$SIG"; echo "exit=$?"
 EXA="$(execute "$PA")"; echo "$EXA"; echo "exit=$?"
 TXA="$(echo "$EXA" | jget '["txid"]' 2>/dev/null)"
 
-step "W13 A: execute again with the same approval -> APPROVAL_ALREADY_USED"
+step "W13 A: execute again with the same approval -> APPROVAL_ALREADY_USED (precheck runs before decoding)"
 execute "$PA"; echo "exit=$?"
 
 step "mine 1 block, verify A at recipient"
@@ -80,20 +87,18 @@ print("tampered: proposal", pb, "now holds the bytes of", pc)
 PY
 execute "$PB"; echo "exit=$?"
 
-step "W14b daily cap: 1,000,000 already submitted today; approve 2,000,000 + 2,000,000 + 1"
-PD="$(propose 2000000 | jget '["summary"]["proposal_id"]')"; approve "$PD" "$(sign "$PD" 2>/dev/null)" > /dev/null
-PE="$(propose 2000000 | jget '["summary"]["proposal_id"]')"; approve "$PE" "$(sign "$PE" 2>/dev/null)" > /dev/null
-PF="$(propose 1 | jget '["summary"]["proposal_id"]' 2>/dev/null)"
-echo "D:"; execute "$PD"; echo "exit=$?"
-rpc generate '[1]' > /dev/null; sleep 5; "$BIN" wallet --dir "$FUNDER" sync > /dev/null
-echo "E:"; execute "$PE"; echo "exit=$?"
-if [ -n "$PF" ]; then
-  approve "$PF" "$(sign "$PF" 2>/dev/null)" > /dev/null
-  echo "F (expect OVER_DAILY_CAP):"; execute "$PF"; echo "exit=$?"
-else
-  echo "F: a 1-zat payment was refused at propose (dust/fee rules); daily cap shown by D/E totals"
-fi
-rpc generate '[1]' > /dev/null
+step "W14b daily cap: 1,000,000 (A) already counted today. Each proposal is made right before execution."
+fresh() { # amount -> proposal id, approved; mines and syncs first so notes are current
+  rpc generate '[1]' > /dev/null; sleep 5; "$BIN" wallet --dir "$FUNDER" sync > /dev/null
+  local id; id="$(propose "$1" | jget '["summary"]["proposal_id"]')" || return 1
+  approve "$id" "$(sign "$id" 2>/dev/null)" > /dev/null && echo "$id"
+}
+echo "D (2,000,000; total 3,000,000):"; PD="$(fresh 2000000)"; execute "$PD"; echo "exit=$?"
+echo "E (2,000,000; total 5,000,000 = cap):"; PE="$(fresh 2000000)"; execute "$PE"; echo "exit=$?"
+echo "F (1,000; would exceed cap) -> OVER_DAILY_CAP:"; PF="$(fresh 1000)"; execute "$PF"; echo "exit=$?"
+
+step "W13 again (precheck before decoding): re-execute D -> APPROVAL_ALREADY_USED"
+execute "$PD"; echo "exit=$?"
 
 step "W12: propose G, approve, wait past the 300 s TTL, execute -> PROPOSAL_EXPIRED"
 PG="$(propose 1000 | jget '["summary"]["proposal_id"]')"
