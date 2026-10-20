@@ -59,7 +59,7 @@ enum WalletCmd {
         #[arg(long, default_value_t = 1)]
         min_confirmations: u32,
     },
-    /// Send a shielded payment (regtest/testnet only in this build). Exit 0 only if accepted.
+    /// REGTEST-ONLY test helper: send without an owner approval. Exit 0 only if accepted.
     Send {
         #[arg(long)]
         to: String,
@@ -73,6 +73,37 @@ enum WalletCmd {
     Verify {
         #[arg(long)]
         txid: String,
+    },
+    /// Step 1: build, policy-check and store a payment proposal (nothing is signed).
+    Propose {
+        #[arg(long)]
+        to: String,
+        /// Amount in zatoshi (integer).
+        #[arg(long)]
+        zat: u64,
+        #[arg(long)]
+        memo: Option<String>,
+    },
+    /// Show a stored proposal, its hash and the exact message the owner signs.
+    Show {
+        #[arg(long)]
+        proposal: String,
+    },
+    /// Step 2: record the owner's signature (made with `lute-owner sign` on the owner's machine).
+    Approve {
+        #[arg(long)]
+        proposal: String,
+        #[arg(long)]
+        signature: String,
+        #[arg(long, default_value = "/opt/zlute/owner.pub")]
+        owner_pub: PathBuf,
+    },
+    /// Step 3: re-check, consume the approval, reserve budget, sign and broadcast once.
+    Execute {
+        #[arg(long)]
+        proposal: String,
+        #[arg(long, default_value = "/opt/zlute/owner.pub")]
+        owner_pub: PathBuf,
     },
 }
 
@@ -135,6 +166,32 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                         out.broadcast,
                         lute_sidecar::wallet::send::Broadcast::Accepted
                     ) {
+                        return Ok(ExitCode::from(3));
+                    }
+                }
+                WalletCmd::Propose { to, zat, memo } => {
+                    let v = Wallet::open(&dir)?.propose(&to, zat, memo.as_deref())?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
+                WalletCmd::Show { proposal } => {
+                    let v = Wallet::open(&dir)?.show_proposal(&proposal)?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
+                WalletCmd::Approve {
+                    proposal,
+                    signature,
+                    owner_pub,
+                } => {
+                    Wallet::open(&dir)?.approve(&proposal, &signature, &owner_pub)?;
+                    println!("approved");
+                }
+                WalletCmd::Execute {
+                    proposal,
+                    owner_pub,
+                } => {
+                    let out = Wallet::open(&dir)?.execute(&proposal, &owner_pub).await?;
+                    println!("{}", serde_json::to_string(&out)?);
+                    if out.status != lute_sidecar::control::SpendStatus::Submitted {
                         return Ok(ExitCode::from(3));
                     }
                 }

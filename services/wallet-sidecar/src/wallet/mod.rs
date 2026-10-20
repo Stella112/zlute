@@ -5,6 +5,7 @@
 //! Key storage in this slice: regtest seeds are stored as a 0600 file. Mainnet wallets are
 //! refused until encrypted-at-rest key storage lands (P1b, docs/TASKS.md).
 
+pub mod approve;
 pub mod cache;
 pub mod send;
 

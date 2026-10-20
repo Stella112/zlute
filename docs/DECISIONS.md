@@ -36,5 +36,14 @@ Zallet beta.1 hangs on account RPCs here. Regtest funds come instead from Zebra 
 4. **Mobile interfaces (spec §3.3):** a responsive web app only; no native mobile app.
 5. **Agent payments:** the spec lists ten MCP tools; the mandate adds `lute_pay_request` (grant-limited). It ships only if test group A passes.
 
+## D-009 — 2026-10-20 — Approvals are owner-key signatures, checked inside the sidecar
+Mandate §13.3 describes the interactive approval as the owner typing `approve <hash8>` into the sidecar CLI. On the shared VPS, agents also have shell access, so a typed approval there would be forgeable by an agent. Decision (more conservative, same intent):
+- The owner runs `tools/lute-owner` on **her own machine**. `sign` reads the proposal JSON, **recomputes the proposal hash itself**, shows the decoded payment, requires the typed `approve <hash8>`, and outputs an Ed25519 signature over `lute-approve-v1|<network>|<proposal_hash>`.
+- The sidecar stores only the owner **public** key (`/opt/zlute/owner.pub`) and verifies with `verify_strict`. Approvals are one-use, bound to the hash and network, and consumed atomically with the budget reservation (control DB, `BEGIN IMMEDIATE`).
+- `--unattended-regtest` skips the typed confirmation only for `regtest` summaries with a disposable regtest key (automated evidence runs).
+- Residual risk (THREAT-MODEL): root on the VPS can replace `owner.pub`. Mitigation: the sidecar logs the owner key fingerprint on every execution; hot-wallet balances stay ≤ 0.1 ZEC.
+- New dependency: `ed25519-dalek` 2.x (BSD-3-Clause), the mature 2.x line of the standard Rust Ed25519 crate. `sha2` 0.10, `hex` 0.4 and `prost` 0.14 were already in the tree via librustzcash.
+- `wallet send` (no approval) is now refused on every network except regtest.
+
 ## D-004 — 2026-10-20 — Node version
 Installed Node is v26.4.0. The mandate asks for an LTS. Pin via `.nvmrc`/`engines` once the build host is fixed; if v26 is not LTS on the build date, use the current LTS line.

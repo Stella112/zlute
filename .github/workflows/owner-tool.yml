@@ -1,0 +1,42 @@
+name: lute-owner
+
+on:
+  push:
+    paths: ["tools/lute-owner/**", ".github/workflows/owner-tool.yml"]
+  pull_request:
+    paths: ["tools/lute-owner/**", ".github/workflows/owner-tool.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: tools/lute-owner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --locked
+      - name: Release build
+        run: cargo build --release --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lute-owner-${{ matrix.os }}
+          path: |
+            tools/lute-owner/target/release/lute-owner
+            tools/lute-owner/target/release/lute-owner.exe
+          if-no-files-found: error
+          retention-days: 14

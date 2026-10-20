@@ -38,6 +38,10 @@ use zcash_protocol::{
 use zip321::{Payment, TransactionRequest};
 
 use super::{connect, Wallet, SEED_FILE};
+
+/// A proposal as produced by `propose_transfer` against the sqlite wallet.
+pub type LuteProposal =
+    zcash_client_backend::proposal::Proposal<StandardFeeRule, zcash_client_sqlite::ReceivedNoteId>;
 use crate::{
     inspect::inspect,
     network::NetworkKind,
@@ -118,17 +122,14 @@ impl Wallet {
         .map_err(|e| anyhow!("deriving spending key: {e:?}"))
     }
 
-    /// Proposes, policy-checks, builds and broadcasts a shielded payment.
-    /// Regtest/testnet only: mainnet spends require the owner approval flow (P1b, mandate §13.3).
-    pub async fn send(
+    /// Builds and policy-checks a proposal (no proving, no signing).
+    pub(crate) fn make_proposal(
         &self,
+        db: &mut super::Db,
         to: &str,
         amount_zat: u64,
         memo: Option<&str>,
-    ) -> anyhow::Result<SendOutcome> {
-        if self.config.network == NetworkKind::Main {
-            bail!("mainnet sends require owner approval (not available in this build)");
-        }
+    ) -> anyhow::Result<(LuteProposal, SinglePool)> {
         // Sidecar-side recipient inspection, independent of LuteGuard (W1, W2, W9).
         let inspection = inspect(to, self.config.network.params_type());
         if !inspection.is_allowed() {
@@ -157,8 +158,6 @@ impl Wallet {
         .map_err(|e| anyhow!("payment: {e:?}"))?;
         let request = TransactionRequest::new(vec![payment]).map_err(|e| anyhow!("{e}"))?;
 
-        let params = self.params();
-        let mut db = self.db()?;
         // Change stays in Ironwood when not otherwise determined; the policy check below
         // rejects any proposal that is not single-pool regardless.
         let change = MultiOutputChangeStrategy::new(
@@ -170,8 +169,8 @@ impl Wallet {
         );
         // zcash_client_backend@0.24.0 `data_api::wallet::propose_transfer`
         let proposal = propose_transfer::<_, _, _, _, commitment_tree::Error>(
-            &mut db,
-            &params,
+            db,
+            &self.params(),
             self.account(),
             &GreedyInputSelector::new(),
             &change,
@@ -185,8 +184,16 @@ impl Wallet {
 
         let pool = policy::check(&proposal)
             .map_err(|d| anyhow!("policy denied: {}", serde_json::to_string(&d).unwrap()))?;
-        let fee_zat = u64::from(proposal.steps().first().balance().fee_required());
+        Ok((proposal, pool))
+    }
 
+    /// Proves, signs and broadcasts a policy-checked proposal exactly once.
+    pub(crate) async fn build_and_broadcast(
+        &self,
+        db: &mut super::Db,
+        proposal: &LuteProposal,
+    ) -> anyhow::Result<(TxId, Broadcast, Option<String>)> {
+        let params = self.params();
         let prover = LocalTxProver::with_default_location().ok_or_else(|| {
             anyhow!("Sapling parameters missing; run `lute-sidecar fetch-params`")
         })?;
@@ -195,13 +202,13 @@ impl Wallet {
         // Error type parameters pinned as in zcash-devtool f1ec9b1 `src/error.rs` (WalletErrorT).
         let txids =
             create_proposed_transactions::<_, _, GreedyInputSelectorError, _, zip317::FeeError, _>(
-                &mut db,
+                db,
                 &params,
                 &prover,
                 &prover,
                 &SpendingKeys::from_unified_spending_key(usk),
                 OvkPolicy::Sender,
-                &proposal,
+                proposal,
                 None,
             )
             .map_err(|e| anyhow!("create transaction: {e}"))?;
@@ -234,7 +241,25 @@ impl Wallet {
                 Err(status) => (Broadcast::Ambiguous, Some(status.to_string())),
             },
         };
+        Ok((txid, broadcast, detail))
+    }
 
+    /// REGTEST-ONLY test helper: propose + policy-check + build + broadcast without an owner
+    /// approval. Used for fixture movements and W17. Every other network must use
+    /// propose / approve / execute (mandate §13.3).
+    pub async fn send(
+        &self,
+        to: &str,
+        amount_zat: u64,
+        memo: Option<&str>,
+    ) -> anyhow::Result<SendOutcome> {
+        if self.config.network != NetworkKind::Regtest {
+            bail!("`send` is a regtest test helper; use propose/approve/execute");
+        }
+        let mut db = self.db()?;
+        let (proposal, pool) = self.make_proposal(&mut db, to, amount_zat, memo)?;
+        let fee_zat = u64::from(proposal.steps().first().balance().fee_required());
+        let (txid, broadcast, detail) = self.build_and_broadcast(&mut db, &proposal).await?;
         Ok(SendOutcome {
             txid: txid.to_string(),
             pool,

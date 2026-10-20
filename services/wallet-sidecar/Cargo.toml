@@ -33,6 +33,12 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Already in the dependency tree via librustzcash (same major versions):
+prost = "0.14"
+sha2 = "0.10"
+hex = "0.4"
+# Owner approval signatures (docs/DECISIONS.md D-009).
+ed25519-dalek = "2"
 
 [dev-dependencies]
 zcash_keys = { version = "=0.16.1", features = ["orchard", "sapling", "transparent-inputs"] }
