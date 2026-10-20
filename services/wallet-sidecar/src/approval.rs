@@ -126,6 +126,16 @@ mod tests {
         assert!(!j.contains(' '));
     }
 
+    /// Cross-language vector: packages/luteguard/test/canonical.test.ts asserts the same hash for
+    /// the same summary. If either canonicalization drifts, both suites fail.
+    #[test]
+    fn cross_language_hash_vector() {
+        assert_eq!(
+            summary().hash(),
+            "e1b7850e9c88374a4dac6d6d38e857175a73a4965efe48e9f797ed379c05a6bd"
+        );
+    }
+
     #[test]
     fn hash_is_stable() {
         assert_eq!(summary().hash(), summary().hash());
