@@ -42,6 +42,22 @@ enum Cmd {
         network: NetworkKind,
         uri: String,
     },
+    /// Serve the authenticated loopback HTTP API for apps/api (mandate §13.4).
+    Serve {
+        /// Must be a loopback address, e.g. 127.0.0.1:48100.
+        #[arg(long)]
+        listen: std::net::SocketAddr,
+        /// Directory holding one subdirectory per wallet (all on the same network).
+        #[arg(long)]
+        wallets: PathBuf,
+        #[arg(long, value_parser = parse_network)]
+        network: NetworkKind,
+        /// File with the shared HMAC secret (hex, >= 32 bytes).
+        #[arg(long)]
+        secret_file: PathBuf,
+        #[arg(long, default_value = "/opt/zlute/owner.pub")]
+        owner_pub: PathBuf,
+    },
     /// Query a light-wallet server's GetLightdInfo (chain, height, branch id, upgrade).
     ServerInfo {
         /// e.g. https://zec.rocks:443 or http://127.0.0.1:28137
@@ -189,6 +205,24 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     Ok(ExitCode::from(1))
                 }
             }
+        }
+        Cmd::Serve {
+            listen,
+            wallets,
+            network,
+            secret_file,
+            owner_pub,
+        } => {
+            let cfg = lute_sidecar::api::ApiConfig {
+                listen,
+                wallets_root: wallets,
+                secret: lute_sidecar::api::load_secret(&secret_file)?,
+                owner_pub,
+                network,
+            };
+            eprintln!("lute-sidecar API listening on {listen} ({network:?})");
+            lute_sidecar::api::serve(cfg).await?;
+            Ok(ExitCode::SUCCESS)
         }
         Cmd::ServerInfo { server } => {
             let mut client = lute_sidecar::wallet::connect(&server).await?;

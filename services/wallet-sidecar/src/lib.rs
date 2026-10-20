@@ -3,6 +3,7 @@
 //! The sidecar is the only Lute component that parses Zcash addresses, holds keys or
 //! signs (mandate §10, §18). Everything here fails closed.
 
+pub mod api;
 pub mod approval;
 pub mod control;
 pub mod inspect;

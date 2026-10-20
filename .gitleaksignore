@@ -4,3 +4,7 @@
 # scripts/regtest-init.sh) for a disposable, 127.0.0.1-only regtest node. Not a secret.
 # Fixed in a later commit (credential moved out of the curl line); history entry ignored.
 5f61779c6f99cab371b2cefc41f17fe20b1cdb38:infrastructure/z3/fund-fixture.sh:curl-auth-user:18
+
+# The owner's Ed25519 PUBLIC key recorded in docs/DECISIONS.md (D-010). Public by design
+# (it is what the sidecar verifies approvals against); not a secret.
+c1f785debecf83b2d0a7330e7f82acdaf1448736:docs/DECISIONS.md:generic-api-key:50
