@@ -1,5 +1,15 @@
 # Build status
 
+## 2026-10-20 23:55 WAT — Claude Code — P1a gate work + P2 started (session paused: usage limit)
+IMPLEMENTED: sidecar approvals (owner-signed, one-use, caps, TTL, control DB precheck), ZIP-321 build/parse, sealed seeds (key file outside the wallet dir), server-info, authenticated loopback HTTP API (HMAC), rustls ring provider fix; tools/lute-owner (Win/Linux); packages/luteguard (50 tests), packages/core executeAction (39 tests), apps/api Fastify+Drizzle+Postgres (17 tests on PGlite); docs PRIVACY.md (light server), API.md (sidecar contract).
+VERIFIED: approvals run 1 on regtest (evidence/regtest/approvals-run1-2026-10-20.log): W14a, NO_APPROVAL, forged approval rejected, approved payment broadcast + recipient verified (txid f3b8fe3c…34f6), W8 HASH_MISMATCH, W12 PROPOSAL_EXPIRED. W13 and W14b were not demonstrated in run 1 (wrong denial reason / stale proposals); fixed in code, rerun pending. Owner key registered (D-010).
+NOT DONE / IN FLIGHT:
+- Approvals run 2 did not execute (script had CRLF on the VPS). Rerun: `bash /opt/zlute/infra/approvals-evidence.sh > /opt/zlute/logs/approvals-run2.log` after re-uploading the LF script.
+- Background job: deploy of the TLS-fixed sidecar (commit before "infra: mainnet wallet init") + `mainnet-init.sh` (creates mainnet merchant/payout wallets, sealed seeds, syncs zec.rocks). Check /opt/zlute/logs/mainnet-init.log; C-011b depends on its server-info output.
+- Never chain deploy | tail: use the fail-fast form (deploy output captured, `|| exit`).
+NEXT ACTIONS: confirm mainnet-init; record C-011b; give owner the payout/merchant addresses for funding (≤ 0.1 ZEC); first mainnet send via API + owner signature (W18); deploy apps/api + Postgres 16 on the VPS (zlute- prefix, capped); requests/checkout module.
+MODULE STATUS: send=PARTIAL(regtest) requests=UNTESTED commerce=UNTESTED refunds=UNTESTED groups=UNTESTED streams=UNTESTED meter=UNTESTED subs=UNTESTED sdk=UNTESTED mcp=UNTESTED crosschain=PARTIAL(classifier only) privacy-center=UNTESTED
+
 ## 2026-10-20 22:30 WAT — Claude Code — P1a: W17 passed on regtest
 IMPLEMENTED: sidecar wallets (init/sync/address/balance), single-pool policy (policy.rs), send (inspect → propose → policy → prove/sign → broadcast once), verify (decrypt with own UFVK), fetch-params; fixture funding via Zebra Ironwood coinbase (D-007); W17 evidence script.
 VERIFIED: E-001 (W1 sidecar denial), E-002 (W17: txid 735aa8d2…68c9, Ironwood, recipient sees 1,000,000 zat + memo LUTE:w17 at height 143), E-003 (CI 39499446178 green). Zaino 0.10.2 needed for Ironwood (C-019).
