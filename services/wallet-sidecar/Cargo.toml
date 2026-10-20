@@ -1,0 +1,28 @@
+[package]
+name = "lute-sidecar"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+publish = false
+description = "Lute wallet sidecar: the only Lute component that holds keys or signs."
+
+[[bin]]
+name = "lute-sidecar"
+path = "src/main.rs"
+
+[dependencies]
+# Pinned per docs/DECISIONS.md D-001 (crates.io, published 2026-10-14).
+zcash_address = "=0.13.0"
+zcash_protocol = "=0.10.6"
+zcash_keys = { version = "=0.16.1", features = ["orchard", "sapling"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+zcash_keys = { version = "=0.16.1", features = ["orchard", "sapling", "transparent-inputs"] }
+zip32 = "0.2"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
