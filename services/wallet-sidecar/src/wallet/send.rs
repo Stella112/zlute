@@ -14,18 +14,20 @@ use zcash_client_backend::{
     data_api::{
         wallet::{
             create_proposed_transactions,
-            input_selection::{GreedyInputSelector, SpendPolicy},
+            input_selection::{GreedyInputSelector, GreedyInputSelectorError, SpendPolicy},
             propose_transfer, ConfirmationsPolicy, SpendingKeys,
         },
         Account, WalletRead,
     },
-    decrypt::{decrypt_transaction, TransferType},
+    decrypt_transaction,
     fees::{standard::MultiOutputChangeStrategy, DustOutputPolicy, SplitPolicy, StandardFeeRule},
     proto::service,
     wallet::OvkPolicy,
+    TransferType,
 };
+use zcash_client_sqlite::wallet::commitment_tree;
 use zcash_keys::keys::UnifiedSpendingKey;
-use zcash_primitives::transaction::Transaction;
+use zcash_primitives::transaction::{fees::zip317, Transaction};
 use zcash_proofs::prover::LocalTxProver;
 use zcash_protocol::{
     consensus::{BlockHeight, BranchId},
@@ -167,7 +169,7 @@ impl Wallet {
             SplitPolicy::single_output(),
         );
         // zcash_client_backend@0.24.0 `data_api::wallet::propose_transfer`
-        let proposal = propose_transfer(
+        let proposal = propose_transfer::<_, _, _, _, commitment_tree::Error>(
             &mut db,
             &params,
             self.account(),
@@ -190,17 +192,19 @@ impl Wallet {
         })?;
         let usk = self.spending_key()?;
         // zcash_client_backend@0.24.0 `data_api::wallet::create_proposed_transactions`
-        let txids = create_proposed_transactions(
-            &mut db,
-            &params,
-            &prover,
-            &prover,
-            &SpendingKeys::from_unified_spending_key(usk),
-            OvkPolicy::Sender,
-            &proposal,
-            None,
-        )
-        .map_err(|e| anyhow!("create transaction: {e}"))?;
+        // Error type parameters pinned as in zcash-devtool f1ec9b1 `src/error.rs` (WalletErrorT).
+        let txids =
+            create_proposed_transactions::<_, _, GreedyInputSelectorError, _, zip317::FeeError, _>(
+                &mut db,
+                &params,
+                &prover,
+                &prover,
+                &SpendingKeys::from_unified_spending_key(usk),
+                OvkPolicy::Sender,
+                &proposal,
+                None,
+            )
+            .map_err(|e| anyhow!("create transaction: {e}"))?;
         if txids.len() != 1 {
             bail!("expected exactly one transaction, got {}", txids.len());
         }

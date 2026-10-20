@@ -14,8 +14,12 @@ FUNDER="$WALLETS/funder"
 ZAINO=http://127.0.0.1:28137
 ZEBRA=http://127.0.0.1:29232
 
+# Z3's public default regtest RPC credential (scripts/regtest-init.sh), local-only, not a secret.
+# Kept out of the curl line itself; override with Z3_RPC_AUTH if Z3 was initialized otherwise.
+RPC_AUTH="${Z3_RPC_AUTH:-zebra:zebra}"
+
 rpc() {
-  curl -sf -u zebra:zebra -X POST -H "Content-Type: application/json" \
+  curl -sf -u "$RPC_AUTH" -X POST -H "Content-Type: application/json" \
     -d "{\"jsonrpc\":\"2.0\",\"method\":\"$1\",\"params\":$2,\"id\":1}" "$ZEBRA"
 }
 
