@@ -34,7 +34,8 @@ Not yet compiled together. Compatibility of this set is UNVERIFIED until `cargo 
 | C-008 | Tor transport in the backend | DOCUMENTED | `zcash_client_backend@0.24.0` feature `tor` (arti-client), `src/tor.rs`, `src/tor/grpc.rs`. Not exercised. |
 | C-009 | lightwalletd gRPC client with TLS + WebPKI roots | DOCUMENTED | features `lightwalletd-tonic`, `lightwalletd-tonic-tls-webpki-roots` |
 | C-010 | Light server `zec.rocks:443` (alias `zecrocks`, default in zcash-devtool); regional `ap./eu./na./sa.zec.rocks:443`; testnet `testnet.zec.rocks:443` | DOCUMENTED | `zcash/zcash-devtool` `src/remote.rs` (main branch, read 2026-10-20). TLS for non-loopback hosts. |
-| C-011 | zec.rocks TLS cert valid, serves mainnet at NU6.3 tip | UNVERIFIED | To test in P1b |
+| C-011a | zec.rocks TLS with a valid certificate | PROVEN | 2026-10-20 `openssl s_client -connect zec.rocks:443 -servername zec.rocks -alpn h2 -verify_return_error`: TLSv1.3, ALPN h2, CN=zec.rocks, issuer Let's Encrypt YE2, verify return code 0 |
+| C-011b | zec.rocks serves mainnet past NU6.3 (GetLightdInfo) | UNVERIFIED | To test from the sidecar in P1b |
 | C-012 | A `FullPrivacy`-style policy object inside `zcash_client_backend` | UNSUPPORTED (as a named type) | grep for `FullPrivacy` / `PrivacyPolicy` in `zcash_client_backend@0.24.0/src`: no matches. Lute enforces the equivalent itself by inspecting the proposal (`input_count_in_pool`, `output_count_in_pool`, `change_count_in_pool`, `is_canonical_crossing` exist per CHANGELOG). |
 | C-013 | Regtest support in zcash-devtool | DOCUMENTED | behind `regtest_support` feature, custom host:port (`src/remote.rs`) |
 | C-014 | Sidecar can run against regtest params with these crates | UNVERIFIED | P1a |

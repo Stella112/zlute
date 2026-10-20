@@ -135,10 +135,20 @@ pub fn inspect(encoded: &str, network: NetworkType) -> Inspection {
 mod tests {
     use super::*;
     use zcash_address::{unified, unified::Encoding, ToAddress};
-    use zcash_keys::keys::{UnifiedAddressRequest, UnifiedSpendingKey};
+    use zcash_keys::keys::{
+        ReceiverRequirement::{Omit, Require},
+        UnifiedAddressRequest, UnifiedSpendingKey,
+    };
     use zcash_protocol::consensus::{MainNetwork, TestNetwork};
 
     const SEED: [u8; 32] = [7u8; 32];
+
+    // `UnifiedAddressRequest::SHIELDED` / `ALLOW_ALL` only *allow* receivers; zcash_keys@0.16.1
+    // may omit Sapling under them. Fixtures that need a receiver must require it explicitly.
+    const ORCHARD_SAPLING: UnifiedAddressRequest =
+        UnifiedAddressRequest::unsafe_custom(Require, Require, Omit);
+    const ORCHARD_SAPLING_P2PKH: UnifiedAddressRequest =
+        UnifiedAddressRequest::unsafe_custom(Require, Require, Require);
 
     /// Real, valid addresses derived from a fixed test seed. Test fixtures only.
     fn ua(net: NetworkType, request: UnifiedAddressRequest) -> zcash_keys::address::UnifiedAddress {
@@ -161,10 +171,7 @@ mod tests {
 
     #[test]
     fn shielded_ua_allowed_ironwood_first() {
-        let a = encode_ua(
-            &ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED),
-            NetworkType::Main,
-        );
+        let a = encode_ua(&ua(NetworkType::Main, ORCHARD_SAPLING), NetworkType::Main);
         let i = inspect(&a, NetworkType::Main);
         assert_eq!(i.verdict, Verdict::Allowed);
         assert_eq!(i.payable_pools, vec![Pool::Ironwood, Pool::Sapling]);
@@ -184,7 +191,7 @@ mod tests {
 
     #[test]
     fn sapling_address_allowed() {
-        let u = ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED);
+        let u = ua(NetworkType::Main, ORCHARD_SAPLING);
         let a = Address::Sapling(*u.sapling().unwrap()).encode(&MainNetwork);
         let i = inspect(&a, NetworkType::Main);
         assert_eq!(i.verdict, Verdict::Allowed);
@@ -196,7 +203,7 @@ mod tests {
     #[test]
     fn w3_ua_with_transparent_receiver_pays_only_shielded() {
         let a = encode_ua(
-            &ua(NetworkType::Main, UnifiedAddressRequest::ALLOW_ALL),
+            &ua(NetworkType::Main, ORCHARD_SAPLING_P2PKH),
             NetworkType::Main,
         );
         let i = inspect(&a, NetworkType::Main);
