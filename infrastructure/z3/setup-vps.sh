@@ -21,6 +21,11 @@ ENV="$Z3_DIR/.env.regtest"
 # Lute-specific project name (volumes become zlute-z3_*) and our overlay last in the merge order.
 sed -i 's/^COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=zlute-z3/' "$ENV"
 sed -i 's/^COMPOSE_FILE=.*/COMPOSE_FILE=docker-compose.yml:docker-compose.regtest.yml:docker-compose.zlute.yml/' "$ENV"
+# Z3's default Zaino (0.6.0) rejects ShieldedProtocol::Ironwood in GetSubtreeRoots, which
+# zcash_client_backend 0.24 sync requests. 0.10.2 accepts it (verified 2026-10-20, C-019).
+grep -q '^Z3_ZAINO_IMAGE=' "$ENV" \
+  && sed -i 's|^Z3_ZAINO_IMAGE=.*|Z3_ZAINO_IMAGE=zingodevops/zainod:0.10.2-no-tls|' "$ENV" \
+  || echo 'Z3_ZAINO_IMAGE=zingodevops/zainod:0.10.2-no-tls' >> "$ENV"
 
 grep -E '^(COMPOSE_PROJECT_NAME|COMPOSE_FILE)=' "$ENV"
 echo "Prepared $Z3_DIR at $(git -C "$Z3_DIR" rev-parse --short HEAD). Next: (cd $Z3_DIR && ./scripts/regtest-init.sh)"
