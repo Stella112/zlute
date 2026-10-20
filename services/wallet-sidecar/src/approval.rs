@@ -136,18 +136,18 @@ mod tests {
     #[test]
     fn w8_every_field_change_changes_hash() {
         let base = summary().hash();
-        let mutations: Vec<Box<dyn Fn(&mut ProposalSummary)>> = vec![
-            Box::new(|s| s.recipient.push('a')),
-            Box::new(|s| s.amount_zat += 1),
-            Box::new(|s| s.fee_zat += 1),
-            Box::new(|s| s.recipient_pool = "sapling".into()),
-            Box::new(|s| s.input_pools.push("sapling".into())),
-            Box::new(|s| s.change_pools.clear()),
-            Box::new(|s| s.network = "main".into()),
-            Box::new(|s| s.account = "a2".into()),
-            Box::new(|s| s.memo_hash = "00".into()),
-            Box::new(|s| s.expires_at += 1),
-            Box::new(|s| s.policy = "WEAKER".into()),
+        let mutations: Vec<fn(&mut ProposalSummary)> = vec![
+            |s| s.recipient.push('a'),
+            |s| s.amount_zat += 1,
+            |s| s.fee_zat += 1,
+            |s| s.recipient_pool = "sapling".into(),
+            |s| s.input_pools.push("sapling".into()),
+            |s| s.change_pools.clear(),
+            |s| s.network = "main".into(),
+            |s| s.account = "a2".into(),
+            |s| s.memo_hash = "00".into(),
+            |s| s.expires_at += 1,
+            |s| s.policy = "WEAKER".into(),
         ];
         for m in mutations {
             let mut s = summary();
