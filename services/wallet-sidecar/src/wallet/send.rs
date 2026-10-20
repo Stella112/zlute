@@ -6,7 +6,7 @@
 
 use std::str::FromStr;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail};
 use secrecy::ExposeSecret;
 use serde::Serialize;
 use zcash_address::ZcashAddress;
@@ -37,7 +37,7 @@ use zcash_protocol::{
 };
 use zip321::{Payment, TransactionRequest};
 
-use super::{connect, Wallet, SEED_FILE};
+use super::{connect, Wallet};
 
 /// A proposal as produced by `propose_transfer` against the sqlite wallet.
 pub type LuteProposal =
@@ -103,9 +103,7 @@ pub fn fetch_params() -> anyhow::Result<()> {
 
 impl Wallet {
     fn spending_key(&self) -> anyhow::Result<UnifiedSpendingKey> {
-        let seed = secrecy::SecretVec::new(
-            std::fs::read(self.dir.join(SEED_FILE)).context("reading seed file")?,
-        );
+        let seed = self.load_seed()?;
         let db = self.db()?;
         let account = db
             .get_account(self.account())?

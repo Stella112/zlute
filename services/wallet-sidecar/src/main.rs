@@ -42,6 +42,11 @@ enum Cmd {
         network: NetworkKind,
         uri: String,
     },
+    /// Query a light-wallet server's GetLightdInfo (chain, height, branch id, upgrade).
+    ServerInfo {
+        /// e.g. https://zec.rocks:443 or http://127.0.0.1:28137
+        server: String,
+    },
     /// Download the Sapling proving parameters (hash-checked) into the default folder.
     FetchParams,
     /// Lute-operated wallet commands.
@@ -67,6 +72,10 @@ enum WalletCmd {
         server: String,
         #[arg(long)]
         birthday: Option<u32>,
+        /// Key-encryption-key file (created; must not exist; outside the wallet dir).
+        /// Required on main and test networks.
+        #[arg(long)]
+        kek: Option<PathBuf>,
     },
     /// Sync the wallet with its server.
     Sync,
@@ -181,6 +190,28 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 }
             }
         }
+        Cmd::ServerInfo { server } => {
+            let mut client = lute_sidecar::wallet::connect(&server).await?;
+            let i = client
+                .get_lightd_info(zcash_client_backend::proto::service::Empty {})
+                .await?
+                .into_inner();
+            println!(
+                "{}",
+                serde_json::json!({
+                    "chain_name": i.chain_name,
+                    "block_height": i.block_height,
+                    "estimated_height": i.estimated_height,
+                    "consensus_branch_id": i.consensus_branch_id,
+                    "upgrade_name": i.upgrade_name,
+                    "upgrade_height": i.upgrade_height,
+                    "vendor": i.vendor,
+                    "version": i.version,
+                    "lightwallet_protocol_version": i.lightwallet_protocol_version,
+                })
+            );
+            Ok(ExitCode::SUCCESS)
+        }
         Cmd::FetchParams => {
             tokio::task::spawn_blocking(lute_sidecar::wallet::send::fetch_params).await??;
             println!("ok");
@@ -193,8 +224,10 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     network,
                     server,
                     birthday,
+                    kek,
                 } => {
-                    let w = Wallet::init(&dir, &name, network, &server, birthday).await?;
+                    let w = Wallet::init(&dir, &name, network, &server, birthday, kek.as_deref())
+                        .await?;
                     println!("{}", serde_json::to_string(&w.config)?);
                 }
                 WalletCmd::Sync => {

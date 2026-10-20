@@ -2,11 +2,13 @@
 //! (mandate §10.5). Built on `zcash_client_sqlite@0.22.0` / `zcash_client_backend@0.24.0`,
 //! following zcash-devtool f1ec9b1 (`src/commands/wallet/init.rs`, `src/data.rs`) as reference.
 //!
-//! Key storage in this slice: regtest seeds are stored as a 0600 file. Mainnet wallets are
-//! refused until encrypted-at-rest key storage lands (P1b, docs/TASKS.md).
+//! Key storage: the seed is sealed with XChaCha20-Poly1305 under a per-wallet key file kept outside
+//! the wallet directory (`keystore.rs`). Required on mainnet and testnet. Regtest wallets created
+//! before encrypted storage existed keep a plain 0600 `seed.bin` (disposable test keys).
 
 pub mod approve;
 pub mod cache;
+pub mod keystore;
 pub mod send;
 
 use std::fs;
@@ -34,7 +36,8 @@ use zcash_protocol::consensus::{BlockHeight, NetworkUpgrade, Parameters};
 use crate::network::{LuteNetwork, NetworkKind};
 
 const CONFIG_FILE: &str = "wallet.json";
-pub(crate) const SEED_FILE: &str = "seed.bin";
+const SEED_FILE: &str = "seed.bin";
+const SEALED_SEED_FILE: &str = "seed.enc";
 const DB_FILE: &str = "wallet.sqlite";
 
 /// Shielded-only receive addresses (mandate §19.1, test W4): an Orchard receiver (paid in the
@@ -52,6 +55,9 @@ pub struct WalletConfig {
     pub server: String,
     pub account: Uuid,
     pub birthday_height: u32,
+    /// Key-encryption-key file sealing `seed.enc`; `None` only for legacy regtest wallets.
+    #[serde(default)]
+    pub kek_path: Option<PathBuf>,
 }
 
 pub type Db = WalletDb<rusqlite::Connection, LuteNetwork, SystemClock, OsRng>;
@@ -131,6 +137,25 @@ impl Wallet {
         })
     }
 
+    /// Loads the seed: sealed `seed.enc` + key file, or (legacy regtest only) plain `seed.bin`.
+    pub(crate) fn load_seed(&self) -> anyhow::Result<SecretVec<u8>> {
+        match &self.config.kek_path {
+            Some(k) => {
+                let kek = keystore::read_kek(k)?;
+                let blob = fs::read(self.dir.join(SEALED_SEED_FILE)).context("reading seed.enc")?;
+                let network = serde_json::to_value(self.config.network)?
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string();
+                keystore::open(&kek, &keystore::aad(&self.config.name, &network), &blob)
+            }
+            None if self.config.network == NetworkKind::Regtest => Ok(SecretVec::new(
+                fs::read(self.dir.join(SEED_FILE)).context("reading seed.bin")?,
+            )),
+            None => bail!("wallet has no key file configured; refusing to load a plain seed"),
+        }
+    }
+
     pub fn params(&self) -> LuteNetwork {
         self.config.network.params()
     }
@@ -155,9 +180,20 @@ impl Wallet {
         network: NetworkKind,
         server: &str,
         birthday_height: Option<u32>,
+        kek_path: Option<&Path>,
     ) -> anyhow::Result<Self> {
-        if network == NetworkKind::Main {
-            bail!("mainnet wallets require encrypted key storage (P1b); refusing to create one");
+        if network != NetworkKind::Regtest && kek_path.is_none() {
+            bail!("--kek <file outside the wallet directory> is required on {network:?}");
+        }
+        if let Some(k) = kek_path {
+            let wallet_dir = fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+            let kek_parent = k
+                .parent()
+                .map(|p| fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf()))
+                .unwrap_or_default();
+            if kek_parent.starts_with(&wallet_dir) {
+                bail!("the key file must live outside the wallet directory");
+            }
         }
         if dir.join(CONFIG_FILE).exists() {
             bail!("{} already holds a wallet", dir.display());
@@ -183,7 +219,22 @@ impl Wallet {
         let mut seed_bytes = vec![0u8; 32];
         OsRng.fill_bytes(&mut seed_bytes);
         let seed = SecretVec::new(seed_bytes);
-        write_secret(&dir.join(SEED_FILE), seed.expose_secret())?;
+        let network_label = serde_json::to_value(network)?
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        match kek_path {
+            Some(k) => {
+                let kek = keystore::create_kek(k)?;
+                let blob = keystore::seal(
+                    &kek,
+                    &keystore::aad(name, &network_label),
+                    seed.expose_secret(),
+                );
+                write_secret(&dir.join(SEALED_SEED_FILE), &blob)?;
+            }
+            None => write_secret(&dir.join(SEED_FILE), seed.expose_secret())?,
+        }
 
         let mut db = WalletDb::for_path(dir.join(DB_FILE), params, SystemClock, OsRng)?;
         init_wallet_db(&mut db, None).map_err(|e| anyhow!("init wallet db: {e:?}"))?;
@@ -199,6 +250,7 @@ impl Wallet {
             server: server.to_string(),
             account: account.expose_uuid(),
             birthday_height: u32::from(birthday.height()),
+            kek_path: kek_path.map(Path::to_path_buf),
         };
         fs::write(
             dir.join(CONFIG_FILE),
