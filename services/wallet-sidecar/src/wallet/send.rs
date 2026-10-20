@@ -311,7 +311,9 @@ impl Wallet {
             if o.transfer_type() == TransferType::Incoming {
                 received.push(ReceivedOutput {
                     pool: pool_name(o.value_pool()),
-                    value_zat: u64::from(o.note_value()),
+                    // Orchard-shaped outputs carry (orchard::Note, ValuePool); value as in
+                    // zcash_client_backend@0.24.0 decrypt.rs `note_value`.
+                    value_zat: o.note().0.value().inner(),
                     memo_text: text(o.memo()),
                 });
             }
