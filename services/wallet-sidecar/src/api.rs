@@ -192,14 +192,14 @@ fn valid_wallet_name(n: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
-fn open_wallet(st: &AppState, name: &str) -> Result<Wallet, Response> {
+fn open_wallet(st: &AppState, name: &str) -> Result<Wallet, Box<Response>> {
+    let unknown = || Box::new(err(StatusCode::NOT_FOUND, "UNKNOWN_WALLET"));
     if !valid_wallet_name(name) {
-        return Err(err(StatusCode::NOT_FOUND, "UNKNOWN_WALLET"));
+        return Err(unknown());
     }
-    let w = Wallet::open(&st.wallets_root.join(name))
-        .map_err(|_| err(StatusCode::NOT_FOUND, "UNKNOWN_WALLET"))?;
+    let w = Wallet::open(&st.wallets_root.join(name)).map_err(|_| unknown())?;
     if w.config.network != st.network {
-        return Err(err(StatusCode::NOT_FOUND, "UNKNOWN_WALLET"));
+        return Err(unknown());
     }
     Ok(w)
 }
@@ -235,7 +235,7 @@ async fn h_zip321(State(st): State<Arc<AppState>>, Json(r): Json<Zip321Req>) -> 
 async fn h_address(State(st): State<Arc<AppState>>, UrlPath(w): UrlPath<String>) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.next_address() {
         Ok(a) => Json(json!({ "address": a })).into_response(),
@@ -246,7 +246,7 @@ async fn h_address(State(st): State<Arc<AppState>>, UrlPath(w): UrlPath<String>)
 async fn h_balance(State(st): State<Arc<AppState>>, UrlPath(w): UrlPath<String>) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.balance(1) {
         Ok(b) => Json(b).into_response(),
@@ -257,7 +257,7 @@ async fn h_balance(State(st): State<Arc<AppState>>, UrlPath(w): UrlPath<String>)
 async fn h_sync(State(st): State<Arc<AppState>>, UrlPath(w): UrlPath<String>) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.sync().await.and_then(|_| w.balance(1)) {
         Ok(b) => Json(b).into_response(),
@@ -279,7 +279,7 @@ async fn h_propose(
 ) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.propose(&r.to, r.amount_zat, r.memo.as_deref()) {
         Ok(v) => Json(v).into_response(),
@@ -293,7 +293,7 @@ async fn h_show(
 ) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.show_proposal(&id) {
         Ok(v) => Json(v).into_response(),
@@ -313,7 +313,7 @@ async fn h_approve(
 ) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.approve(&id, &r.signature, &st.owner_pub) {
         Ok(()) => Json(json!({ "approved": true })).into_response(),
@@ -327,7 +327,7 @@ async fn h_execute(
 ) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.execute(&id, &st.owner_pub).await {
         Ok(o) => Json(o).into_response(),
@@ -347,7 +347,7 @@ async fn h_verify(
 ) -> Response {
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
-        Err(r) => return r,
+        Err(r) => return *r,
     };
     match w.verify(&r.txid).await {
         Ok(v) => Json(v).into_response(),
