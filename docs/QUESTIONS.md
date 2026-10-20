@@ -11,5 +11,5 @@ Recommendation: option 1 or 2, and approve Debian 13 instead of Ubuntu (nothing 
 ## Q-002 — 2026-10-20 — Product spec (ANSWERED: docs/LUTE_SPEC.md added)
 Please add `docs/LUTE_SPEC.md`.
 
-## Q-003 — 2026-10-20 — Zodl and NU6.3
+## Q-003 — 2026-10-20 — Zodl and NU6.3 (ANSWERED: Zodl Android 3.17.1 (3155) supports Ironwood; owner to finish "Move to Ironwood" before P1b, C-016a)
 Please confirm your Zodl version can send after NU6.3 (Ironwood). Lute's receive addresses will be shielded UAs whose Orchard receiver is paid in the Ironwood pool (D-002).

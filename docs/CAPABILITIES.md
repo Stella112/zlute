@@ -40,5 +40,6 @@ Not yet compiled together. Compatibility of this set is UNVERIFIED until `cargo 
 | C-013 | Regtest support in zcash-devtool | DOCUMENTED | behind `regtest_support` feature, custom host:port (`src/remote.rs`) |
 | C-014 | Sidecar can run against regtest params with these crates | UNVERIFIED | P1a |
 | C-015 | zip321 `TransactionRequest`, `Payment`, `memo_to_base64`, `memo_from_base64` | DOCUMENTED | docs.rs zip321 0.9.0 (per mandate §27); source downloaded, not yet exercised |
-| C-016 | Zodl (payer wallet) supports NU6.3 / Ironwood sends | UNVERIFIED | Must check before P1b demo payment |
+| C-016 | Zodl (payer wallet) supports NU6.3 / Ironwood | DOCUMENTED | Owner's Zodl Android **3.17.1 (3155)** (screenshot 2026-10-20). zodl-inc/zodl-android CHANGELOG: 3.8.0 (2018) "added support for Zcash's Ironwood network upgrade (NU6.3)"; 3.9.0 (2339) "Move to Ironwood" guided Orchard→Ironwood migration. A real Zodl→Lute payment is the PROVEN step (P1b). |
+| C-016a | Payer funds must already be in Ironwood for a same-pool (non-revealing) demo payment | Owner action | If the owner's Zodl balance is still in Orchard, paying a Lute UA is an Orchard→Ironwood crossing that reveals the value. Owner completes "Move to Ironwood" in Zodl before P1b. |
 | C-017 | Z3 regtest stack (Zebra, Zallet, Zaino) | BLOCKED | Docker not installed (B-002), disk (B-001) |
