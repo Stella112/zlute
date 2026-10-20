@@ -51,5 +51,12 @@ Maris generated the owner key on her own machine with `lute-owner init` (Windows
 - Registered on the VPS as `/opt/zlute/owner.pub` (mode 0444); file sha256 `1da296dc0872777939426300eee4e42502242e97315f88c501b130ade9b3f9c4`.
 - Any change to that file must be treated as an incident (D-009 residual risk). Regtest evidence runs use a separate disposable key under `/opt/zlute/regtest-owner/`.
 
+## D-011 — 2026-10-20 — API stack dependencies and a TLS fix
+- `apps/api`: `fastify` 5.12 (MIT), `zod` 4.6 (MIT), `drizzle-orm` 0.45 (Apache-2.0), `pg` 8.23 (MIT), `@node-rs/argon2` 2.2 (MIT; prebuilt argon2id, no native toolchain needed). These are the mandate's stack (§12).
+- Test-only: `@electric-sql/pglite` 0.5 (Apache-2.0), embedded Postgres so API/DB tests run locally and in CI without Docker. Production uses Postgres 16 via `pg`.
+- Workspace dev tools pinned at the root: `typescript` 7.0.2, `vitest` 5.0.5, `@types/node` 26.6.5. TS 7 does not auto-include `@types`, so `tsconfig.base.json` lists `"types": ["node"]`.
+- Field encryption at rest uses `node:crypto` AES-256-GCM (allowed by §19.11); no libsodium dependency.
+- **TLS fix (sidecar):** rustls 0.23 was compiled with no crypto provider, so the first TLS connection (`server-info https://zec.rocks:443` on the VPS) panicked. Enabled exactly one provider (`ring`, already in the tree) and install it at startup; a regression test asserts a provider is available.
+
 ## D-004 — 2026-10-20 — Node version
 Installed Node is v26.4.0. The mandate asks for an LTS. Pin via `.nvmrc`/`engines` once the build host is fixed; if v26 is not LTS on the build date, use the current LTS line.

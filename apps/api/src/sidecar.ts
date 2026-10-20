@@ -1,0 +1,79 @@
+/**
+ * HMAC-authenticated client for the sidecar API (docs/API.md §1). apps/api is the only caller.
+ * Signing string: METHOD\nPATH\nhex(sha256(body))\nTS\nNONCE, HMAC-SHA256 with the shared secret.
+ */
+import { createHash, createHmac, randomBytes } from 'node:crypto';
+import type { ExecuteOutcome, ProposalView, SidecarClient, SidecarResult } from '@lute/core';
+import type { RecipientInspection } from '@lute/luteguard';
+
+export function signingString(method: string, path: string, body: string, ts: string, nonce: string): string {
+  const bodyHash = createHash('sha256').update(body, 'utf8').digest('hex');
+  return `${method}\n${path}\n${bodyHash}\n${ts}\n${nonce}`;
+}
+
+export function hmacHex(secret: Buffer, s: string): string {
+  return createHmac('sha256', secret).update(s, 'utf8').digest('hex');
+}
+
+export class SidecarError extends Error {}
+
+export class HttpSidecarClient implements SidecarClient {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly secret: Buffer,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly now: () => number = () => Math.floor(Date.now() / 1000),
+  ) {
+    const host = new URL(baseUrl).hostname;
+    if (!['127.0.0.1', 'localhost', '[::1]', '::1'].includes(host)) {
+      throw new Error('the sidecar must be reached over loopback only');
+    }
+  }
+
+  private async call(method: 'GET' | 'POST', path: string, body?: unknown): Promise<{ status: number; json: unknown }> {
+    const raw = body === undefined ? '' : JSON.stringify(body, (_k, v) => (typeof v === 'bigint' ? Number(v) : v));
+    const ts = String(this.now());
+    const nonce = randomBytes(16).toString('base64url');
+    const res = await this.fetchImpl(this.baseUrl + path, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        'x-lute-timestamp': ts,
+        'x-lute-nonce': nonce,
+        'x-lute-signature': hmacHex(this.secret, signingString(method, path, raw, ts, nonce)),
+      },
+      ...(method === 'POST' ? { body: raw } : {}),
+    });
+    const json = await res.json().catch(() => ({}));
+    return { status: res.status, json };
+  }
+
+  private result<T>(r: { status: number; json: unknown }): SidecarResult<T> {
+    if (r.status === 200) return { ok: true, value: r.json as T };
+    const err = (r.json as { error?: unknown }).error;
+    if (r.status === 401) throw new SidecarError('sidecar rejected our authentication');
+    if (r.status >= 500) throw new SidecarError('sidecar error');
+    return { ok: false, code: typeof err === 'string' ? err : 'SIDECAR_DENIED' };
+  }
+
+  async inspect(address: string): Promise<RecipientInspection> {
+    const r = await this.call('POST', '/v1/inspect', { address });
+    if (r.status !== 200) throw new SidecarError(`inspect failed (${r.status})`);
+    return r.json as RecipientInspection;
+  }
+
+  async propose(wallet: string, req: { to: string; amount_zat: bigint; memo?: string }): Promise<SidecarResult<ProposalView>> {
+    return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals`, req));
+  }
+
+  async approve(wallet: string, proposalId: string, signature: string): Promise<SidecarResult<true>> {
+    const r = this.result<{ approved: boolean }>(
+      await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/approve`, { signature }),
+    );
+    return r.ok ? { ok: true, value: true } : r;
+  }
+
+  async execute(wallet: string, proposalId: string): Promise<SidecarResult<ExecuteOutcome>> {
+    return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/execute`));
+  }
+}

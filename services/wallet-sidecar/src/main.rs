@@ -156,6 +156,7 @@ fn parse_network(s: &str) -> Result<NetworkKind, String> {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    lute_sidecar::install_crypto_provider();
     match run(Cli::parse()).await {
         Ok(code) => code,
         Err(e) => {

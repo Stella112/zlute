@@ -44,6 +44,9 @@ chacha20poly1305 = "0.10"
 # Loopback HTTP API for apps/api (axum already in the tree via tonic); HMAC request auth.
 axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json"] }
 hmac = "0.12"
+# rustls 0.23 (via tonic/tokio-rustls) was built with no crypto provider, so TLS panicked at
+# runtime (found on the VPS against zec.rocks). Enable exactly one provider: ring (already in tree).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 
 [dev-dependencies]
 zcash_keys = { version = "=0.16.1", features = ["orchard", "sapling", "transparent-inputs"] }

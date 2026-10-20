@@ -410,6 +410,15 @@ mod tests {
         )
     }
 
+    /// Cross-language vector: apps/api/test/sidecar.test.ts computes the same signature.
+    #[test]
+    fn cross_language_hmac_vector() {
+        assert_eq!(
+            sign(SECRET, &signing_string("POST", "/v1/inspect", b"{}", "1000", NONCE)),
+            "269ee4330764a125fb41e5be9669614be2393f422e8bd8dc64e4835715d7bf07"
+        );
+    }
+
     #[test]
     fn valid_request_passes_once_then_replay_fails() {
         let mut seen = HashMap::new();
