@@ -1,6 +1,6 @@
 # Questions for Maris
 
-## Q-001 — 2026-10-20 — Build host (affects whether P1a can run at all)
+## Q-001 — 2026-10-20 — Build host (ANSWERED: shared VPS + CI builds, D-005/D-006)
 The machine has 7.5 GB free disk, no Docker, and a Debian (not Ubuntu) WSL2 with ~2 GB RAM. Options:
 1. Free ≥ 25 GB on C:, install Docker Desktop (WSL2 backend), raise WSL memory to ~6 GB in `%UserProfile%\.wslconfig`, install Ubuntu or approve Debian.
 2. Same, but put Docker data and the repo on another drive, if one exists.
