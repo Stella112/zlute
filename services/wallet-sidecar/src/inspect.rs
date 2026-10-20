@@ -100,7 +100,9 @@ pub fn inspect(encoded: &str, network: NetworkType) -> Inspection {
             has_transparent: false,
             payable_pools: vec![Pool::Sapling],
         },
-        Address::Transparent(_) => Inspection::denied(Verdict::DeniedTransparent, Some("transparent")),
+        Address::Transparent(_) => {
+            Inspection::denied(Verdict::DeniedTransparent, Some("transparent"))
+        }
         Address::Tex(_) => Inspection::denied(Verdict::DeniedTex, Some("tex")),
         Address::Unified(ua) => {
             // zcash_keys@0.16.1 `UnifiedAddress::{has_orchard, has_sapling, has_transparent}`.
@@ -141,11 +143,16 @@ mod tests {
     /// Real, valid addresses derived from a fixed test seed. Test fixtures only.
     fn ua(net: NetworkType, request: UnifiedAddressRequest) -> zcash_keys::address::UnifiedAddress {
         let usk = match net {
-            NetworkType::Main => UnifiedSpendingKey::from_seed(&MainNetwork, &SEED, zip32::AccountId::ZERO),
+            NetworkType::Main => {
+                UnifiedSpendingKey::from_seed(&MainNetwork, &SEED, zip32::AccountId::ZERO)
+            }
             _ => UnifiedSpendingKey::from_seed(&TestNetwork, &SEED, zip32::AccountId::ZERO),
         }
         .unwrap();
-        usk.to_unified_full_viewing_key().default_address(request).unwrap().0
+        usk.to_unified_full_viewing_key()
+            .default_address(request)
+            .unwrap()
+            .0
     }
 
     fn encode_ua(ua: &zcash_keys::address::UnifiedAddress, net: NetworkType) -> String {
@@ -154,7 +161,10 @@ mod tests {
 
     #[test]
     fn shielded_ua_allowed_ironwood_first() {
-        let a = encode_ua(&ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED), NetworkType::Main);
+        let a = encode_ua(
+            &ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED),
+            NetworkType::Main,
+        );
         let i = inspect(&a, NetworkType::Main);
         assert_eq!(i.verdict, Verdict::Allowed);
         assert_eq!(i.payable_pools, vec![Pool::Ironwood, Pool::Sapling]);
@@ -163,7 +173,10 @@ mod tests {
 
     #[test]
     fn orchard_only_ua_pays_ironwood() {
-        let a = encode_ua(&ua(NetworkType::Main, UnifiedAddressRequest::ORCHARD), NetworkType::Main);
+        let a = encode_ua(
+            &ua(NetworkType::Main, UnifiedAddressRequest::ORCHARD),
+            NetworkType::Main,
+        );
         let i = inspect(&a, NetworkType::Main);
         assert_eq!(i.verdict, Verdict::Allowed);
         assert_eq!(i.payable_pools, vec![Pool::Ironwood]);
@@ -182,7 +195,10 @@ mod tests {
     /// shielded pools are payable.
     #[test]
     fn w3_ua_with_transparent_receiver_pays_only_shielded() {
-        let a = encode_ua(&ua(NetworkType::Main, UnifiedAddressRequest::ALLOW_ALL), NetworkType::Main);
+        let a = encode_ua(
+            &ua(NetworkType::Main, UnifiedAddressRequest::ALLOW_ALL),
+            NetworkType::Main,
+        );
         let i = inspect(&a, NetworkType::Main);
         assert_eq!(i.verdict, Verdict::Allowed);
         assert!(i.has_transparent);
@@ -194,8 +210,14 @@ mod tests {
     fn w1_transparent_denied() {
         let p2pkh = ZcashAddress::from_transparent_p2pkh(NetworkType::Main, [1u8; 20]).encode();
         let p2sh = ZcashAddress::from_transparent_p2sh(NetworkType::Main, [2u8; 20]).encode();
-        assert_eq!(inspect(&p2pkh, NetworkType::Main).verdict, Verdict::DeniedTransparent);
-        assert_eq!(inspect(&p2sh, NetworkType::Main).verdict, Verdict::DeniedTransparent);
+        assert_eq!(
+            inspect(&p2pkh, NetworkType::Main).verdict,
+            Verdict::DeniedTransparent
+        );
+        assert_eq!(
+            inspect(&p2sh, NetworkType::Main).verdict,
+            Verdict::DeniedTransparent
+        );
     }
 
     /// W2: TEX (ZIP-320) is denied.
@@ -219,29 +241,58 @@ mod tests {
     /// W9: wrong network is denied.
     #[test]
     fn w9_wrong_network_denied() {
-        let a = encode_ua(&ua(NetworkType::Test, UnifiedAddressRequest::SHIELDED), NetworkType::Test);
-        assert_eq!(inspect(&a, NetworkType::Main).verdict, Verdict::DeniedWrongNetwork);
-        let m = encode_ua(&ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED), NetworkType::Main);
-        assert_eq!(inspect(&m, NetworkType::Regtest).verdict, Verdict::DeniedWrongNetwork);
+        let a = encode_ua(
+            &ua(NetworkType::Test, UnifiedAddressRequest::SHIELDED),
+            NetworkType::Test,
+        );
+        assert_eq!(
+            inspect(&a, NetworkType::Main).verdict,
+            Verdict::DeniedWrongNetwork
+        );
+        let m = encode_ua(
+            &ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED),
+            NetworkType::Main,
+        );
+        assert_eq!(
+            inspect(&m, NetworkType::Regtest).verdict,
+            Verdict::DeniedWrongNetwork
+        );
     }
 
     #[test]
     fn invalid_encodings_denied() {
-        for s in ["", "zcash", "u1notreal", "zs1xxxxxxxx", "t1Hsc1LR8yKnbbe3twRp88p6vFfC5t7DLbX"] {
-            assert_eq!(inspect(s, NetworkType::Main).verdict, Verdict::DeniedInvalid, "{s}");
+        for s in [
+            "",
+            "zcash",
+            "u1notreal",
+            "zs1xxxxxxxx",
+            "t1Hsc1LR8yKnbbe3twRp88p6vFfC5t7DLbX",
+        ] {
+            assert_eq!(
+                inspect(s, NetworkType::Main).verdict,
+                Verdict::DeniedInvalid,
+                "{s}"
+            );
         }
     }
 
     /// A structurally valid UA whose Orchard receiver bytes are not a valid point is invalid.
     #[test]
     fn invalid_orchard_point_denied() {
-        let ua = unified::Address::try_from_items(vec![unified::Receiver::Orchard([0xffu8; 43])]).unwrap();
+        let ua = unified::Address::try_from_items(vec![unified::Receiver::Orchard([0xffu8; 43])])
+            .unwrap();
         let a = ZcashAddress::from_unified(NetworkType::Main, ua).encode();
-        assert_eq!(inspect(&a, NetworkType::Main).verdict, Verdict::DeniedInvalid);
+        assert_eq!(
+            inspect(&a, NetworkType::Main).verdict,
+            Verdict::DeniedInvalid
+        );
     }
 
     #[test]
     fn verdict_serializes_as_reason_code() {
-        assert_eq!(serde_json::to_string(&Verdict::DeniedTex).unwrap(), "\"DENIED_TEX\"");
+        assert_eq!(
+            serde_json::to_string(&Verdict::DeniedTex).unwrap(),
+            "\"DENIED_TEX\""
+        );
     }
 }
