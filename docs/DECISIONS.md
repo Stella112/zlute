@@ -29,5 +29,12 @@ The VPS has 2 vCPU and about 3.6 GB free RAM. A librustzcash build needs 4–6 G
 ## D-007 — 2026-10-20 — Regtest funding without Zallet (fallback for B-005)
 Zallet beta.1 hangs on account RPCs here. Regtest funds come instead from Zebra mining coinbase to a Lute-controlled **fixture** account (the regtest `ZEBRA_MINING__MINER_ADDRESS` set to that account's shielded UA, if Zebra 6.2.3 accepts one; otherwise a transparent fixture address shielded by the fixture wallet). Every such fund is labeled a fixture, never a Lute payment. The "independent second wallet" for tests becomes a second, separately keyed sidecar wallet; Zallet independence is listed as a limitation unless B-005 is resolved.
 
+## D-008 — 2026-10-20 — Spec vs mandate differences (mandate governs HOW)
+1. **Wallet operations (spec §3.1, §17.4 "Zallet for relevant wallet operations", `FullPrivacy`):** Lute's own Rust sidecar on librustzcash does wallet operations (mandate §10). Zallet is regtest-only (and currently blocked, B-005). The sidecar enforces a FullPrivacy-equivalent rule itself (zero transparent, one shielded pool; D-002), because `zcash_client_backend` has no such policy type (C-012).
+2. **Custody (spec §5.4 prefers non-custodial):** customers always pay from their own wallets (non-custodial). The `merchant`, `payout` and `agent` accounts are operator-held on the VPS (D-005); the UI and README say so and never call those accounts non-custodial.
+3. **Meter billing models (spec §10.1 lists six):** the hackathon build implements per-request and per-second (mandate §19.6). Per-minute is per-second with a different unit; per-token, per-compute-unit and per-session are ROADMAP unless time allows.
+4. **Mobile interfaces (spec §3.3):** a responsive web app only; no native mobile app.
+5. **Agent payments:** the spec lists ten MCP tools; the mandate adds `lute_pay_request` (grant-limited). It ships only if test group A passes.
+
 ## D-004 — 2026-10-20 — Node version
 Installed Node is v26.4.0. The mandate asks for an LTS. Pin via `.nvmrc`/`engines` once the build host is fixed; if v26 is not LTS on the build date, use the current LTS line.

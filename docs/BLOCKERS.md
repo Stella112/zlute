@@ -17,5 +17,5 @@
 **Tried (2026-10-20, Z3 e84ce9f, `zodlinc/zallet:v0.1.0-beta.1`):** `rpc.discover` works (35 methods). `z_getnewaccount []` → `-32602 Invalid params: No more params`. `z_getnewaccount ["lute-p1a-test", "<seedfp>"]` → no response (30 s timeout); later calls also timed out. Minutes later the VPS stopped answering SSH and HTTPS from this machine for ~4 minutes. Afterwards load was 0.54, no OOM kills, no SSH bans, Everpiece sites 200 again; most likely a network-path blip, not established. After a Zallet container restart, `rpc.discover` answers but `z_listaccounts` still hangs (> 15 s). Time-boxed; see D-007.
 **Impact:** Zallet is only the regtest funding source and second wallet. Fallback under evaluation: mine regtest coinbase directly to a Lute-controlled fixture account, labeled as a fixture.
 
-## B-004 — `docs/LUTE_SPEC.md` (product spec) not present — OPEN, owner action
+## B-004 — `docs/LUTE_SPEC.md` (product spec) not present — CLOSED 2026-10-20 (owner provided it; differences logged in D-008)
 The working directory was empty at start. The mandate references the spec as the WHAT. Building proceeds from the mandate alone until it arrives.
