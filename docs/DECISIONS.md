@@ -26,5 +26,8 @@ Maris chose the existing shared VPS for long-term hosting through judging, over 
 ## D-006 — 2026-10-20 — Compile Rust in GitHub Actions, not on the VPS
 The VPS has 2 vCPU and about 3.6 GB free RAM. A librustzcash build needs 4–6 GB and would push co-tenants into swap. CI builds a release binary (x86_64-unknown-linux-gnu, Ubuntu 24.04 runner to match the VPS glibc) and the VPS downloads it. The repo is private (`Stella112/zlute`) until the owner makes it public at P8.
 
+## D-007 — 2026-10-20 — Regtest funding without Zallet (fallback for B-005)
+Zallet beta.1 hangs on account RPCs here. Regtest funds come instead from Zebra mining coinbase to a Lute-controlled **fixture** account (the regtest `ZEBRA_MINING__MINER_ADDRESS` set to that account's shielded UA, if Zebra 6.2.3 accepts one; otherwise a transparent fixture address shielded by the fixture wallet). Every such fund is labeled a fixture, never a Lute payment. The "independent second wallet" for tests becomes a second, separately keyed sidecar wallet; Zallet independence is listed as a limitation unless B-005 is resolved.
+
 ## D-004 — 2026-10-20 — Node version
 Installed Node is v26.4.0. The mandate asks for an LTS. Pin via `.nvmrc`/`engines` once the build host is fixed; if v26 is not LTS on the build date, use the current LTS line.
