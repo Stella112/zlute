@@ -14,8 +14,20 @@ path = "src/main.rs"
 [dependencies]
 # Pinned per docs/DECISIONS.md D-001 (crates.io, published 2026-10-14).
 zcash_address = "=0.13.0"
-zcash_protocol = "=0.10.6"
+zcash_protocol = { version = "=0.10.6", features = ["local-consensus"] }
 zcash_keys = { version = "=0.16.1", features = ["orchard", "sapling"] }
+zcash_client_backend = { version = "=0.24.0", features = ["orchard", "sync", "lightwalletd-tonic-tls-webpki-roots"] }
+zcash_client_sqlite = { version = "=0.22.0", features = ["orchard"] }
+# Versions below match what zcash_client_backend/sqlite 0.24/0.22 depend on (see their Cargo.toml).
+tonic = { version = "0.14", features = ["tls-webpki-roots"] }
+rusqlite = "0.37"
+secrecy = "0.8"
+rand_core = { version = "0.6", features = ["getrandom"] }
+uuid = "1"
+async-trait = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

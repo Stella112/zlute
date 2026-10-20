@@ -4,3 +4,5 @@
 //! signs (mandate §10, §18). Everything here fails closed.
 
 pub mod inspect;
+pub mod network;
+pub mod wallet;
