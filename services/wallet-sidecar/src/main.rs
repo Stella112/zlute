@@ -24,6 +24,24 @@ enum Cmd {
         network: NetworkKind,
         address: String,
     },
+    /// Build a ZIP-321 request: zcash:<addr>?amount=..&memo=base64url("LUTE:<ref>").
+    Zip321Build {
+        #[arg(value_parser = parse_network)]
+        network: NetworkKind,
+        #[arg(long)]
+        address: String,
+        #[arg(long)]
+        zat: u64,
+        /// Opaque reference (8-64 base64url chars); goes into the memo as LUTE:<ref>.
+        #[arg(long = "ref")]
+        opaque_ref: String,
+    },
+    /// Parse and validate a single-payment ZIP-321 request.
+    Zip321Parse {
+        #[arg(value_parser = parse_network)]
+        network: NetworkKind,
+        uri: String,
+    },
     /// Download the Sapling proving parameters (hash-checked) into the default folder.
     FetchParams,
     /// Lute-operated wallet commands.
@@ -132,6 +150,36 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             } else {
                 ExitCode::from(1)
             })
+        }
+        Cmd::Zip321Build {
+            network,
+            address,
+            zat,
+            opaque_ref,
+        } => {
+            match lute_sidecar::zip321req::build(network.params_type(), &address, zat, &opaque_ref)
+            {
+                Ok(uri) => {
+                    println!("{uri}");
+                    Ok(ExitCode::SUCCESS)
+                }
+                Err(e) => {
+                    println!("{}", serde_json::to_string(&e)?);
+                    Ok(ExitCode::from(1))
+                }
+            }
+        }
+        Cmd::Zip321Parse { network, uri } => {
+            match lute_sidecar::zip321req::parse(network.params_type(), &uri) {
+                Ok(p) => {
+                    println!("{}", serde_json::to_string(&p)?);
+                    Ok(ExitCode::SUCCESS)
+                }
+                Err(e) => {
+                    println!("{}", serde_json::to_string(&e)?);
+                    Ok(ExitCode::from(1))
+                }
+            }
         }
         Cmd::FetchParams => {
             tokio::task::spawn_blocking(lute_sidecar::wallet::send::fetch_params).await??;
