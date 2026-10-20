@@ -1,0 +1,26 @@
+# deps / build
+node_modules/
+target/
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# secrets and wallet material — never commit
+.env
+.env.*
+!.env.example
+!.env.regtest.example
+*.key
+*.pem
+owner-key*
+**/wallet-data/
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+mandates/*.signed.json
+
+# misc
+.DS_Store
+*.log
