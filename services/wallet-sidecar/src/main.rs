@@ -24,6 +24,8 @@ enum Cmd {
         network: NetworkKind,
         address: String,
     },
+    /// Download the Sapling proving parameters (hash-checked) into the default folder.
+    FetchParams,
     /// Lute-operated wallet commands.
     Wallet {
         /// Wallet directory (one wallet per directory).
@@ -57,6 +59,21 @@ enum WalletCmd {
         #[arg(long, default_value_t = 1)]
         min_confirmations: u32,
     },
+    /// Send a shielded payment (regtest/testnet only in this build). Exit 0 only if accepted.
+    Send {
+        #[arg(long)]
+        to: String,
+        /// Amount in zatoshi (integer).
+        #[arg(long)]
+        zat: u64,
+        #[arg(long)]
+        memo: Option<String>,
+    },
+    /// Show what this wallet received in a transaction (amount, pool, memo, confirmations).
+    Verify {
+        #[arg(long)]
+        txid: String,
+    },
 }
 
 fn parse_network(s: &str) -> Result<NetworkKind, String> {
@@ -85,6 +102,11 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 ExitCode::from(1)
             })
         }
+        Cmd::FetchParams => {
+            tokio::task::spawn_blocking(lute_sidecar::wallet::send::fetch_params).await??;
+            println!("ok");
+            Ok(ExitCode::SUCCESS)
+        }
         Cmd::Wallet { dir, cmd } => {
             match cmd {
                 WalletCmd::Init {
@@ -105,6 +127,20 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 WalletCmd::Balance { min_confirmations } => {
                     let b = Wallet::open(&dir)?.balance(min_confirmations)?;
                     println!("{}", serde_json::to_string(&b)?);
+                }
+                WalletCmd::Send { to, zat, memo } => {
+                    let out = Wallet::open(&dir)?.send(&to, zat, memo.as_deref()).await?;
+                    println!("{}", serde_json::to_string(&out)?);
+                    if !matches!(
+                        out.broadcast,
+                        lute_sidecar::wallet::send::Broadcast::Accepted
+                    ) {
+                        return Ok(ExitCode::from(3));
+                    }
+                }
+                WalletCmd::Verify { txid } => {
+                    let v = Wallet::open(&dir)?.verify(&txid).await?;
+                    println!("{}", serde_json::to_string(&v)?);
                 }
             }
             Ok(ExitCode::SUCCESS)

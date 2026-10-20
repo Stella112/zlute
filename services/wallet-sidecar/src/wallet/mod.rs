@@ -6,6 +6,7 @@
 //! refused until encrypted-at-rest key storage lands (P1b, docs/TASKS.md).
 
 pub mod cache;
+pub mod send;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,7 +33,7 @@ use zcash_protocol::consensus::{BlockHeight, NetworkUpgrade, Parameters};
 use crate::network::{LuteNetwork, NetworkKind};
 
 const CONFIG_FILE: &str = "wallet.json";
-const SEED_FILE: &str = "seed.bin";
+pub(crate) const SEED_FILE: &str = "seed.bin";
 const DB_FILE: &str = "wallet.sqlite";
 
 /// Shielded-only receive addresses (mandate §19.1, test W4): an Orchard receiver (paid in the
@@ -187,6 +188,9 @@ impl Wallet {
         init_wallet_db(&mut db, None).map_err(|e| anyhow!("init wallet db: {e:?}"))?;
         // zcash_client_backend@0.24.0 `WalletWrite::create_account`
         let (account, _usk) = db.create_account(name, &seed, &birthday, None)?;
+        // The wallet DB cannot expose an address until it knows the chain tip (observed on
+        // regtest: "Chain height unknown; please call `update_chain_tip`").
+        db.update_chain_tip(BlockHeight::from_u32(tip))?;
 
         let config = WalletConfig {
             name: name.to_string(),
