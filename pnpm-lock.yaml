@@ -6,19 +6,25 @@ settings:
 
 importers:
 
-  .: {}
-
-  packages/luteguard:
+  .:
     devDependencies:
       '@types/node':
-        specifier: ^26.6.5
+        specifier: 26.6.5
         version: 26.6.5
       typescript:
-        specifier: ^7.0.2
+        specifier: 7.0.2
         version: 7.0.2
       vitest:
-        specifier: ^5.0.5
+        specifier: 5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5))
+
+  packages/core:
+    dependencies:
+      '@lute/luteguard':
+        specifier: workspace:*
+        version: link:../luteguard
+
+  packages/luteguard: {}
 
 packages:
 

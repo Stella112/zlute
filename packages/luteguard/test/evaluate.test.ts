@@ -275,6 +275,16 @@ describe('AuthorizationPolicy: agents (A group)', () => {
     expect(failed(evaluate(ctx, deps))).toContain('NO_MANDATE');
   });
 
+  it('automated spend without a mandate denies on regtest too', () => {
+    const ctx = agentCtx();
+    ctx.configured_network = 'regtest';
+    ctx.action.network = 'regtest';
+    ctx.proposal!.summary.network = 'regtest';
+    ctx.proposal!.proposal_hash = canonicalHash(ctx.proposal!.summary);
+    ctx.spend_authorization = null;
+    expect(failed(evaluate(ctx, deps))).toEqual(['NO_MANDATE']);
+  });
+
   it('an operation outside the grant denies', () => {
     const ctx = agentCtx();
     ctx.action.type = 'REFUND';

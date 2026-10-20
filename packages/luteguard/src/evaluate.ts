@@ -203,13 +203,14 @@ function authorizationPolicy(ctx: EvaluationContext, now: number, add: Builder):
         ? pass('mainnet_spend_authorized', 'mainnet spend requires owner approval or mandate; present')
         : { check: 'mainnet_spend_authorized', outcome: 'FAIL', reason_code: 'NO_OWNER_AUTHORIZATION', explanation: 'mainnet spends require an owner approval or mandate' },
     );
-    if (principal.kind === 'agent' || principal.kind === 'scheduler') {
-      add(
-        ctx.spend_authorization === 'mandate'
-          ? pass('automated_spend_mandate', 'automated spend cites a mandate')
-          : { check: 'automated_spend_mandate', outcome: 'FAIL', reason_code: 'NO_MANDATE', explanation: 'automated spends require an owner-signed mandate' },
-      );
-    }
+  }
+  // §13.3 "No mandate means no automated spending", on every network.
+  if (SPEND_ACTIONS.has(action.type) && (principal.kind === 'agent' || principal.kind === 'scheduler')) {
+    add(
+      ctx.spend_authorization === 'mandate'
+        ? pass('automated_spend_mandate', 'automated spend cites a mandate')
+        : { check: 'automated_spend_mandate', outcome: 'FAIL', reason_code: 'NO_MANDATE', explanation: 'automated spends require an owner-signed mandate' },
+    );
   }
 }
 
