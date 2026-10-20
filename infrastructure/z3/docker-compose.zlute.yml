@@ -1,0 +1,32 @@
+# Lute overlay for Z3 regtest on the shared VPS (docs/DECISIONS.md D-005).
+# Merged after docker-compose.yml and docker-compose.regtest.yml.
+# - Every published port binds to 127.0.0.1 only.
+# - Hard memory/CPU caps so Lute's regtest stack can never starve co-tenants.
+# - rpc-router is never started (it builds from source; Lute talks to Zebra/Zallet directly).
+
+services:
+  zebra:
+    ports: !override
+      - "127.0.0.1:${Z3_ZEBRA_HOST_RPC_PORT:-29232}:${Z3_ZEBRA_RPC_PORT:-18232}"
+      - "127.0.0.1:${Z3_ZEBRA_HOST_HEALTH_PORT:-28080}:8080"
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.0
+
+  zaino:
+    ports: !override
+      - "127.0.0.1:${Z3_ZAINO_HOST_GRPC_PORT:-28137}:8137"
+      - "127.0.0.1:${Z3_ZAINO_HOST_JSON_RPC_PORT:-28237}:8237"
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.75
+
+  zallet:
+    ports: !override
+      - "127.0.0.1:${Z3_ZALLET_HOST_RPC_PORT:-50232}:28232"
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.75
+
+  rpc-router:
+    profiles: [never]

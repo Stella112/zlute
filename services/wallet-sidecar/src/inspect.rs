@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn sapling_address_allowed() {
         let u = ua(NetworkType::Main, UnifiedAddressRequest::SHIELDED);
-        let a = Address::Sapling(u.sapling().unwrap().clone()).encode(&MainNetwork);
+        let a = Address::Sapling(*u.sapling().unwrap()).encode(&MainNetwork);
         let i = inspect(&a, NetworkType::Main);
         assert_eq!(i.verdict, Verdict::Allowed);
         assert_eq!(i.payable_pools, vec![Pool::Sapling]);
