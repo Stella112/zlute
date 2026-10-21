@@ -47,5 +47,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  cookie-permissions:
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"
+
   rpc-router:
     profiles: [never]
