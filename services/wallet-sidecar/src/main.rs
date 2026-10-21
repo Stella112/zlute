@@ -117,6 +117,17 @@ enum WalletCmd {
         #[arg(long)]
         txid: String,
     },
+    /// Check a payment request: payments to its unique address, memo LUTE:<ref>, confirmations.
+    CheckRequest {
+        #[arg(long)]
+        address: String,
+        #[arg(long)]
+        zat: u64,
+        #[arg(long = "ref")]
+        opaque_ref: String,
+        #[arg(long, default_value_t = 1)]
+        min_conf: u32,
+    },
     /// Step 1: build, policy-check and store a payment proposal (nothing is signed).
     Propose {
         #[arg(long)]
@@ -284,6 +295,17 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     ) {
                         return Ok(ExitCode::from(3));
                     }
+                }
+                WalletCmd::CheckRequest {
+                    address,
+                    zat,
+                    opaque_ref,
+                    min_conf,
+                } => {
+                    let c = Wallet::open(&dir)?
+                        .check_request(&address, zat, &opaque_ref, min_conf)
+                        .await?;
+                    println!("{}", serde_json::to_string(&c)?);
                 }
                 WalletCmd::Propose { to, zat, memo } => {
                     let v = Wallet::open(&dir)?.propose(&to, zat, memo.as_deref())?;

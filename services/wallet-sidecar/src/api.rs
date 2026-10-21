@@ -266,6 +266,32 @@ async fn h_sync(State(st): State<Arc<AppState>>, UrlPath(w): UrlPath<String>) ->
 }
 
 #[derive(Deserialize)]
+struct CheckReq {
+    address: String,
+    amount_zat: u64,
+    opaque_ref: String,
+    min_conf: u32,
+}
+
+async fn h_check(
+    State(st): State<Arc<AppState>>,
+    UrlPath(w): UrlPath<String>,
+    Json(r): Json<CheckReq>,
+) -> Response {
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    match w
+        .check_request(&r.address, r.amount_zat, &r.opaque_ref, r.min_conf.max(1))
+        .await
+    {
+        Ok(c) => Json(c).into_response(),
+        Err(e) => from_anyhow(e),
+    }
+}
+
+#[derive(Deserialize)]
 struct ProposeReq {
     to: String,
     amount_zat: u64,
@@ -374,6 +400,7 @@ pub fn router(cfg: &ApiConfig) -> Router {
         .route("/v1/wallets/{w}/proposals/{id}/approve", post(h_approve))
         .route("/v1/wallets/{w}/proposals/{id}/execute", post(h_execute))
         .route("/v1/wallets/{w}/verify", post(h_verify))
+        .route("/v1/wallets/{w}/requests/check", post(h_check))
         .layer(middleware::from_fn_with_state(st.clone(), auth))
         .with_state(st)
 }

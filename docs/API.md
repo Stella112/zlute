@@ -47,6 +47,7 @@ Any authentication failure answers `401 {"error":"UNAUTHENTICATED"}` with no fur
 | `GET /v1/wallets/{w}/balance` | — | `Balances`: `{chain_tip_height, fully_scanned_height, ironwood:{spendable_zat,total_zat}, orchard:{…}, sapling:{…}, transparent_total_zat}` |
 | `POST /v1/wallets/{w}/sync` | — | `Balances` after syncing |
 | `POST /v1/wallets/{w}/verify` | `{"txid": hex}` | `{txid, mined_height: u32\|null, confirmations, received: [{pool, value_zat, memo_text}]}` (only outputs this wallet received) |
+| `POST /v1/wallets/{w}/requests/check` | `{"address", "amount_zat", "opaque_ref", "min_conf"}` | `RequestCheck`: `{status: "UNPAID"\|"PENDING"\|"PAID", matched_by: "address_and_memo"\|"address_only"\|null, requested_zat, received_confirmed_zat, received_pending_zat, overpaid_zat, txids}`. Only non-change outputs received at that exact address count. The memo is read by fetching each transaction (GetTransaction; see PRIVACY.md). Call `sync` first. |
 | `POST /v1/wallets/{w}/proposals` | `{"to", "amount_zat": u64, "memo"?: string}` | `ProposalView`: `{proposal_hash, sign_message, summary: ProposalSummary}` |
 | `GET /v1/wallets/{w}/proposals/{id}` | — | `ProposalView` |
 | `POST /v1/wallets/{w}/proposals/{id}/approve` | `{"signature": hex}` (owner Ed25519 over `sign_message`) | `{"approved": true}` |

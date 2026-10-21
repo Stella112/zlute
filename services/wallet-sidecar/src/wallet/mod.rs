@@ -8,6 +8,7 @@
 
 pub mod approve;
 pub mod cache;
+pub mod incoming;
 pub mod keystore;
 pub mod send;
 
@@ -38,7 +39,7 @@ use crate::network::{LuteNetwork, NetworkKind};
 const CONFIG_FILE: &str = "wallet.json";
 const SEED_FILE: &str = "seed.bin";
 const SEALED_SEED_FILE: &str = "seed.enc";
-const DB_FILE: &str = "wallet.sqlite";
+pub(crate) const DB_FILE: &str = "wallet.sqlite";
 
 /// Shielded-only receive addresses (mandate §19.1, test W4): an Orchard receiver (paid in the
 /// Ironwood pool after NU6.3, D-002) and a Sapling receiver are *required*; transparent is
