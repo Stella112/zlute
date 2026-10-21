@@ -1,0 +1,2 @@
+# Lute disk watchdog (I-001). Installed at /etc/cron.d/zlute-disk-watchdog with owner approval.
+*/5 * * * * root /opt/zlute/infra/zlute-disk-watchdog.sh
