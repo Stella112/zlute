@@ -3,13 +3,17 @@ import { z } from 'zod';
 import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionRecord, type SidecarClient } from '@lute/core';
 import type { Network, Principal } from '@lute/luteguard';
 import { login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, type SessionUser } from './auth.js';
-import { opaqueId } from './crypto.js';
+import { opaqueId, type FieldCipher } from './crypto.js';
+import { registerRequestRoutes } from './requests.js';
+import type { RequestSidecar } from './sidecar.js';
 import { PgActionStore, type Db } from './db/store.js';
 
 export interface AppDeps {
   db: Db;
   store: PgActionStore;
   sidecar: SidecarClient;
+  requestSidecar: RequestSidecar;
+  cipher: FieldCipher;
   network: Network;
   now: () => number;
   /** Secure cookies need HTTPS; tests run over plain inject. */
@@ -76,6 +80,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     // addition to SameSite=Strict cookies).
     if (req.method !== 'GET' && !sameOrigin(req)) return reply.code(403).send({ error: 'BAD_ORIGIN' });
   });
+
+  registerRequestRoutes(app, { db: deps.db, cipher: deps.cipher, sidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });
 
   app.get('/v1/health', async () => ({ ok: true, network: deps.network }));
 

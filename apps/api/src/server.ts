@@ -46,13 +46,16 @@ async function main(): Promise<void> {
     return;
   }
 
-  const store = new PgActionStore(db, FieldCipher.fromHex(env('LUTE_DATA_KEY')), now);
+  const cipher = FieldCipher.fromHex(env('LUTE_DATA_KEY'));
+  const store = new PgActionStore(db, cipher, now);
   const secret = Buffer.from(readFileSync(env('LUTE_SIDECAR_SECRET_FILE'), 'utf8').trim(), 'hex');
   const sidecar = new HttpSidecarClient(env('LUTE_SIDECAR_URL'), secret);
   const app = await buildApp({
     db,
     store,
     sidecar,
+    requestSidecar: sidecar,
+    cipher,
     network,
     now,
     secureCookies: env('LUTE_SECURE_COOKIES', 'true') === 'true',

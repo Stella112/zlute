@@ -62,3 +62,23 @@ CREATE TABLE IF NOT EXISTS privacy_decisions (
   params_hash    TEXT NOT NULL,
   evaluated_at   BIGINT NOT NULL
 );
+
+-- Payment requests (mandate §19.2). details_ciphertext is encrypted IN THE BROWSER with a key that
+-- only exists in the share link's #fragment; the server never sees it in clear.
+CREATE TABLE IF NOT EXISTS payment_requests (
+  id                 TEXT PRIMARY KEY,      -- 128-bit random base64url; also the LUTE:<ref> memo ref
+  owner_user_id      TEXT NOT NULL REFERENCES users(id),
+  wallet             TEXT NOT NULL,
+  network            TEXT NOT NULL CHECK (network IN ('main','test','regtest')),
+  amount_zat         BIGINT NOT NULL CHECK (amount_zat > 0),
+  address_enc        TEXT NOT NULL,         -- unique shielded receive address (AES-256-GCM at rest)
+  zip321_enc         TEXT NOT NULL,
+  details_ciphertext TEXT,                  -- opaque blob from the browser (XChaCha20-Poly1305)
+  status             TEXT NOT NULL CHECK (status IN ('UNPAID','PENDING','PAID','EXPIRED')),
+  received_zat       BIGINT NOT NULL DEFAULT 0 CHECK (received_zat >= 0),
+  matched_by         TEXT,
+  txids              JSONB NOT NULL DEFAULT '[]',
+  expires_at         BIGINT NOT NULL,
+  created_at         BIGINT NOT NULL,
+  updated_at         BIGINT NOT NULL
+);

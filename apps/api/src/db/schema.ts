@@ -59,3 +59,21 @@ export const privacyDecisions = pgTable('privacy_decisions', {
   params_hash: text('params_hash').notNull(),
   evaluated_at: bigint('evaluated_at', { mode: 'number' }).notNull(),
 });
+
+export const paymentRequests = pgTable('payment_requests', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  wallet: text('wallet').notNull(),
+  network: text('network').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  address_enc: text('address_enc').notNull(),
+  zip321_enc: text('zip321_enc').notNull(),
+  details_ciphertext: text('details_ciphertext'),
+  status: text('status').notNull(),
+  received_zat: bigint('received_zat', { mode: 'bigint' }).notNull().default(0n),
+  matched_by: text('matched_by'),
+  txids: jsonb('txids').notNull().default([]),
+  expires_at: bigint('expires_at', { mode: 'number' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+  updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
+});

@@ -9,6 +9,7 @@ import { FieldCipher } from '../src/crypto.js';
 import { schemaSql } from '../src/db/migrate.js';
 import { PgActionStore } from '../src/db/store.js';
 import { redact } from '../src/log.js';
+import type { RequestCheck, RequestSidecar } from '../src/sidecar.js';
 
 const NOW = 1_800_000_000;
 const ORIGIN = 'https://lute.example';
@@ -43,6 +44,20 @@ class FakeSidecar implements SidecarClient {
   }
 }
 
+class FakeRequestSidecar implements RequestSidecar {
+  check: RequestCheck = { status: 'UNPAID', matched_by: null, requested_zat: 0, received_confirmed_zat: 0, received_pending_zat: 0, overpaid_zat: 0, txids: [] };
+  async newAddress() {
+    return 'uregtest1freshrequestaddress';
+  }
+  async buildZip321(address: string, amount: bigint, ref: string) {
+    return `zcash:${address}?amount=${amount}&memo=LUTE:${ref}`;
+  }
+  async sync() {}
+  async checkRequest() {
+    return this.check;
+  }
+}
+
 async function setup() {
   const pg = new PGlite();
   await pg.exec(schemaSql());
@@ -52,7 +67,8 @@ async function setup() {
   await createUser(db, 'maris', PW, 'owner', NOW);
   await createUser(db, 'mallory', PW, 'owner', NOW);
   await createUser(db, 'carol', PW, 'user', NOW);
-  const app = await buildApp({ db, store, sidecar, network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: ORIGIN });
+  const reqSidecar = new FakeRequestSidecar();
+  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: ORIGIN });
   const loginAs = async (username: string) => {
     const r = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username, password: PW }, headers: { origin: ORIGIN } });
     expect(r.statusCode).toBe(200);
@@ -62,7 +78,7 @@ async function setup() {
     expect(c).toContain('SameSite=Strict');
     return c.split(';')[0]!;
   };
-  return { app, pg, store, sidecar, loginAs };
+  return { app, pg, store, sidecar, reqSidecar, loginAs };
 }
 
 const send = (cookie: string, idem = 'idem-0001', payload: object = { wallet: 'payout', to: RECIPIENT, amount_zec: '0.01', memo_ref: 'Ab3_x-9Zq1' }) => ({
@@ -198,5 +214,76 @@ describe('U9 logger redaction', () => {
     expect(s).not.toContain('1000000');
     expect(s).toContain('amount_zat_bucket');
     expect(s).toContain('SUBMITTED');
+  });
+});
+
+describe('payment requests (§19.2)', () => {
+  let t: Awaited<ReturnType<typeof setup>>;
+  beforeEach(async () => {
+    t = await setup();
+  });
+
+  const create = (cookie: string, payload: object = { amount_zec: '0.005', details_ciphertext: 'Q2lwaGVydGV4dEJsb2JfX19fX19fX18' }) => ({
+    method: 'POST' as const,
+    url: '/v1/requests',
+    payload,
+    headers: { cookie, origin: ORIGIN },
+  });
+
+  it('creates a request with an opaque id and a share path without the key', async () => {
+    const cookie = await t.loginAs('maris');
+    const r = (await t.app.inject(create(cookie))).json();
+    expect(r.id).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(r.share_path).toBe(`/r/${r.id}`);
+    expect(JSON.stringify(r)).not.toContain('uregtest1');
+  });
+
+  it('public view returns the payment instructions and the opaque ciphertext, nothing about the owner', async () => {
+    const cookie = await t.loginAs('maris');
+    const { id } = (await t.app.inject(create(cookie))).json();
+    const pub = await t.app.inject({ method: 'GET', url: `/v1/public/requests/${id}` });
+    const body = pub.json();
+    expect(body.status).toBe('OPEN');
+    expect(body.zip321_uri).toContain(`LUTE:${id}`);
+    expect(body.details_ciphertext).toBe('Q2lwaGVydGV4dEJsb2JfX19fX19fX18');
+    expect(pub.body).not.toContain('maris');
+    expect(pub.headers['cache-control']).toBe('no-store');
+    expect(pub.headers['referrer-policy']).toBe('no-referrer');
+  });
+
+  it('stores the address and URI encrypted at rest', async () => {
+    const cookie = await t.loginAs('maris');
+    await t.app.inject(create(cookie));
+    const rows = await t.pg.query('SELECT address_enc, zip321_enc FROM payment_requests');
+    expect(JSON.stringify(rows.rows)).not.toContain('uregtest1');
+  });
+
+  it('F6: a request is never PAID from pending (unconfirmed) funds', async () => {
+    const cookie = await t.loginAs('maris');
+    const { id } = (await t.app.inject(create(cookie))).json();
+    t.reqSidecar.check = { status: 'PENDING', matched_by: 'address_and_memo', requested_zat: 500000, received_confirmed_zat: 0, received_pending_zat: 500000, overpaid_zat: 0, txids: ['aa'] };
+    const r = (await t.app.inject({ method: 'POST', url: `/v1/requests/${id}/refresh`, headers: { cookie, origin: ORIGIN } })).json();
+    expect(r.status).toBe('PENDING');
+    t.reqSidecar.check = { ...t.reqSidecar.check, status: 'PAID', received_confirmed_zat: 500000, received_pending_zat: 0 };
+    const p = (await t.app.inject({ method: 'POST', url: `/v1/requests/${id}/refresh`, headers: { cookie, origin: ORIGIN } })).json();
+    expect(p).toMatchObject({ status: 'PAID', received_zat: '500000', matched_by: 'address_and_memo', txids: ['aa'] });
+    // Once paid, the public page stops showing payment instructions.
+    expect((await t.app.inject({ method: 'GET', url: `/v1/public/requests/${id}` })).json()).toMatchObject({ status: 'PAID', zip321_uri: null });
+  });
+
+  it('U6: another user cannot refresh someone else\'s request; unknown ids are 404', async () => {
+    const maris = await t.loginAs('maris');
+    const { id } = (await t.app.inject(create(maris))).json();
+    const mallory = await t.loginAs('mallory');
+    expect((await t.app.inject({ method: 'POST', url: `/v1/requests/${id}/refresh`, headers: { cookie: mallory, origin: ORIGIN } })).statusCode).toBe(404);
+    expect((await t.app.inject({ method: 'GET', url: '/v1/public/requests/AAAAAAAAAAAAAAAAAAAAAA' })).statusCode).toBe(404);
+  });
+
+  it('a plain user cannot create requests; bad amounts are rejected', async () => {
+    const carol = await t.loginAs('carol');
+    expect((await t.app.inject(create(carol))).statusCode).toBe(404);
+    const maris = await t.loginAs('maris');
+    expect((await t.app.inject(create(maris, { amount_zec: '0' }))).json()).toEqual({ error: 'BAD_AMOUNT' });
+    expect((await t.app.inject(create(maris, { amount_zec: '0.000000001' }))).json()).toEqual({ error: 'BAD_AMOUNT' });
   });
 });

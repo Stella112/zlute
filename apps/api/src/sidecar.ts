@@ -17,7 +17,25 @@ export function hmacHex(secret: Buffer, s: string): string {
 
 export class SidecarError extends Error {}
 
-export class HttpSidecarClient implements SidecarClient {
+export interface RequestCheck {
+  status: 'UNPAID' | 'PENDING' | 'PAID';
+  matched_by: 'address_and_memo' | 'address_only' | null;
+  requested_zat: number;
+  received_confirmed_zat: number;
+  received_pending_zat: number;
+  overpaid_zat: number;
+  txids: string[];
+}
+
+/** Sidecar calls used by payment requests (docs/API.md §1). */
+export interface RequestSidecar {
+  newAddress(wallet: string): Promise<string>;
+  buildZip321(address: string, amount_zat: bigint, opaque_ref: string): Promise<string>;
+  sync(wallet: string): Promise<void>;
+  checkRequest(wallet: string, req: { address: string; amount_zat: bigint; opaque_ref: string; min_conf: number }): Promise<RequestCheck>;
+}
+
+export class HttpSidecarClient implements SidecarClient, RequestSidecar {
   constructor(
     private readonly baseUrl: string,
     private readonly secret: Buffer,
@@ -75,5 +93,28 @@ export class HttpSidecarClient implements SidecarClient {
 
   async execute(wallet: string, proposalId: string): Promise<SidecarResult<ExecuteOutcome>> {
     return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/execute`));
+  }
+
+  async newAddress(wallet: string): Promise<string> {
+    const r = await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/address`);
+    if (r.status !== 200) throw new SidecarError(`address failed (${r.status})`);
+    return (r.json as { address: string }).address;
+  }
+
+  async buildZip321(address: string, amount_zat: bigint, opaque_ref: string): Promise<string> {
+    const r = await this.call('POST', '/v1/zip321/build', { address, amount_zat, opaque_ref });
+    if (r.status !== 200) throw new SidecarError(`zip321 failed (${r.status})`);
+    return (r.json as { uri: string }).uri;
+  }
+
+  async sync(wallet: string): Promise<void> {
+    const r = await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/sync`);
+    if (r.status !== 200) throw new SidecarError(`sync failed (${r.status})`);
+  }
+
+  async checkRequest(wallet: string, req: { address: string; amount_zat: bigint; opaque_ref: string; min_conf: number }): Promise<RequestCheck> {
+    const r = await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/requests/check`, req);
+    if (r.status !== 200) throw new SidecarError(`request check failed (${r.status})`);
+    return r.json as RequestCheck;
   }
 }
