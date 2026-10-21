@@ -18,6 +18,11 @@ services:
       - /opt/zlute/api/pg_password:/run/secrets/pg_password:ro
     ports:
       - "127.0.0.1:48432:5432"
+    logging: &capped-logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     mem_limit: 256m
     memswap_limit: 256m
     cpus: 0.5
@@ -38,6 +43,7 @@ services:
     volumes:
       - /opt/zlute/api/src:/app:ro
       - /opt/zlute/keys/api.secret:/run/secrets/sidecar_secret:ro
+    logging: *capped-logs
     mem_limit: 384m
     memswap_limit: 384m
     cpus: 0.5

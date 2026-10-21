@@ -3,6 +3,9 @@
 # - Every published port binds to 127.0.0.1 only.
 # - Hard memory/CPU caps so Lute's regtest stack can never starve co-tenants.
 # - rpc-router is never started (it builds from source; Lute talks to Zebra/Zallet directly).
+# - Zallet is never started: on 2026-10-21 its beta.1 image logged a mempool-stream error in a tight
+#   loop and filled the shared VPS disk (333 GB log) — incident I-001. Lute does not use it (D-007).
+# - Every container's json-file log is capped (10 MB x 3).
 
 services:
   zebra:
@@ -12,6 +15,11 @@ services:
     mem_limit: 1g
     memswap_limit: 1g
     cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   zaino:
     ports: !override
@@ -20,13 +28,24 @@ services:
     mem_limit: 512m
     memswap_limit: 512m
     cpus: 0.75
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   zallet:
     ports: !override
       - "127.0.0.1:${Z3_ZALLET_HOST_RPC_PORT:-50232}:28232"
+    profiles: [never]
     mem_limit: 512m
     memswap_limit: 512m
     cpus: 0.75
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   rpc-router:
     profiles: [never]
