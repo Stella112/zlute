@@ -1,0 +1,50 @@
+# Lute API + Postgres 16 on the shared VPS (D-005). Everything is prefixed zlute-, memory-capped
+# and bound to 127.0.0.1. Secrets come from /opt/zlute/api/api.env (0600, created on the VPS,
+# never committed). The sidecar runs on the host (127.0.0.1:48100); the API uses host networking
+# to reach it over loopback.
+name: zlute-api
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    container_name: zlute-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lute
+      POSTGRES_DB: lute
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    volumes:
+      - zlute-pgdata:/var/lib/postgresql/data
+      - /opt/zlute/api/pg_password:/run/secrets/pg_password:ro
+    ports:
+      - "127.0.0.1:48432:5432"
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lute -d lute"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: node:24-bookworm-slim
+    container_name: zlute-api
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app/apps/api
+    command: ["node", "dist/server.js"]
+    env_file: /opt/zlute/api/api.env
+    volumes:
+      - /opt/zlute/api/src:/app:ro
+      - /opt/zlute/keys/api.secret:/run/secrets/sidecar_secret:ro
+    mem_limit: 384m
+    memswap_limit: 384m
+    cpus: 0.5
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  zlute-pgdata:
+    name: zlute-pgdata

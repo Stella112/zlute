@@ -1,0 +1,24 @@
+# Lute wallet sidecar (mainnet) on the shared VPS. Loopback-only API for apps/api (§13.4).
+# Install: cp to /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now zlute-sidecar-main
+[Unit]
+Description=Lute wallet sidecar (mainnet, loopback API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/opt/zlute/bin/lute-sidecar serve --listen 127.0.0.1:48100 --wallets /opt/zlute/wallets/main --network main --secret-file /opt/zlute/keys/api.secret --owner-pub /opt/zlute/owner.pub
+Restart=on-failure
+RestartSec=5
+# Hard limits so Lute can never starve co-tenants (D-005).
+MemoryMax=512M
+CPUQuota=50%
+# Hardening: only the wallet directories are writable.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/zlute/wallets/main
+# Read-only (not hidden): the Sapling proving parameters live in root's home (~/.zcash-params).
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
