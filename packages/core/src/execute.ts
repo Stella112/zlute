@@ -59,6 +59,8 @@ export interface SidecarClient {
   propose(wallet: string, req: { to: string; amount_zat: bigint; memo?: string }): Promise<SidecarResult<ProposalView>>;
   approve(wallet: string, proposalId: string, signature: string): Promise<SidecarResult<true>>;
   execute(wallet: string, proposalId: string): Promise<SidecarResult<ExecuteOutcome>>;
+  /** Execute under a loaded owner-signed mandate; the sidecar re-checks its bounds atomically. */
+  executeMandate(wallet: string, proposalId: string, mandateId: string): Promise<SidecarResult<ExecuteOutcome>>;
 }
 
 export interface EngineDeps {
@@ -96,10 +98,13 @@ function actorOf(p: Principal): Actor {
   return p.kind;
 }
 
-/** Spends are authorized by the owner's approval in the sidecar (D-009); automated spends
- * require a mandate, which this build does not implement, so they fail closed. */
+/** Spends are authorized by the owner's approval in the sidecar (D-009), or, for an agent, by
+ * the owner-signed mandate behind its grant (§13.3). Anything else has no authorization and
+ * LuteGuard denies it. */
 function authorizationFor(p: Principal): EvaluationContext['spend_authorization'] {
-  return p.kind === 'owner' ? 'owner_approval' : null;
+  if (p.kind === 'owner') return 'owner_approval';
+  if (p.kind === 'agent' && p.grant?.mandate_id) return 'mandate';
+  return null;
 }
 
 /**
@@ -186,6 +191,10 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       proposal_hash: proposal.proposal_hash,
       last_decision_id: decision.decision_id,
     });
+    // An agent never signs: it is authorized by its grant's mandate, which the sidecar enforces.
+    if (req.principal.kind === 'agent' && req.principal.grant?.mandate_id) {
+      return executeUnderMandate(deps, a, req.principal.grant.mandate_id, actor);
+    }
     if (!req.ownerSignature) {
       return { state: 'AWAITING_AUTHORIZATION', proposal_hash: proposal.proposal_hash, sign_message: proposal.sign_message, summary: proposal.summary };
     }
@@ -215,7 +224,27 @@ async function authorizeAndExecute(deps: EngineDeps, a: ActionRecord, signature:
   }
   await store.transition(a.id, 'AWAITING_AUTHORIZATION', 'AUTHORIZED', actor);
   await store.transition(a.id, 'AUTHORIZED', 'PREPARING', actor);
-  const ex = await sidecar.execute(a.wallet, a.proposal_id);
+  return recordExecution(deps, a, await sidecar.execute(a.wallet, a.proposal_id), actor);
+}
+
+async function executeUnderMandate(deps: EngineDeps, a: ActionRecord, mandateId: string, actor: Actor): Promise<ExecuteResult> {
+  const { store, sidecar } = deps;
+  if (!a.wallet || !a.proposal_id) throw new Error('awaiting action without proposal');
+  await store.transition(a.id, 'AWAITING_AUTHORIZATION', 'AUTHORIZED', actor);
+  await store.transition(a.id, 'AUTHORIZED', 'PREPARING', actor);
+  let ex: SidecarResult<ExecuteOutcome>;
+  try {
+    ex = await sidecar.executeMandate(a.wallet, a.proposal_id, mandateId);
+  } catch {
+    // Unknown whether anything was broadcast: never assume failure, never retry blindly.
+    await store.transition(a.id, 'PREPARING', 'SUBMITTED', actor, { broadcast_ambiguous: true });
+    return { state: 'SUBMITTED', txid: null, ambiguous: true };
+  }
+  return recordExecution(deps, a, ex, actor);
+}
+
+async function recordExecution(deps: EngineDeps, a: ActionRecord, ex: SidecarResult<ExecuteOutcome>, actor: Actor): Promise<ExecuteResult> {
+  const { store } = deps;
   if (!ex.ok) {
     await store.transition(a.id, 'PREPARING', 'FAILED', actor, { reject_reason: ex.code });
     return { state: 'FAILED', reason: ex.code };

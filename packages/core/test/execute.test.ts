@@ -96,6 +96,10 @@ class FakeSidecar implements SidecarClient {
     this.calls.push('execute');
     return this.executeResult;
   }
+  async executeMandate(_w: string, _p: string, mandateId: string) {
+    this.calls.push(`executeMandate:${mandateId}`);
+    return this.executeResult;
+  }
 }
 
 function setup(over: Partial<ActionRecord> = {}) {
@@ -249,5 +253,68 @@ describe('executeAction', () => {
     const r = await executeAction(deps, req({ caller }));
     expect(r.state).toBe('REJECTED');
     if (r.state === 'REJECTED') expect(r.reasons).toContain('RECIPIENT_DENIED_TRANSPARENT');
+  });
+});
+
+describe('executeAction for agents (§13.3, A1–A5)', () => {
+  const grant = (over: object = {}) => ({
+    grant_id: 'g1',
+    allowed_ops: ['METER_SETTLEMENT' as const],
+    cap_total_zat: 25_000n,
+    cap_per_tx_zat: 15_000n,
+    spent_zat: 0n,
+    allowed_recipients: ['svc-1'],
+    expires_at: NOW + 3600,
+    mandate_id: 'm'.repeat(32),
+    ...over,
+  });
+  const agent = (g: object | undefined): Principal => ({ kind: 'agent', id: 'agent-1', authenticated: true, ...(g ? { grant: g as never } : {}) });
+  const meter = { type: 'METER_SETTLEMENT' as const, amount_zat: 15_000n, wallet: 'agent', recipient_ref: 'svc-1' };
+
+  it('inside its grant, an agent pays under the mandate without any owner signature', async () => {
+    const { deps, store, sidecar } = setup(meter);
+    const r = await executeAction(deps, req({ principal: agent(grant()), caller: 'mcp' }));
+    expect(r).toEqual({ state: 'SUBMITTED', txid: 'tx-1', ambiguous: false });
+    expect(sidecar.calls).toEqual(['inspect', 'propose', `executeMandate:${'m'.repeat(32)}`]);
+    expect(store.decisions[0]?.outcome).toBe('ALLOW');
+    expect(store.transitions.every((t) => t.actor === 'agent:g1')).toBe(true);
+  });
+
+  it('A1 no grant, and a grant without a mandate, are denied before anything executes', async () => {
+    for (const g of [undefined, grant({ mandate_id: undefined })]) {
+      const { deps, sidecar } = setup(meter);
+      const r = await executeAction(deps, req({ principal: agent(g), caller: 'mcp' }));
+      expect(r.state).toBe('REJECTED');
+      expect(sidecar.calls.some((c) => c.startsWith('execute'))).toBe(false);
+    }
+  });
+
+  it('A2/A3/A5: over the per-tx cap, over the remaining budget, or to another recipient is DENY', async () => {
+    const cases: [object, object, string][] = [
+      [{ amount_zat: 15_001n }, {}, 'OVER_GRANT_PER_TX'],
+      [{}, { spent_zat: 10_001n }, 'OVER_GRANT_TOTAL'],
+      [{ recipient_ref: 'svc-other' }, {}, 'RECIPIENT_NOT_GRANTED'],
+      [{ type: 'SEND' }, {}, 'OP_NOT_GRANTED'],
+    ];
+    for (const [over, gover, code] of cases) {
+      const { deps, sidecar } = setup({ ...meter, ...over });
+      const r = await executeAction(deps, req({ principal: agent(grant(gover)), caller: 'mcp' }));
+      expect(r.state).toBe('REJECTED');
+      if (r.state === 'REJECTED') expect(r.reasons).toContain(code);
+      expect(sidecar.calls.some((c) => c.startsWith('execute'))).toBe(false);
+    }
+  });
+
+  it('an agent cannot use an owner signature to get around its grant', async () => {
+    const { deps, sidecar } = setup({ ...meter, amount_zat: 15_001n });
+    const r = await executeAction(deps, req({ principal: agent(grant()), caller: 'mcp', ownerSignature: 'a'.repeat(128) }));
+    expect(r.state).toBe('REJECTED');
+    expect(sidecar.calls).not.toContain('approve');
+  });
+
+  it('a sidecar refusal under the mandate fails the action with its code', async () => {
+    const { deps, sidecar } = setup(meter);
+    sidecar.executeResult = { ok: false, code: 'OVER_MANDATE_TOTAL' };
+    expect(await executeAction(deps, req({ principal: agent(grant()), caller: 'mcp' }))).toEqual({ state: 'FAILED', reason: 'OVER_MANDATE_TOTAL' });
   });
 });

@@ -183,45 +183,42 @@ mod tests {
 
     #[test]
     fn bounds_are_enforced_even_when_signed() {
-        let cases: Vec<(Box<dyn Fn(&mut Mandate)>, MandateError)> = vec![
+        let cases: Vec<(fn(&mut Mandate), MandateError)> = vec![
             (
-                Box::new(|m| m.max_tx_zat = MAX_TX_ZAT + 1),
+                |m| m.max_tx_zat = MAX_TX_ZAT + 1,
                 MandateError::MandateOverCaps,
             ),
             (
-                Box::new(|m| m.total_zat = DAILY_CAP_ZAT + 1),
+                |m| m.total_zat = DAILY_CAP_ZAT + 1,
                 MandateError::MandateOverCaps,
             ),
             (
-                Box::new(|m| m.max_tx_zat = m.total_zat + 1),
+                |m| m.max_tx_zat = m.total_zat + 1,
                 MandateError::MandateOverCaps,
             ),
+            (|m| m.expires_at = NOW, MandateError::MandateExpired),
             (
-                Box::new(|m| m.expires_at = NOW),
-                MandateError::MandateExpired,
-            ),
-            (
-                Box::new(|m| m.expires_at = NOW + MAX_MANDATE_LIFETIME_S + 1),
+                |m| m.expires_at = NOW + MAX_MANDATE_LIFETIME_S + 1,
                 MandateError::MandateTooLong,
             ),
             (
-                Box::new(|m| m.allowed_recipients.clear()),
+                |m| m.allowed_recipients.clear(),
                 MandateError::MandateNoRecipients,
             ),
             (
-                Box::new(|m| m.wallet = "payout".into()),
+                |m| m.wallet = "payout".into(),
                 MandateError::MandateWrongWallet,
             ),
             (
-                Box::new(|m| m.network = "main".into()),
+                |m| m.network = "main".into(),
                 MandateError::MandateWrongNetwork,
             ),
             (
-                Box::new(|m| m.purpose = "stream".into()),
+                |m| m.purpose = "stream".into(),
                 MandateError::MandatePurposeNotAllowed,
             ),
             (
-                Box::new(|m| m.mandate_id = "x".into()),
+                |m| m.mandate_id = "x".into(),
                 MandateError::MandateMalformed,
             ),
         ];
