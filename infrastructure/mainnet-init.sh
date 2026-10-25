@@ -18,7 +18,7 @@ step "light server"; "$BIN" server-info "$SERVER"
 mkdir -p "$ROOT" "$KEYS"
 chmod 700 /opt/zlute/wallets "$ROOT" "$KEYS"
 
-for name in merchant payout; do
+for name in merchant payout agent; do
   if [ -f "$ROOT/$name/wallet.json" ]; then
     step "$name exists; skipping init"
   else
