@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-25T23:02:29.302Z",
- "commit": "5c467c331962fd31dee33241bf100c794e7487a2",
+ "generated_at": "2026-10-25T23:52:01.538Z",
+ "commit": "af0701c724a986318df501b6bcde1d2dd2b78b1e",
  "dirty": false,
  "suites": [
   {
@@ -14,27 +14,41 @@
   {
    "name": "core",
    "source": "local",
-   "passed": 58,
+   "passed": 63,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "api",
    "source": "local",
-   "passed": 35,
+   "passed": 42,
+   "failed": 0,
+   "skipped": 0
+  },
+  {
+   "name": "mcp",
+   "source": "local",
+   "passed": 5,
+   "failed": 0,
+   "skipped": 0
+  },
+  {
+   "name": "web",
+   "source": "local",
+   "passed": 2,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "sidecar",
-   "source": "ci run 40214979512 @ 9a7a76f",
-   "passed": 60,
+   "source": "ci run 40244998334 @ 015ea91",
+   "passed": 67,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "lute-owner",
-   "source": "ci run 39502798819 @ 580ddfa",
+   "source": "ci run 40243774820 @ 62ad249",
    "passed": 4,
    "failed": 0,
    "skipped": 0
@@ -463,6 +477,36 @@
   },
   {
    "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction for agents (§13.3, A1–A5) inside its grant, an agent pays under the mandate without any owner signature",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction for agents (§13.3, A1–A5) A1 no grant, and a grant without a mandate, are denied before anything executes",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction for agents (§13.3, A1–A5) A2/A3/A5: over the per-tx cap, over the remaining budget, or to another recipient is DENY",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction for agents (§13.3, A1–A5) an agent cannot use an owner signature to get around its grant",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction for agents (§13.3, A1–A5) a sidecar refusal under the mandate fails the action with its code",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
    "file": "packages/core/test/money.test.ts",
    "name": "F2 exact decimal → zatoshi 0 → 0n",
    "status": "passed"
@@ -691,6 +735,48 @@
   },
   {
    "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) the mandate draft is bound to the service address and the agent wallet; the token is shown once",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) a mandate for another recipient, or one the sidecar refuses, creates no grant",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) agent tokens and owner sessions are separate (no cross use)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) A10: inside its grant the agent pays the metered API under the mandate (no owner signature); A3: then it is denied",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) the metered API answers 402 once the unpaid usage reaches the credit limit",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) A2: a single payment over the per-tx cap is denied; A4: a revoked grant pays nothing",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) a settlement confirms on refresh, and a repeated idempotency key never pays twice",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
    "file": "apps/api/test/app.test.ts",
    "name": "API rejects bad credentials with the same error for unknown users",
    "status": "passed"
@@ -900,9 +986,57 @@
    "status": "passed"
   },
   {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) exposes exactly the backed tools; none takes a recipient or an amount",
+   "status": "passed"
+  },
+  {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) A8: session ids are validated, so injected text never reaches a URL",
+   "status": "passed"
+  },
+  {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) A6: every call goes to the Lute API with the agent token, never to the sidecar",
+   "status": "passed"
+  },
+  {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) settlement retries are idempotent per (session, settlement number)",
+   "status": "passed"
+  },
+  {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) A9: tool output never contains the token",
+   "status": "passed"
+  },
+  {
+   "suite": "web",
+   "file": "apps/web/lib/format.test.ts",
+   "name": "web formatting formats zatoshi exactly with bigint (no floating point)",
+   "status": "passed"
+  },
+  {
+   "suite": "web",
+   "file": "apps/web/lib/format.test.ts",
+   "name": "web formatting shortens long ids and links only mainnet txids",
+   "status": "passed"
+  },
+  {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::api::tests",
    "name": "api::tests::cross_language_hmac_vector",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::tampering_fails",
    "status": "passed"
   },
   {
@@ -921,12 +1055,6 @@
    "suite": "sidecar",
    "file": "services/wallet-sidecar::api::tests",
    "name": "api::tests::valid_request_passes_once_then_replay_fails",
-   "status": "passed"
-  },
-  {
-   "suite": "sidecar",
-   "file": "services/wallet-sidecar::api::tests",
-   "name": "api::tests::tampering_fails",
    "status": "passed"
   },
   {
@@ -968,13 +1096,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::forged_approval_rejected",
+   "name": "control::tests::expired_mandate_spends_nothing",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::no_approval_denied",
+   "name": "control::tests::forged_approval_rejected",
    "status": "passed"
   },
   {
@@ -986,19 +1114,43 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::mandate_expires_and_tampering_or_reload_is_refused",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::mandate_recipient_unknown_replay_binding_expiry",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::no_approval_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
    "name": "control::tests::w12_expired_proposal_denied",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w14_per_tx_cap",
+   "name": "control::tests::mandate_spends_within_budget_then_denies",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
    "name": "control::tests::w13_approval_reuse_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w14_per_tx_cap",
    "status": "passed"
   },
   {
@@ -1071,6 +1223,24 @@
    "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
    "name": "inspect::tests::w3_ua_with_transparent_receiver_pays_only_shielded",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::mandate::tests",
+   "name": "mandate::tests::bounds_are_enforced_even_when_signed",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::mandate::tests",
+   "name": "mandate::tests::forged_or_altered_mandate_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::mandate::tests",
+   "name": "mandate::tests::valid_mandate_verifies",
    "status": "passed"
   },
   {
@@ -1196,7 +1366,7 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::build_parse_roundtrip",
+   "name": "zip321req::tests::conflicting_duplicate_params_rejected",
    "status": "passed"
   },
   {
@@ -1208,19 +1378,19 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::conflicting_duplicate_params_rejected",
+   "name": "zip321req::tests::missing_or_zero_amount_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::build_parse_roundtrip",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
    "name": "zip321req::tests::multiple_payments_rejected",
-   "status": "passed"
-  },
-  {
-   "suite": "sidecar",
-   "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::missing_or_zero_amount_rejected",
    "status": "passed"
   },
   {
@@ -1250,25 +1420,25 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::wrong_network_denied",
+   "name": "zip321req::tests::opaque_ref_must_be_opaque",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::opaque_ref_must_be_opaque",
-   "status": "passed"
-  },
-  {
-   "suite": "lute-owner",
-   "file": "tools/lute-owner::tests",
-   "name": "tests::canonical_hash_matches_sorted_compact_json",
+   "name": "zip321req::tests::wrong_network_denied",
    "status": "passed"
   },
   {
    "suite": "lute-owner",
    "file": "tools/lute-owner::tests",
    "name": "tests::zec_formatting",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::canonical_hash_matches_sorted_compact_json",
    "status": "passed"
   },
   {
@@ -1352,6 +1522,15 @@
     "5eb0f5c3a0671fc3230abc51f5903364df0d1111f632bb58c9feafbed23b2d62"
    ],
    "limits": "Disposable regtest owner key signs unattended (regtest only). Regtest min confirmations is 1 (mainnet 3)."
+  },
+  {
+   "id": "E-010",
+   "env": "regtest",
+   "claim": "An AI agent (MCP/SDK path) pays a metered API from the `agent` wallet only under an owner-signed mandate; LuteGuard denies over-budget spends, and the sidecar independently refuses over-budget, wrong-recipient and unapproved executions even when the API is bypassed",
+   "txids": [
+    "764e660f03671a129b58d2a34da0efd01e6c0dbc2a031e987e2877392c597e0f"
+   ],
+   "limits": "Regtest key signs unattended (regtest only). Revocation is enforced in the API (LuteGuard GRANT_REVOKED); the sidecar has no revoke and relies on mandate expiry (≤ 48 h). The metered service is an operator-run demo receiving into the `merchant` wallet."
   },
   {
    "id": "E-003",
