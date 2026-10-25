@@ -99,7 +99,7 @@ export const MODULES: readonly ModuleDef[] = [
       { suite: 'core', file: /streams\.test/ },
       { suite: 'api', file: /streams\.test/ },
     ],
-    evidence: ['E-008'],
+    evidence: ['E-008', 'E-009'],
   },
   {
     key: 'luteguard',
