@@ -256,7 +256,7 @@ describe('executeAction', () => {
   });
 });
 
-describe('executeAction for agents (§13.3, A1–A5)', () => {
+describe('executeAction for agents (Â§13.3, A1â€“A5)', () => {
   const grant = (over: object = {}) => ({
     grant_id: 'g1',
     allowed_ops: ['METER_SETTLEMENT' as const],

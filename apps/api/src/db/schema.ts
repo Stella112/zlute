@@ -37,6 +37,7 @@ export const actions = pgTable('actions', {
   broadcast_ambiguous: boolean('broadcast_ambiguous').notNull().default(false),
   last_decision_id: text('last_decision_id'),
   reject_reason: text('reject_reason'),
+  grant_id: text('grant_id'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
 });
@@ -94,6 +95,51 @@ export const streamAgreements = pgTable('stream_agreements', {
 
 export const streamSettlements = pgTable('stream_settlements', {
   stream_id: text('stream_id').notNull(),
+  seq: integer('seq').notNull(),
+  action_id: text('action_id').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const meterServices = pgTable('meter_services', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  name: text('name').notNull(),
+  wallet: text('wallet').notNull(),
+  address_enc: text('address_enc').notNull(),
+  price_per_call_zat: bigint('price_per_call_zat', { mode: 'bigint' }).notNull(),
+  credit_limit_zat: bigint('credit_limit_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const agentGrants = pgTable('agent_grants', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  agent_name: text('agent_name').notNull(),
+  wallet: text('wallet').notNull(),
+  network: text('network').notNull(),
+  service_id: text('service_id').notNull(),
+  mandate_id: text('mandate_id').notNull(),
+  mandate_hash: text('mandate_hash').notNull(),
+  cap_per_tx_zat: bigint('cap_per_tx_zat', { mode: 'bigint' }).notNull(),
+  cap_total_zat: bigint('cap_total_zat', { mode: 'bigint' }).notNull(),
+  expires_at: bigint('expires_at', { mode: 'number' }).notNull(),
+  revoked_at: bigint('revoked_at', { mode: 'number' }),
+  token_hash: text('token_hash').notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const meterSessions = pgTable('meter_sessions', {
+  id: text('id').primaryKey(),
+  grant_id: text('grant_id').notNull(),
+  service_id: text('service_id').notNull(),
+  calls: integer('calls').notNull().default(0),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+  updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
+});
+
+export const meterSettlements = pgTable('meter_settlements', {
+  session_id: text('session_id').notNull(),
   seq: integer('seq').notNull(),
   action_id: text('action_id').notNull(),
   amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),

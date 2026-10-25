@@ -42,6 +42,9 @@ class FakeSidecar implements SidecarClient {
     this.calls.push('approve');
     return this.approveOk ? { ok: true, value: true } : { ok: false, code: 'APPROVAL_SIGNATURE_INVALID' };
   }
+  async executeMandate(): Promise<SidecarResult<ExecuteOutcome>> {
+    return { ok: false, code: 'NO_MANDATE' };
+  }
   async execute(): Promise<SidecarResult<ExecuteOutcome>> {
     this.calls.push('execute');
     return { ok: true, value: { proposal_hash: 'h', status: 'submitted', txid: 'abcd', broadcast: 'accepted' } };

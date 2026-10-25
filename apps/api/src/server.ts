@@ -56,6 +56,7 @@ async function main(): Promise<void> {
     store,
     sidecar,
     requestSidecar: sidecar,
+    mandates: sidecar,
     cipher,
     minPayoutZat: BigInt(env('LUTE_MIN_PAYOUT_ZAT', '100000')),
     network,

@@ -50,6 +50,23 @@ export interface WalletBalance {
   transparent_total_zat: number;
 }
 
+export interface MandateStatus {
+  mandate_id: string;
+  mandate_hash: string;
+  max_tx_zat: number;
+  total_zat: number;
+  committed_zat: number;
+  remaining_zat: number;
+  expires_at: number;
+  allowed_recipients: number;
+}
+
+/** Sidecar calls for loading and inspecting agent mandates. */
+export interface MandateSidecar {
+  loadMandate(wallet: string, mandateJson: string, signature: string): Promise<SidecarResult<MandateStatus>>;
+  mandateStatus(wallet: string, mandateId: string): Promise<SidecarResult<MandateStatus>>;
+}
+
 export interface RequestSidecar {
   balance(wallet: string): Promise<WalletBalance>;
   txStatus(wallet: string, txid: string): Promise<TxStatus>;
@@ -59,7 +76,7 @@ export interface RequestSidecar {
   checkRequest(wallet: string, req: { address: string; amount_zat: bigint; opaque_ref: string; min_conf: number }): Promise<RequestCheck>;
 }
 
-export class HttpSidecarClient implements SidecarClient, RequestSidecar {
+export class HttpSidecarClient implements SidecarClient, RequestSidecar, MandateSidecar {
   constructor(
     private readonly baseUrl: string,
     private readonly secret: Buffer,
@@ -117,6 +134,21 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar {
 
   async execute(wallet: string, proposalId: string): Promise<SidecarResult<ExecuteOutcome>> {
     return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/execute`));
+  }
+
+  async executeMandate(wallet: string, proposalId: string, mandateId: string): Promise<SidecarResult<ExecuteOutcome>> {
+    return this.result(
+      await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/execute-mandate`, { mandate_id: mandateId }),
+    );
+  }
+
+  /** The sidecar verifies the owner's signature, wallet, network and §13.1 bounds itself. */
+  async loadMandate(wallet: string, mandateJson: string, signature: string): Promise<SidecarResult<MandateStatus>> {
+    return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/mandates`, { mandate_json: mandateJson, signature }));
+  }
+
+  async mandateStatus(wallet: string, mandateId: string): Promise<SidecarResult<MandateStatus>> {
+    return this.result(await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/mandates/${encodeURIComponent(mandateId)}`));
   }
 
   async newAddress(wallet: string): Promise<string> {

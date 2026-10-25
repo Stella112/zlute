@@ -55,7 +55,8 @@ export class PgActionStore implements ActionStore {
     return rec;
   }
 
-  async create(a: ActionRecord, ownerUserId: string): Promise<ActionRecord> {
+  /** `grantId` marks an agent spend (budget accounting); owner actions have none. */
+  async create(a: ActionRecord, ownerUserId: string, grantId?: string): Promise<ActionRecord> {
     const now = this.now();
     const memo: MemoSpec | undefined = a.memo;
     await this.db.insert(actions).values({
@@ -73,6 +74,7 @@ export class PgActionStore implements ActionStore {
       memo_text_enc: a.memo_text ? this.cipher.encrypt(a.memo_text, this.aad(a.id, 'memo')) : null,
       idempotency_key: a.idempotency_key,
       expires_at: a.expires_at,
+      grant_id: grantId ?? null,
       created_at: now,
       updated_at: now,
     });

@@ -106,3 +106,54 @@ CREATE TABLE IF NOT EXISTS stream_settlements (
   created_at BIGINT NOT NULL,
   PRIMARY KEY (stream_id, seq)
 );
+
+-- Agents (mandate §19.8, §13.3). A grant is the API-side record of an owner-signed mandate that the
+-- sidecar verified and loaded; the agent authenticates with a token stored only as a hash.
+CREATE TABLE IF NOT EXISTS meter_services (
+  id                 TEXT PRIMARY KEY,
+  owner_user_id      TEXT NOT NULL REFERENCES users(id),
+  name               TEXT NOT NULL,
+  wallet             TEXT NOT NULL,             -- receiving wallet (operator-run demo service)
+  address_enc        TEXT NOT NULL,             -- fixed receive address; payments matched by memo
+  price_per_call_zat BIGINT NOT NULL CHECK (price_per_call_zat > 0),
+  credit_limit_zat   BIGINT NOT NULL CHECK (credit_limit_zat > 0),
+  created_at         BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_grants (
+  id             TEXT PRIMARY KEY,
+  owner_user_id  TEXT NOT NULL REFERENCES users(id),
+  agent_name     TEXT NOT NULL,
+  wallet         TEXT NOT NULL,
+  network        TEXT NOT NULL CHECK (network IN ('main','test','regtest')),
+  service_id     TEXT NOT NULL REFERENCES meter_services(id),
+  mandate_id     TEXT NOT NULL UNIQUE,
+  mandate_hash   TEXT NOT NULL,
+  cap_per_tx_zat BIGINT NOT NULL CHECK (cap_per_tx_zat > 0),
+  cap_total_zat  BIGINT NOT NULL CHECK (cap_total_zat > 0),
+  expires_at     BIGINT NOT NULL,
+  revoked_at     BIGINT,
+  token_hash     TEXT NOT NULL UNIQUE,         -- SHA-256 of the agent token; the token is shown once
+  created_at     BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS meter_sessions (
+  id         TEXT PRIMARY KEY,
+  grant_id   TEXT NOT NULL REFERENCES agent_grants(id),
+  service_id TEXT NOT NULL REFERENCES meter_services(id),
+  calls      INTEGER NOT NULL DEFAULT 0 CHECK (calls >= 0),
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS meter_settlements (
+  session_id TEXT NOT NULL REFERENCES meter_sessions(id),
+  seq        INTEGER NOT NULL CHECK (seq > 0),
+  action_id  TEXT NOT NULL UNIQUE REFERENCES actions(id),
+  amount_zat BIGINT NOT NULL CHECK (amount_zat > 0),
+  created_at BIGINT NOT NULL,
+  PRIMARY KEY (session_id, seq)
+);
+
+-- Spends made by an agent carry its grant (budget accounting).
+ALTER TABLE actions ADD COLUMN IF NOT EXISTS grant_id TEXT;

@@ -99,7 +99,7 @@ function actorOf(p: Principal): Actor {
 }
 
 /** Spends are authorized by the owner's approval in the sidecar (D-009), or, for an agent, by
- * the owner-signed mandate behind its grant (ง13.3). Anything else has no authorization and
+ * the owner-signed mandate behind its grant (ยง13.3). Anything else has no authorization and
  * LuteGuard denies it. */
 function authorizationFor(p: Principal): EvaluationContext['spend_authorization'] {
   if (p.kind === 'owner') return 'owner_approval';

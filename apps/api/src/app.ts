@@ -4,10 +4,11 @@ import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionR
 import type { Network, Principal } from '@lute/luteguard';
 import { login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
+import { registerAgentRoutes } from './agents.js';
 import { registerDashboardRoutes } from './dashboard.js';
 import { registerRequestRoutes } from './requests.js';
 import { registerStreamRoutes } from './streams.js';
-import type { RequestSidecar } from './sidecar.js';
+import type { MandateSidecar, RequestSidecar } from './sidecar.js';
 import { PgActionStore, type Db } from './db/store.js';
 
 export interface AppDeps {
@@ -26,6 +27,8 @@ export interface AppDeps {
   appOrigin: string;
   /** evidence/results.json (Privacy Center input). */
   resultsFile?: string;
+  /** Agent mandates. Without it, agent and meter routes do not exist (fail closed). */
+  mandates?: MandateSidecar;
 }
 
 const ACTION_TTL_S = 15 * 60;
@@ -101,6 +104,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   registerDashboardRoutes(app, { db: deps.db, sidecar: deps.requestSidecar, network: deps.network, user, resultsFile: deps.resultsFile ?? 'evidence/results.json' });
+
+  if (deps.mandates) {
+    registerAgentRoutes(app, { db: deps.db, store: deps.store, cipher: deps.cipher, sidecar: deps.sidecar, requestSidecar: deps.requestSidecar, mandates: deps.mandates, network: deps.network, now: deps.now, user });
+  }
 
   app.get('/v1/health', async () => ({ ok: true, network: deps.network }));
 
