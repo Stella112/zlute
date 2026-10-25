@@ -71,7 +71,7 @@ function StreamsInner() {
           <Empty>{list.error ? `Unavailable (${list.error})` : 'No streams yet.'}</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm [&_td]:whitespace-nowrap [&_td]:pr-4 [&_th]:whitespace-nowrap [&_th]:pr-4">
               <thead className="text-left text-xs text-muted">
                 <tr>
                   <th className="pb-2 font-medium">Stream</th>

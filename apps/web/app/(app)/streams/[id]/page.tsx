@@ -98,7 +98,7 @@ export default function StreamDetail() {
           ))}
         </dl>
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button disabled={!!busy || !!pending} onClick={() => act('settle')}>
+          <Button disabled={!!busy || !!pending || BigInt(s.outstanding_zat) <= 0n} onClick={() => act('settle')}>
             {busy === 'settle' ? 'Preparing payout…' : 'Pay what is due'}
           </Button>
           <Button variant="ghost" disabled={!!busy} onClick={() => act('refresh')}>
