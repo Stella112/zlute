@@ -5,6 +5,7 @@ import type { Network, Principal } from '@lute/luteguard';
 import { login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { registerRequestRoutes } from './requests.js';
+import { registerStreamRoutes } from './streams.js';
 import type { RequestSidecar } from './sidecar.js';
 import { PgActionStore, type Db } from './db/store.js';
 
@@ -14,6 +15,8 @@ export interface AppDeps {
   sidecar: SidecarClient;
   requestSidecar: RequestSidecar;
   cipher: FieldCipher;
+  /** Minimum stream settlement (zat); mandate default 100_000. */
+  minPayoutZat?: bigint;
   network: Network;
   now: () => number;
   /** Secure cookies need HTTPS; tests run over plain inject. */
@@ -82,6 +85,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   registerRequestRoutes(app, { db: deps.db, cipher: deps.cipher, sidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });
+  registerStreamRoutes(app, {
+    db: deps.db,
+    store: deps.store,
+    cipher: deps.cipher,
+    sidecar: deps.sidecar,
+    requestSidecar: deps.requestSidecar,
+    network: deps.network,
+    now: deps.now,
+    user,
+    minPayoutZat: deps.minPayoutZat ?? 100_000n,
+  });
 
   app.get('/v1/health', async () => ({ ok: true, network: deps.network }));
 

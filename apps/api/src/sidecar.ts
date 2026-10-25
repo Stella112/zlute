@@ -27,8 +27,17 @@ export interface RequestCheck {
   txids: string[];
 }
 
-/** Sidecar calls used by payment requests (docs/API.md §1). */
+export interface TxStatus {
+  txid: string;
+  known: boolean;
+  mined_height: number | null;
+  confirmations: number;
+  expired_unmined: boolean;
+}
+
+/** Sidecar calls used by payment requests and streams (docs/API.md §1). */
 export interface RequestSidecar {
+  txStatus(wallet: string, txid: string): Promise<TxStatus>;
   newAddress(wallet: string): Promise<string>;
   buildZip321(address: string, amount_zat: bigint, opaque_ref: string): Promise<string>;
   sync(wallet: string): Promise<void>;
@@ -116,5 +125,12 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar {
     const r = await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/requests/check`, req);
     if (r.status !== 200) throw new SidecarError(`request check failed (${r.status})`);
     return r.json as RequestCheck;
+  }
+
+  async txStatus(wallet: string, txid: string): Promise<TxStatus> {
+    if (!/^[0-9a-f]{64}$/.test(txid)) throw new SidecarError('invalid txid');
+    const r = await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/tx/${txid}`);
+    if (r.status !== 200) throw new SidecarError(`tx status failed (${r.status})`);
+    return r.json as TxStatus;
   }
 }

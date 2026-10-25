@@ -1,5 +1,5 @@
 /** Drizzle mirror of schema.sql (the SQL file is authoritative). */
-import { bigint, bigserial, boolean, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
+import { bigint, bigserial, boolean, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -76,4 +76,26 @@ export const paymentRequests = pgTable('payment_requests', {
   expires_at: bigint('expires_at', { mode: 'number' }).notNull(),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
+});
+
+export const streamAgreements = pgTable('stream_agreements', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  wallet: text('wallet').notNull(),
+  network: text('network').notNull(),
+  recipient_address_enc: text('recipient_address_enc').notNull(),
+  total_zat: bigint('total_zat', { mode: 'bigint' }).notNull(),
+  start_ts: bigint('start_ts', { mode: 'number' }).notNull(),
+  end_ts: bigint('end_ts', { mode: 'number' }).notNull(),
+  events: jsonb('events').notNull().default([]),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+  updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
+});
+
+export const streamSettlements = pgTable('stream_settlements', {
+  stream_id: text('stream_id').notNull(),
+  seq: integer('seq').notNull(),
+  action_id: text('action_id').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });

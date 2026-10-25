@@ -82,3 +82,27 @@ CREATE TABLE IF NOT EXISTS payment_requests (
   created_at         BIGINT NOT NULL,
   updated_at         BIGINT NOT NULL
 );
+
+-- Streams (mandate §19.5). Payer-controlled, not trustless: settlements are owner-approved payouts.
+CREATE TABLE IF NOT EXISTS stream_agreements (
+  id                    TEXT PRIMARY KEY,
+  owner_user_id         TEXT NOT NULL REFERENCES users(id),
+  wallet                TEXT NOT NULL,
+  network               TEXT NOT NULL CHECK (network IN ('main','test','regtest')),
+  recipient_address_enc TEXT NOT NULL,
+  total_zat             BIGINT NOT NULL CHECK (total_zat > 0),
+  start_ts              BIGINT NOT NULL,
+  end_ts                BIGINT NOT NULL CHECK (end_ts > start_ts),
+  events                JSONB NOT NULL DEFAULT '[]',
+  created_at            BIGINT NOT NULL,
+  updated_at            BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS stream_settlements (
+  stream_id  TEXT NOT NULL REFERENCES stream_agreements(id),
+  seq        INTEGER NOT NULL CHECK (seq > 0),
+  action_id  TEXT NOT NULL UNIQUE REFERENCES actions(id),
+  amount_zat BIGINT NOT NULL CHECK (amount_zat > 0),
+  created_at BIGINT NOT NULL,
+  PRIMARY KEY (stream_id, seq)
+);

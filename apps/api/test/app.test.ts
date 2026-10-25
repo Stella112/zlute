@@ -56,6 +56,9 @@ class FakeRequestSidecar implements RequestSidecar {
   async checkRequest() {
     return this.check;
   }
+  async txStatus(_w: string, txid: string) {
+    return { txid, known: true, mined_height: null, confirmations: 0, expired_unmined: false };
+  }
 }
 
 async function setup() {

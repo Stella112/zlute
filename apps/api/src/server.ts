@@ -56,6 +56,7 @@ async function main(): Promise<void> {
     sidecar,
     requestSidecar: sidecar,
     cipher,
+    minPayoutZat: BigInt(env('LUTE_MIN_PAYOUT_ZAT', '100000')),
     network,
     now,
     secureCookies: env('LUTE_SECURE_COOKIES', 'true') === 'true',
