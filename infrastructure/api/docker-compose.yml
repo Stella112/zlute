@@ -51,6 +51,28 @@ services:
       postgres:
         condition: service_healthy
 
+  # Next.js standalone server on 127.0.0.1:48300; proxies /v1/* to the API on loopback. Reached by
+  # the owner through an SSH tunnel (no public port).
+  web:
+    image: node:24-bookworm-slim
+    container_name: zlute-web
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app/apps/web/.next/standalone/apps/web
+    command: ["node", "server.js"]
+    environment:
+      HOSTNAME: 127.0.0.1
+      PORT: "48300"
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - /opt/zlute/api/src:/app:ro
+    logging: *capped-logs
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+    depends_on:
+      - api
+
 volumes:
   zlute-pgdata:
     name: zlute-pgdata

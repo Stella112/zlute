@@ -46,7 +46,7 @@ Mandate §13.3 describes the interactive approval as the owner typing `approve <
 - `wallet send` (no approval) is now refused on every network except regtest.
 
 ## D-010 — 2026-10-20 — Owner key registered
-Maris generated the owner key on her own machine with `lute-owner init` (Windows build from CI run 39502798819, `lute-owner.exe` sha256 a884ef7d…55e6). The private key file stays on her machine; no agent read it.
+Maris generated the owner key on her own machine with `lute-owner init` (Windows build from CI run 39502798819, `lute-owner.exe` sha256 a884ef7d…55e6). The private key file stays on the owner's machine; no agent read it.
 - Owner public key: `32d83d54774894739ad3a1163632df37fd035598f0c09e0057a05e25b4725244`
 - Registered on the VPS as `/opt/zlute/owner.pub` (mode 0444); file sha256 `1da296dc0872777939426300eee4e42502242e97315f88c501b130ade9b3f9c4`.
 - Any change to that file must be treated as an incident (D-009 residual risk). Regtest evidence runs use a separate disposable key under `/opt/zlute/regtest-owner/`.

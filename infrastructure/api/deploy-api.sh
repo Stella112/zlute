@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds and (re)starts the Lute API on the VPS from a source tarball (git archive) that the
+# Builds and (re)starts the Lute API and web app on the VPS from a source tarball (git archive) that the
 # developer machine uploads to /opt/zlute/api/src.tgz. Build runs inside node:24 (the VPS host has
 # Node 22). Creates secrets on first run only (never overwrites).
 # Usage (on the VPS): bash deploy-api.sh <network> <app-origin>
@@ -32,14 +32,15 @@ fi
 # --- source + build (inside node:24) ---
 rm -rf "$BASE/src.new" && mkdir -p "$BASE/src.new"
 tar xzf "$BASE/src.tgz" -C "$BASE/src.new"
-docker run --rm --memory 768m --cpus 1 -v "$BASE/src.new:/app" -w /app node:24-bookworm-slim \
-  sh -c "corepack enable && pnpm install --frozen-lockfile --filter @lute/api... && pnpm --filter @lute/luteguard build && pnpm --filter @lute/core build && pnpm --filter @lute/api build"
+docker run --rm --memory 1536m --cpus 1 -e NEXT_TELEMETRY_DISABLED=1 -v "$BASE/src.new:/app" -w /app node:24-bookworm-slim \
+  sh -c "corepack enable && pnpm install --frozen-lockfile --filter @lute/api... --filter @lute/web && pnpm --filter @lute/luteguard build && pnpm --filter @lute/core build && pnpm --filter @lute/api build && pnpm --filter @lute/web build && cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static"
 rm -rf "$BASE/src.old"; [ -d "$BASE/src" ] && mv "$BASE/src" "$BASE/src.old"; mv "$BASE/src.new" "$BASE/src"
 
 cd "$BASE/src/infrastructure/api"
 docker compose up -d
 # The API bind-mounts $BASE/src, which was just replaced: recreate it so it runs the new build.
-docker compose up -d --force-recreate --no-deps api
+docker compose up -d --force-recreate --no-deps api web
 sleep 8
 docker ps --filter name=zlute- --format '{{.Names}}\t{{.Status}}'
 curl -s http://127.0.0.1:48200/v1/health; echo
+curl -s -o /dev/null -w "web /login -> %{http_code}\n" http://127.0.0.1:48300/login

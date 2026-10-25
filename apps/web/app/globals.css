@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+/* Mandate §19.10: near-black, accent violet #7835FF, dark neutral surfaces, subtle borders. */
+@theme {
+  --color-bg: #09090b;
+  --color-surface: #111114;
+  --color-raised: #17171c;
+  --color-line: #26262d;
+  --color-muted: #8b8b97;
+  --color-text: #ececf1;
+  --color-accent: #7835ff;
+  --color-accent-soft: #7835ff26;
+  --color-ok: #3ccf8e;
+  --color-warn: #e3b341;
+  --color-bad: #f2555a;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
