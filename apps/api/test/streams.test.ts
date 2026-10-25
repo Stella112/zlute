@@ -176,6 +176,13 @@ describe('streams API (S group)', () => {
     expect(v).toMatchObject({ pending_zat: '0', confirmed_paid_zat: '0', outstanding_zat: '20000' });
   });
 
+  it('a body-less POST with a form content type is a 415, not a 500 (PowerShell 5.1 default)', async () => {
+    const s = (await create()).json();
+    const r = await t.app.inject({ method: 'POST', url: `/v1/streams/${s.id}/settle`, headers: { cookie, 'content-type': 'application/x-www-form-urlencoded', 'idempotency-key': 'settle-form' }, payload: '' });
+    expect(r.statusCode).toBe(415);
+    expect(r.json()).toEqual({ error: 'FST_ERR_CTP_INVALID_MEDIA_TYPE' });
+  });
+
   it('refuses transparent recipients, nothing-due settlements, and other users (U6)', async () => {
     t.sidecar.inspection = { ...t.sidecar.inspection, verdict: 'DENIED_TRANSPARENT', payable_pools: [] };
     expect((await create()).json()).toEqual({ error: 'RECIPIENT_DENIED_TRANSPARENT' });

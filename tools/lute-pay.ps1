@@ -90,7 +90,7 @@ try {
   }
 
   if ($StreamId) {
-    Show-Stream (Invoke-RestMethod "$base/v1/streams/$StreamId/refresh" -Method Post -WebSession $ws)
+    Show-Stream (Invoke-RestMethod "$base/v1/streams/$StreamId/refresh" -Method Post -ContentType "application/json" -Body "{}" -WebSession $ws)
     return
   }
 
@@ -109,7 +109,7 @@ try {
       }
       Write-Host "settlement $k of ${Settlements}: paying what is due now"
       $key = "settle-" + [guid]::NewGuid().ToString("N")
-      $r = Invoke-RestMethod "$base/v1/streams/$sid/settle" -Method Post -WebSession $ws -Headers @{ "Idempotency-Key" = $key }
+      $r = Invoke-RestMethod "$base/v1/streams/$sid/settle" -Method Post -ContentType "application/json" -Body "{}" -WebSession $ws -Headers @{ "Idempotency-Key" = $key }
       if (-not (Approve-Action $r)) { Write-Host "stopping: settlement $k was not sent (the stream keeps accruing; nothing is paid without approval)"; break }
     }
     Show-Stream (Invoke-RestMethod "$base/v1/streams/$sid" -WebSession $ws)

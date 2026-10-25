@@ -210,10 +210,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     };
   });
 
-  app.setErrorHandler((err, _req, reply) => {
-    // Never echo internal details (they may contain addresses) (U4).
-    void err;
-    reply.code(500).send({ error: 'INTERNAL' });
+  app.setErrorHandler((err: { statusCode?: number; code?: string; name?: string; stack?: string }, req, reply) => {
+    // Never echo internal details (they may contain addresses) (U4). Client errors raised by
+    // Fastify itself (415, 400, 413) keep their status and expose only their code.
+    const status = typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
+    if (status < 500) return reply.code(status).send({ error: err.code ?? 'BAD_REQUEST' });
+    // Log only the error class/code, route and code locations: never the message.
+    const frames = (err.stack ?? '').split('\n').slice(1, 6).map((l) => (l.match(/\(?([^()\s]+:\d+:\d+)\)?$/) ?? [])[1]).filter(Boolean);
+    console.error(JSON.stringify({ level: 'error', route: req.routeOptions.url, name: err.name, code: err.code, frames }));
+    return reply.code(500).send({ error: 'INTERNAL' });
   });
 
   return app;
