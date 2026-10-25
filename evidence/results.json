@@ -1,0 +1,1332 @@
+{
+ "schema": "lute-results/1",
+ "generated_at": "2026-10-25T22:12:08.413Z",
+ "commit": "c2aea19680c4ebd95a58843d6ceee0b6eeaadbc4",
+ "dirty": true,
+ "suites": [
+  {
+   "name": "luteguard",
+   "source": "local",
+   "passed": 50,
+   "failed": 0,
+   "skipped": 0
+  },
+  {
+   "name": "core",
+   "source": "local",
+   "passed": 58,
+   "failed": 0,
+   "skipped": 0
+  },
+  {
+   "name": "api",
+   "source": "local",
+   "passed": 31,
+   "failed": 0,
+   "skipped": 0
+  },
+  {
+   "name": "sidecar",
+   "source": "ci run 40214979512 @ 9a7a76f",
+   "passed": 60,
+   "failed": 0,
+   "skipped": 0
+  },
+  {
+   "name": "lute-owner",
+   "source": "ci run 39502798819 @ 580ddfa",
+   "passed": 4,
+   "failed": 0,
+   "skipped": 0
+  }
+ ],
+ "tests": [
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/canonical.test.ts",
+   "name": "canonical JSON sorts keys and emits compact JSON",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/canonical.test.ts",
+   "name": "canonical JSON rejects unsafe numbers instead of silently rounding",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/canonical.test.ts",
+   "name": "canonical JSON matches the sidecar hash for the shared vector",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/crosschain.test.ts",
+   "name": "cross-chain route classifier (X group) only a fully verified private route is STRICT_PRIVATE_VERIFIED",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/crosschain.test.ts",
+   "name": "cross-chain route classifier (X group) X1 transparent Zcash hop disables execution",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/crosschain.test.ts",
+   "name": "cross-chain route classifier (X group) X2 a public source chain is never strict-private, even ending in shielded ZEC",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/crosschain.test.ts",
+   "name": "cross-chain route classifier (X group) X3 unknown facts classify as UNKNOWN and disable execution",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/crosschain.test.ts",
+   "name": "cross-chain route classifier (X group) X4 classes combine",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/crosschain.test.ts",
+   "name": "cross-chain route classifier (X group) unsupported routes are UNSUPPORTED",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "LuteGuard: valid baseline allows a fully valid owner-approved shielded send",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W1 denies a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W2 denies a TEX recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W3 denies a proposal that pays a transparent receiver of a UA",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W5 denies transparent inputs",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W6 denies cross-pool proposals",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) D-002 denies Orchard involvement",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W7 denies a weaker privacy policy",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W8 denies parameters changed after hashing",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W9 denies a wrong network (action and proposal)",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) W11 denies a fee that did not come from the library",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) denies when the proposal amount differs from the action amount",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "TransactionPolicy (W group, LuteGuard layer) denies zero amounts",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "fail closed missing recipient inspection is UNKNOWN and denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "fail closed a spend without a proposal is UNKNOWN and denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "fail closed mainnet spend without owner approval or mandate denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "fail closed expired action denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "fail closed missing idempotency key denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "MetadataPolicy accepts an opaque LUTE reference memo",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "MetadataPolicy rejects a non-opaque LUTE reference",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "MetadataPolicy allows free-text memos only on sends typed by a person",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "MetadataPolicy audit checks never contain the amount or the recipient address",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) A10 baseline: a payment inside the grant is allowed",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) A1 no grant denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) A2 over per-tx cap denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) A3 over total cap denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) A4 expired or revoked grant denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) A5 wrong recipient denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) automated mainnet spend without a mandate denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) automated spend without a mandate denies on regtest too",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "AuthorizationPolicy: agents (A group) an operation outside the grant denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) caller web gets the same DENY for the same unsafe action",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) caller api gets the same DENY for the same unsafe action",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) caller sdk gets the same DENY for the same unsafe action",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) caller mcp gets the same DENY for the same unsafe action",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) caller scheduler gets the same DENY for the same unsafe action",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) caller worker gets the same DENY for the same unsafe action",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) an unknown caller denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "IntegrationPolicy (A7) evaluation outside executeAction() denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "roles an unauthenticated principal denies",
+   "status": "passed"
+  },
+  {
+   "suite": "luteguard",
+   "file": "packages/luteguard/test/evaluate.test.ts",
+   "name": "roles a plain user cannot SEND from Lute accounts",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction stops at AWAITING_AUTHORIZATION with the message the owner signs",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction with the owner signature it approves, executes and records SUBMITTED + txid",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction W1: a transparent recipient is REJECTED by LuteGuard and never proposed",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction a sidecar policy denial is REJECTED with its reason code",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction a sidecar that errors before authorization leaves the action FAILED, not stuck in VALIDATING",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction W6 at the LuteGuard layer: a cross-pool proposal is rejected even if the sidecar built it",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction W8: a proposal whose amount differs from the action is rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction a bad owner signature leaves the action awaiting and never executes",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction W16: an ambiguous broadcast is SUBMITTED and flagged, never FAILED or retried",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction a released (rejected) broadcast is FAILED",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction F3: replaying a submitted action has no side effects",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction a different idempotency key is refused",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction F8: an expired action moves to EXPIRED and is never proposed",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction automated principals cannot spend without a mandate (fail closed)",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction A7: caller web gets the same rejection for a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction A7: caller api gets the same rejection for a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction A7: caller sdk gets the same rejection for a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction A7: caller mcp gets the same rejection for a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction A7: caller scheduler gets the same rejection for a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction A7: caller worker gets the same rejection for a transparent recipient",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi 0 → 0n",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi 1 → 100000000n",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi 0.00000001 → 1n",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi 0.02 → 2000000n",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi 12.3456789 → 1234567890n",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi 21000000 → 2100000000000000n",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects 0.000000001",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects -1",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects 1e8",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects 1.",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects .5",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects abc",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects ",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects 1,5",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi rejects 21000000.00000001",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi round-trips through formatZec",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "F2 exact decimal → zatoshi buckets amounts for non-audit logs",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "Action state machine allows the happy path",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "Action state machine F6 cannot jump from SUBMITTED to CONFIRMED without PENDING_CONFIRMATION",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/money.test.ts",
+   "name": "Action state machine terminal states have no exits and cannot be skipped into execution",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) PROVEN needs passing tests, regtest evidence and a mainnet txid",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) no results file, or no matching test, is UNTESTED",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) a failing matching test is BLOCKED (a failure elsewhere is not)",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) missing regtest or mainnet evidence makes a money-moving module PARTIAL",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) a selected suite with no results keeps it PARTIAL (a missing suite is not a pass)",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) an open HIGH finding or disabled execution keeps it PARTIAL",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/status.test.ts",
+   "name": "feature status (§23) unimplemented modules are ROADMAP whatever the results say",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S1 0 seconds → 0",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S2 1 second accrues exactly floor(total/duration)",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S3 30-day stream is exact at the midpoint",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S4/S5 property: never exceeds total, monotonic (10k random cases)",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S6 the final accrued amount equals the total exactly (remainder paid at the end)",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S7 pause and resume stop and restart accrual",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S8 cancel freezes accrual",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S9 accrual stops at the end time",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) S13 only the server clock counts: the input is a number the server supplies",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) rejects malformed terms and event sequences",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/streams.test.ts",
+   "name": "stream accrual (S group) due = accrued − confirmed − pending, never negative",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API rejects bad credentials with the same error for unknown users",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API owner send → AWAITING_AUTHORIZATION → authorize → SUBMITTED, end to end through executeAction",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API F3: the same Idempotency-Key never creates a second action or a second proposal",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API U3: responses never contain the recipient address or memo text",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API stores the recipient and memo encrypted at rest",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API U6: another user gets 404 for an action that is not theirs, and cannot authorize it",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API U7: unauthenticated requests get nothing",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API a non-owner role cannot send",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API rejects cross-origin state-changing requests (CSRF)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API F2: rejects amounts with more than 8 decimals and requires an idempotency key",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API W1 through the API: a transparent recipient is rejected and recorded as a DENY decision",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API a forged approval keeps the action awaiting and never executes",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "API U4: internal errors are generic",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "U9 logger redaction drops sensitive keys at any depth and buckets amounts",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "payment requests (§19.2) creates a request with an opaque id and a share path without the key",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "payment requests (§19.2) public view returns the payment instructions and the opaque ciphertext, nothing about the owner",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "payment requests (§19.2) stores the address and URI encrypted at rest",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "payment requests (§19.2) F6: a request is never PAID from pending (unconfirmed) funds",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "payment requests (§19.2) U6: another user cannot refresh someone else's request; unknown ids are 404",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "payment requests (§19.2) a plain user cannot create requests; bad amounts are rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/sidecar.test.ts",
+   "name": "sidecar HMAC client matches the sidecar signature vector",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/sidecar.test.ts",
+   "name": "sidecar HMAC client refuses a non-loopback sidecar URL (U12)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/sidecar.test.ts",
+   "name": "sidecar HMAC client sends a fresh nonce and a verifiable signature on every request",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) accrues per second on the server clock, with accrued and paid kept separate (S12)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) settle, authorize, mined, confirmed: paid only after confirmations (F6, S14 path)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) S10: a duplicate settle request never creates a second payout",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) S6: a settlement after the end pays exactly the contracted total",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) S7/S8: pause stops accrual, resume restarts it, cancel freezes it",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) an expired unmined settlement stops counting as pending: due again, never paid",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) a body-less POST with a form content type is a 415, not a 500 (PowerShell 5.1 default)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/streams.test.ts",
+   "name": "streams API (S group) refuses transparent recipients, nothing-due settlements, and other users (U6)",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::cross_language_hmac_vector",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::stale_and_malformed_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::u12_refuses_non_loopback",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::valid_request_passes_once_then_replay_fails",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::tampering_fails",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::api::tests",
+   "name": "api::tests::wallet_names_cannot_traverse",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::approval::tests",
+   "name": "approval::tests::canonical_json_is_sorted_and_compact",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::approval::tests",
+   "name": "approval::tests::cross_language_hash_vector",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::approval::tests",
+   "name": "approval::tests::hash_is_stable",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::approval::tests",
+   "name": "approval::tests::w8_every_field_change_changes_hash",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::approved_proposal_reserves",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::forged_approval_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::no_approval_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::approval::tests",
+   "name": "approval::tests::approval_signature_roundtrip_and_binding",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w12_expired_proposal_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w14_per_tx_cap",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w13_approval_reuse_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w8_mutation_after_approval_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::invalid_encodings_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::invalid_orchard_point_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w14_w15_daily_cap",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::orchard_only_ua_pays_ironwood",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::sapling_address_allowed",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::transparent_only_ua_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::verdict_serializes_as_reason_code",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::w1_transparent_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::w2_tex_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::shielded_ua_allowed_ironwood_first",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::w3_ua_with_transparent_receiver_pays_only_shielded",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::network::tests",
+   "name": "network::tests::mainnet_nu6_3_height_matches_capability_ledger",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::network::tests",
+   "name": "network::tests::regtest_has_nu6_3_at_height_2",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::empty_step_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::ironwood_only_allowed",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::multi_step_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::orchard_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::sapling_only_allowed",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::transparent_output_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::w5_transparent_input_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::policy::tests",
+   "name": "policy::tests::w6_cross_pool_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::tls_tests",
+   "name": "tls_tests::crypto_provider_is_available",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::incoming::tests",
+   "name": "wallet::incoming::tests::address_only_match_is_recorded",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::incoming::tests",
+   "name": "wallet::incoming::tests::overpayment_and_multiple_payments_recorded",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::incoming::tests",
+   "name": "wallet::incoming::tests::paid_needs_value_and_confirmations",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::incoming::tests",
+   "name": "wallet::incoming::tests::underpayment_stays_pending_with_received_amount",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::incoming::tests",
+   "name": "wallet::incoming::tests::unpaid_when_nothing_received",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::keystore::tests",
+   "name": "wallet::keystore::tests::nonces_are_fresh",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::keystore::tests",
+   "name": "wallet::keystore::tests::roundtrip",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::wallet::keystore::tests",
+   "name": "wallet::keystore::tests::wrong_key_wallet_network_or_tamper_fails",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::w9_wrong_network_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::build_parse_roundtrip",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::invalid_encodings_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::conflicting_duplicate_params_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::multiple_payments_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::missing_or_zero_amount_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::precision_beyond_8_decimals_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::transparent_recipient_not_requestable",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::unknown_required_param_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::w10_oversized_memo_rejected",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::wrong_network_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::zip321req::tests",
+   "name": "zip321req::tests::opaque_ref_must_be_opaque",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::canonical_hash_matches_sorted_compact_json",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::zec_formatting",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::canonical_hash_matches_sorted_compact_json",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::zec_formatting",
+   "status": "passed"
+  }
+ ],
+ "evidence": [
+  {
+   "id": "E-001",
+   "env": "regtest",
+   "claim": "The sidecar refuses to pay a transparent recipient, before any proposal or signing",
+   "txids": [],
+   "limits": "LuteGuard (TS) layer not built yet; the forged-ALLOW half of W1 is pending"
+  },
+  {
+   "id": "E-002",
+   "env": "regtest",
+   "claim": "A real shielded payment is delivered in a single pool (Ironwood) and the recipient independently verifies amount and memo",
+   "txids": [],
+   "limits": "Funds are a mined fixture (D-007). `verify` uses GetTransaction, which tells the light server this txid interests the caller (PRIVACY.md, pending). Regtest only."
+  },
+  {
+   "id": "E-004",
+   "env": "mainnet",
+   "claim": "Mainnet: a payer's own wallet (Zodl) pays a Lute payment request; Lute verifies it by unique address and memo `LUTE:<ref>`, amount, and ≥ 3 confirmations",
+   "txids": [
+    "a25de13d03273f581df7799254a4deb9c3ddc031d316d59456fa2c8e0335f250"
+   ],
+   "limits": "The payer wallet chose its own input pool; Lute only sees the Ironwood output it received. `verify` reveals txid interest to zec.rocks (PRIVACY.md). Verified via the sidecar CLI (API not yet deployed)."
+  },
+  {
+   "id": "E-005",
+   "env": "mainnet",
+   "claim": "Mainnet: a Lute payout to an external shielded address happens only with the owner's Ed25519 approval, in a single pool, with zero transparent",
+   "txids": [
+    "3c129cfbbe5d142e96512f4fd7e26db7f27e7574a95947fccab74414fc73f142"
+   ],
+   "limits": "LuteGuard ordering: LuteGuard returned ALLOW (20/20 checks) on this exact proposal hash, but that evaluation ran seconds *after* execution; the pre-execution ALLOW was on an identical proposal (70ae307d…, hash d621a6a1…) that expired before signing. The API path (`executeAction`) enforces ALLOW-before-execute; to be demonstrated on mainnet. Confirmed: mined at height 3530286, 3 confirmations at tip 3530288 (2026-10-25 16:01 UTC); payout wallet balance afterwards 140000 zat Ironwood = 200000 − 50000 − 10000 fee."
+  },
+  {
+   "id": "E-006",
+   "env": "mainnet",
+   "claim": "Mainnet, full path: API → `executeAction` → sidecar proposal → LuteGuard ALLOW recorded before owner authorization → sidecar approve/execute",
+   "txids": [
+    "546a16b489400b415eb382b43ee5d5ff489e7e6b6eb212927a241b6ea57682bd"
+   ],
+   "limits": "Confirmed: mined at 3530306, 4 confirmations at 3530309; payout balance afterwards 110000 zat = 140000 − 20000 − 10000 fee. Closes the E-005 ordering caveat."
+  },
+  {
+   "id": "E-007",
+   "env": "regtest",
+   "claim": "The sidecar spends only with a valid, unused, unexpired owner approval of the exact proposal, and enforces the per-tx and daily caps",
+   "txids": [],
+   "limits": "Regtest key is unattended (`--unattended-regtest`), regtest only. Run 2b log was truncated (LOST) and is not cited."
+  },
+  {
+   "id": "E-008",
+   "env": "mainnet",
+   "claim": "Mainnet stream: per-second accrual on the server clock, paid out by owner-approved shielded settlements through `executeAction`; accrued, pending and confirmed-paid kept separate; a failed settlement is never counted as paid and becomes due again",
+   "txids": [
+    "0517b048d4830f00dd27a35919443c4a1931164329f7c41893853296bbf2a49c",
+    "aa5294dd01a59b788dacbd562afca471d3cdfccb11a21d22457c89898be72f7d"
+   ],
+   "limits": "Payer-controlled, not trustless: payouts stop if the payer stops authorizing. Each settlement costs a 10,000 zat fee, so small streams settle rarely. A settlement needs spendable (confirmed) notes; back-to-back settlements must wait for change. The repair of #2 was manual (pre-fix code)."
+  },
+  {
+   "id": "E-003",
+   "env": "ci",
+   "claim": "Unit tests: recipient inspection (W1, W2, W3-address, W9), single-pool policy (W5, W6, Orchard, multi-step), network params",
+   "txids": [],
+   "limits": "Policy unit tests use extracted step facts, not full proposals; the regtest run E-002 exercises the real path"
+  }
+ ],
+ "findings": [],
+ "reviewed": false
+}
