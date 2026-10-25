@@ -1,8 +1,8 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-25T22:12:08.413Z",
- "commit": "c2aea19680c4ebd95a58843d6ceee0b6eeaadbc4",
- "dirty": true,
+ "generated_at": "2026-10-25T22:42:41.561Z",
+ "commit": "8fd4d574265251f1981af4cf350a35e0466b7fb7",
+ "dirty": false,
  "suites": [
   {
    "name": "luteguard",
@@ -21,7 +21,7 @@
   {
    "name": "api",
    "source": "local",
-   "passed": 31,
+   "passed": 35,
    "failed": 0,
    "skipped": 0
   },
@@ -811,6 +811,30 @@
   },
   {
    "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "dashboard feeds (§19.10) activity lists the owner's actions without recipient or memo (U3), and only theirs (U6)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "dashboard feeds (§19.10) balance is owner-only and limited to Lute wallets",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "dashboard feeds (§19.10) Privacy Center status is computed: no results file means UNTESTED, never PROVEN",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "dashboard feeds (§19.10) Privacy Center lists recent DENY decisions with reason codes only (W1 decision)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
    "file": "apps/api/test/sidecar.test.ts",
    "name": "sidecar HMAC client matches the sidecar signature vector",
    "status": "passed"
@@ -1266,7 +1290,7 @@
    "env": "regtest",
    "claim": "The sidecar refuses to pay a transparent recipient, before any proposal or signing",
    "txids": [],
-   "limits": "LuteGuard (TS) layer not built yet; the forged-ALLOW half of W1 is pending"
+   "limits": "Sidecar layer only. The LuteGuard (TS) layer refuses the same recipient before any proposal (api test \"W1 through the API\", recorded as a DENY decision); the forged-ALLOW half of W1 (sidecar refusing even if LuteGuard were bypassed) is this row"
   },
   {
    "id": "E-002",
