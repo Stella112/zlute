@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-25T22:42:41.561Z",
- "commit": "8fd4d574265251f1981af4cf350a35e0466b7fb7",
+ "generated_at": "2026-10-25T23:02:29.302Z",
+ "commit": "5c467c331962fd31dee33241bf100c794e7487a2",
  "dirty": false,
  "suites": [
   {
@@ -1342,6 +1342,16 @@
     "aa5294dd01a59b788dacbd562afca471d3cdfccb11a21d22457c89898be72f7d"
    ],
    "limits": "Payer-controlled, not trustless: payouts stop if the payer stops authorizing. Each settlement costs a 10,000 zat fee, so small streams settle rarely. A settlement needs spendable (confirmed) notes; back-to-back settlements must wait for change. The repair of #2 was manual (pre-fix code)."
+  },
+  {
+   "id": "E-009",
+   "env": "regtest",
+   "claim": "Streams on regtest through the real API code: per-second accrual, owner-signed settlements via `executeAction` + LuteGuard, pending until mined, paid only when confirmed, recipient verifies with its own keys",
+   "txids": [
+    "a374485e3030f58c7989cb11220cef0a80d3963b9d8a23799c6dde66e72c3925",
+    "5eb0f5c3a0671fc3230abc51f5903364df0d1111f632bb58c9feafbed23b2d62"
+   ],
+   "limits": "Disposable regtest owner key signs unattended (regtest only). Regtest min confirmations is 1 (mainnet 3)."
   },
   {
    "id": "E-003",
