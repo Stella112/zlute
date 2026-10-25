@@ -123,7 +123,7 @@ export default function PrivacyCenter() {
             and, when Lute checks a specific transaction, that this transaction interests the wallet. It never sees keys, amounts or memos.
           </li>
           <li>
-            <span className="text-text">Server-side keys.</span> Lute&apos;s own wallets are hot wallets on the operator&apos;s server (capped at 0.1 ZEC). Spends need the owner&apos;s signature from
+            <span className="text-text">Server-side keys.</span> Lute&apos;s own wallets are hot wallets on the operator&apos;s server (kept at or below 0.1 ZEC). Spends need the owner&apos;s signature from
             the owner&apos;s laptop. Field encryption protects data at rest; it is not end-to-end.
           </li>
           {limited.map((e) => (
