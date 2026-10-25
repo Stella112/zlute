@@ -1,0 +1,150 @@
+{
+  "decision_id": "51030e33-7d75-4b2f-a5bc-7a0e88cabe05",
+  "action_id": "p1b-e48b27f865e68f228cd3aa24ef98cc8f",
+  "policy_version": "luteguard/1.0.0",
+  "outcome": "ALLOW",
+  "checks": [
+    {
+      "policy": "TransactionPolicy",
+      "check": "network_match",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "action network matches the configured network"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "amount_positive",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "amount is positive"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "recipient_allowed",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "recipient has a shielded receiver payable in a single pool"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "params_hash_binding",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "proposal hash matches the inspected parameters"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "proposal_network",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "proposal network matches"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "privacy_policy",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "proposal was built under LUTE_STRICT"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "zero_transparent",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "no transparent inputs, outputs or change"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "no_orchard_crossing",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "no Orchard involvement"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "single_pool",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "inputs, outputs and change share one shielded pool"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "recipient_pool",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "payment goes to a shielded receiver of the recipient"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "amount_binding",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "proposal amount equals the action amount"
+    },
+    {
+      "policy": "TransactionPolicy",
+      "check": "fee_from_library",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "fee computed by the library (ZIP-317)"
+    },
+    {
+      "policy": "MetadataPolicy",
+      "check": "memo_format",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "no memo"
+    },
+    {
+      "policy": "AuthorizationPolicy",
+      "check": "authenticated",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "principal is authenticated"
+    },
+    {
+      "policy": "AuthorizationPolicy",
+      "check": "action_not_expired",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "action has not expired"
+    },
+    {
+      "policy": "AuthorizationPolicy",
+      "check": "operation_allowed",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "operation allowed for this role"
+    },
+    {
+      "policy": "AuthorizationPolicy",
+      "check": "mainnet_spend_authorized",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "mainnet spend requires owner approval or mandate; present"
+    },
+    {
+      "policy": "SettlementPolicy",
+      "check": "idempotency_key",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "spend carries an idempotency key"
+    },
+    {
+      "policy": "IntegrationPolicy",
+      "check": "caller_known",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "caller is a known Lute entry point"
+    },
+    {
+      "policy": "IntegrationPolicy",
+      "check": "via_execute_action",
+      "outcome": "PASS",
+      "reason_code": "OK",
+      "explanation": "evaluated inside executeAction()"
+    }
+  ],
+  "params_hash": "524bfd3dd39edb481907e9e9b18aa2400d7ef2d396c55335090f1d360bd04101",
+  "evaluated_at": 1792943714
+}
