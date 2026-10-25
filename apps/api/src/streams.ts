@@ -4,7 +4,7 @@
  * Payouts stop if the payer stops authorizing. Fields are kept separate (S12): contracted,
  * accrued, pending (settlements in flight), confirmed paid, outstanding.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { accrued, AmountError, due, executeAction, parseZec, ratePerSecond, type ActionState, type SidecarClient, type StreamEvent } from '@lute/core';
@@ -135,6 +135,13 @@ export function registerStreamRoutes(app: FastifyInstance, d: StreamDeps): void 
     });
     const s = (await d.db.select().from(streamAgreements).where(eq(streamAgreements.id, id)).limit(1))[0]!;
     return view(s);
+  });
+
+  app.get('/v1/streams', async (req, reply) => {
+    const u = await d.user(req);
+    if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
+    const rows = await d.db.select().from(streamAgreements).where(eq(streamAgreements.owner_user_id, u.id)).orderBy(desc(streamAgreements.created_at)).limit(50);
+    return { streams: await Promise.all(rows.map(view)) };
   });
 
   app.get<{ Params: { id: string } }>('/v1/streams/:id', async (req, reply) => {

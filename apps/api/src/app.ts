@@ -4,6 +4,7 @@ import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionR
 import type { Network, Principal } from '@lute/luteguard';
 import { login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
+import { registerDashboardRoutes } from './dashboard.js';
 import { registerRequestRoutes } from './requests.js';
 import { registerStreamRoutes } from './streams.js';
 import type { RequestSidecar } from './sidecar.js';
@@ -23,6 +24,8 @@ export interface AppDeps {
   secureCookies: boolean;
   /** Exact allowed browser origin for CORS-sensitive routes. */
   appOrigin: string;
+  /** evidence/results.json (Privacy Center input). */
+  resultsFile?: string;
 }
 
 const ACTION_TTL_S = 15 * 60;
@@ -96,6 +99,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     user,
     minPayoutZat: deps.minPayoutZat ?? 100_000n,
   });
+
+  registerDashboardRoutes(app, { db: deps.db, sidecar: deps.requestSidecar, network: deps.network, user, resultsFile: deps.resultsFile ?? 'evidence/results.json' });
 
   app.get('/v1/health', async () => ({ ok: true, network: deps.network }));
 

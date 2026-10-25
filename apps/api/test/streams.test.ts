@@ -53,6 +53,9 @@ class FakeSidecar implements SidecarClient {
 }
 
 class FakeReq implements RequestSidecar {
+  async balance() {
+    return { chain_tip_height: 10, fully_scanned_height: 10, ironwood: { spendable_zat: 60000, total_zat: 60000 }, orchard: { spendable_zat: 0, total_zat: 0 }, sapling: { spendable_zat: 0, total_zat: 0 }, transparent_total_zat: 0 };
+  }
   tx: Partial<TxStatus> = { mined_height: null, confirmations: 0, expired_unmined: false };
   async newAddress() {
     return 'uregtest1x';

@@ -17,6 +17,7 @@ import type { Network } from '@lute/luteguard';
 import { buildApp } from './app.js';
 import { createUser, type Role } from './auth.js';
 import { FieldCipher } from './crypto.js';
+import { fileURLToPath } from 'node:url';
 import { schemaSql } from './db/migrate.js';
 import { PgActionStore } from './db/store.js';
 import { HttpSidecarClient } from './sidecar.js';
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
     now,
     secureCookies: env('LUTE_SECURE_COOKIES', 'true') === 'true',
     appOrigin: env('LUTE_APP_ORIGIN'),
+    resultsFile: env('LUTE_RESULTS_FILE', fileURLToPath(new URL('../../../evidence/results.json', import.meta.url))),
   });
   const host = env('LUTE_API_HOST', '127.0.0.1');
   await app.listen({ host, port: Number(env('LUTE_API_PORT', '48200')) });

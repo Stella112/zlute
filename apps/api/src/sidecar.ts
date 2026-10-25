@@ -36,7 +36,22 @@ export interface TxStatus {
 }
 
 /** Sidecar calls used by payment requests and streams (docs/API.md §1). */
+export interface PoolBalance {
+  spendable_zat: number;
+  total_zat: number;
+}
+
+export interface WalletBalance {
+  chain_tip_height: number;
+  fully_scanned_height: number;
+  ironwood: PoolBalance;
+  orchard: PoolBalance;
+  sapling: PoolBalance;
+  transparent_total_zat: number;
+}
+
 export interface RequestSidecar {
+  balance(wallet: string): Promise<WalletBalance>;
   txStatus(wallet: string, txid: string): Promise<TxStatus>;
   newAddress(wallet: string): Promise<string>;
   buildZip321(address: string, amount_zat: bigint, opaque_ref: string): Promise<string>;
@@ -114,6 +129,12 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar {
     const r = await this.call('POST', '/v1/zip321/build', { address, amount_zat, opaque_ref });
     if (r.status !== 200) throw new SidecarError(`zip321 failed (${r.status})`);
     return (r.json as { uri: string }).uri;
+  }
+
+  async balance(wallet: string): Promise<WalletBalance> {
+    const r = await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/balance`);
+    if (r.status !== 200) throw new SidecarError(`balance failed (${r.status})`);
+    return r.json as WalletBalance;
   }
 
   async sync(wallet: string): Promise<void> {

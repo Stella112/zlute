@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -14,6 +17,7 @@ import type { RequestCheck, RequestSidecar } from '../src/sidecar.js';
 const NOW = 1_800_000_000;
 const ORIGIN = 'https://lute.example';
 const RECIPIENT = 'uregtest1secretrecipientaddress';
+const RESULTS_FILE = join(mkdtempSync(join(tmpdir(), 'lute-results-')), 'results.json');
 const PW = 'correct horse battery staple';
 
 class FakeSidecar implements SidecarClient {
@@ -45,6 +49,9 @@ class FakeSidecar implements SidecarClient {
 }
 
 class FakeRequestSidecar implements RequestSidecar {
+  async balance() {
+    return { chain_tip_height: 10, fully_scanned_height: 10, ironwood: { spendable_zat: 60000, total_zat: 60000 }, orchard: { spendable_zat: 0, total_zat: 0 }, sapling: { spendable_zat: 0, total_zat: 0 }, transparent_total_zat: 0 };
+  }
   check: RequestCheck = { status: 'UNPAID', matched_by: null, requested_zat: 0, received_confirmed_zat: 0, received_pending_zat: 0, overpaid_zat: 0, txids: [] };
   async newAddress() {
     return 'uregtest1freshrequestaddress';
@@ -71,7 +78,7 @@ async function setup() {
   await createUser(db, 'mallory', PW, 'owner', NOW);
   await createUser(db, 'carol', PW, 'user', NOW);
   const reqSidecar = new FakeRequestSidecar();
-  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: ORIGIN });
+  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: ORIGIN, resultsFile: RESULTS_FILE });
   const loginAs = async (username: string) => {
     const r = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username, password: PW }, headers: { origin: ORIGIN } });
     expect(r.statusCode).toBe(200);
@@ -298,5 +305,57 @@ describe('payment requests (§19.2)', () => {
     const maris = await t.loginAs('maris');
     expect((await t.app.inject(create(maris, { amount_zec: '0' }))).json()).toEqual({ error: 'BAD_AMOUNT' });
     expect((await t.app.inject(create(maris, { amount_zec: '0.000000001' }))).json()).toEqual({ error: 'BAD_AMOUNT' });
+  });
+});
+
+describe('dashboard feeds (§19.10)', () => {
+  let t: Awaited<ReturnType<typeof setup>>;
+  beforeEach(async () => {
+    t = await setup();
+  });
+
+  it("activity lists the owner's actions without recipient or memo (U3), and only theirs (U6)", async () => {
+    const cookie = await t.loginAs('maris');
+    await t.app.inject(send(cookie));
+    const r = await t.app.inject({ method: 'GET', url: '/v1/actions', headers: { cookie } });
+    expect(r.json().actions).toHaveLength(1);
+    expect(r.body).not.toContain(RECIPIENT);
+    expect(r.body).not.toContain('Ab3_x-9Zq1');
+    const other = await t.app.inject({ method: 'GET', url: '/v1/actions', headers: { cookie: await t.loginAs('mallory') } });
+    expect(other.json().actions).toHaveLength(0);
+  });
+
+  it('balance is owner-only and limited to Lute wallets', async () => {
+    const cookie = await t.loginAs('maris');
+    expect((await t.app.inject({ method: 'GET', url: '/v1/wallets/payout/balance', headers: { cookie } })).json().ironwood.spendable_zat).toBe(60000);
+    expect((await t.app.inject({ method: 'GET', url: '/v1/wallets/funder/balance', headers: { cookie } })).statusCode).toBe(404);
+    expect((await t.app.inject({ method: 'GET', url: '/v1/wallets/payout/balance', headers: { cookie: await t.loginAs('carol') } })).statusCode).toBe(404);
+    expect((await t.app.inject({ method: 'GET', url: '/v1/wallets/payout/balance' })).statusCode).toBe(401);
+  });
+
+  it('Privacy Center status is computed: no results file means UNTESTED, never PROVEN', async () => {
+    const cookie = await t.loginAs('maris');
+    writeFileSync(RESULTS_FILE, 'not json');
+    let s = (await t.app.inject({ method: 'GET', url: '/v1/privacy/status', headers: { cookie } })).json();
+    expect(s.run).toBeNull();
+    expect(s.modules.find((m: { key: string }) => m.key === 'send').status).toBe('UNTESTED');
+    expect(s.modules.find((m: { key: string }) => m.key === 'meter').status).toBe('ROADMAP');
+    writeFileSync(
+      RESULTS_FILE,
+      JSON.stringify({ schema: 'lute-results/1', generated_at: 'x', commit: 'c', dirty: false, suites: [], findings: [], reviewed: false, evidence: [], tests: [{ suite: 'luteguard', file: 'packages/luteguard/test/evaluate.test.ts', name: 'a', status: 'failed' }] }),
+    );
+    s = (await t.app.inject({ method: 'GET', url: '/v1/privacy/status', headers: { cookie } })).json();
+    expect(s.modules.find((m: { key: string }) => m.key === 'luteguard').status).toBe('BLOCKED');
+  });
+
+  it('Privacy Center lists recent DENY decisions with reason codes only (W1 decision)', async () => {
+    const cookie = await t.loginAs('maris');
+    t.sidecar.inspection = { ...t.sidecar.inspection, verdict: 'DENIED_TRANSPARENT', has_transparent: true, payable_pools: [] };
+    await t.app.inject(send(cookie, 'idem-deny1'));
+    const r = await t.app.inject({ method: 'GET', url: '/v1/privacy/status', headers: { cookie } });
+    const s = r.json();
+    expect(s.decisions.deny).toBe(1);
+    expect(s.decisions.recent_denies[0].reasons.length).toBeGreaterThan(0);
+    expect(r.body).not.toContain(RECIPIENT);
   });
 });
