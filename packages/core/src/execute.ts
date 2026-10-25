@@ -128,19 +128,27 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { reject_reason: 'MISSING_PARAMETERS' });
       return { state: 'REJECTED', reasons: ['MISSING_PARAMETERS'] };
     }
-    const recipient = await sidecar.inspect(a.recipient_address);
+    let recipient: RecipientInspection;
     let proposal: ProposalView | undefined;
-    if (recipient.verdict === 'ALLOWED') {
-      const p = await sidecar.propose(a.wallet, {
-        to: a.recipient_address,
-        amount_zat: a.amount_zat,
-        ...(a.memo_text !== undefined ? { memo: a.memo_text } : {}),
-      });
-      if (!p.ok) {
-        await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { reject_reason: p.code });
-        return { state: 'REJECTED', reasons: [p.code] };
+    try {
+      recipient = await sidecar.inspect(a.recipient_address);
+      if (recipient.verdict === 'ALLOWED') {
+        const p = await sidecar.propose(a.wallet, {
+          to: a.recipient_address,
+          amount_zat: a.amount_zat,
+          ...(a.memo_text !== undefined ? { memo: a.memo_text } : {}),
+        });
+        if (!p.ok) {
+          await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { reject_reason: p.code });
+          return { state: 'REJECTED', reasons: [p.code] };
+        }
+        proposal = p.value;
       }
-      proposal = p.value;
+    } catch {
+      // Nothing has been signed yet, so failing is safe; leaving it VALIDATING would count it as
+      // in flight forever (a stream settlement would never become due again).
+      await store.transition(a.id, 'VALIDATING', 'FAILED', actor, { reject_reason: 'SIDECAR_UNAVAILABLE' });
+      return { state: 'FAILED', reason: 'SIDECAR_UNAVAILABLE' };
     }
     const ctx: EvaluationContext = {
       action: {

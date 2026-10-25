@@ -180,6 +180,11 @@ fn from_anyhow(e: anyhow::Error) -> Response {
     if msg.starts_with("amount exceeds the per-transaction cap") {
         return err(StatusCode::FORBIDDEN, "OVER_PER_TX_CAP");
     }
+    // Usually unconfirmed change: the wallet's notes are not spendable until they have enough
+    // confirmations. Only the code is returned (the message carries amounts).
+    if msg.contains("Insufficient balance") {
+        return err(StatusCode::CONFLICT, "INSUFFICIENT_SPENDABLE_FUNDS");
+    }
     if msg.starts_with("unknown proposal") {
         return err(StatusCode::NOT_FOUND, "UNKNOWN_PROPOSAL");
     }

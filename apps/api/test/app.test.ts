@@ -201,9 +201,19 @@ describe('API', () => {
       throw new Error(`boom with ${RECIPIENT}`);
     };
     const cookie = await t.loginAs('maris');
+    // Before authorization, a sidecar error fails the action cleanly (code only, no details).
     const r = await t.app.inject(send(cookie));
-    expect(r.statusCode).toBe(500);
+    expect(r.json().result).toEqual({ state: 'FAILED', reason: 'SIDECAR_UNAVAILABLE' });
     expect(r.body).not.toContain(RECIPIENT);
+    // Anywhere else an unexpected error is a generic 500.
+    t.sidecar.inspect = async () => ({ verdict: 'ALLOWED', kind: 'unified', has_orchard: true, has_sapling: true, has_transparent: false, payable_pools: ['ironwood'] });
+    const { action_id } = (await t.app.inject(send(cookie, 'pay-u4-second'))).json();
+    t.sidecar.approve = async () => {
+      throw new Error(`boom with ${RECIPIENT}`);
+    };
+    const r2 = await t.app.inject({ method: 'POST', url: `/v1/actions/${action_id}/authorize`, payload: { signature: 'a'.repeat(128) }, headers: { cookie, origin: ORIGIN } });
+    expect(r2.statusCode).toBe(500);
+    expect(r2.body).not.toContain(RECIPIENT);
   });
 });
 

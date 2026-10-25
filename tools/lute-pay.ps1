@@ -9,8 +9,8 @@
     powershell -ExecutionPolicy Bypass -File tools\lute-pay.ps1 -To <shielded address> -Zec 0.0002 [-Wallet payout] [-MemoRef <8-64 base64url>]
   Stream demo: per-second accrual, settled in -Settlements owner-approved payouts spread over the stream:
     powershell -ExecutionPolicy Bypass -File tools\lute-pay.ps1 -Stream -To <shielded address> -Zec 0.0003 -DurationS 120 [-Settlements 2]
-  Check a stream (and move mined settlements to CONFIRMED):
-    powershell -ExecutionPolicy Bypass -File tools\lute-pay.ps1 -StreamId <id>
+  Check a stream (and move mined settlements to CONFIRMED); add -Settle to also pay what is due:
+    powershell -ExecutionPolicy Bypass -File tools\lute-pay.ps1 -StreamId <id> [-Settle]
 #>
 param(
   [switch]$Setup,
@@ -22,6 +22,7 @@ param(
   [int]$DurationS = 120,
   [int]$Settlements = 2,
   [string]$StreamId,
+  [switch]$Settle,
   [string]$User = "maris",
   [string]$SshHost = "hbar-vps",
   [string]$OwnerExe = "C:\Users\Admin\lute-owner\lute-owner.exe",
@@ -91,6 +92,12 @@ try {
 
   if ($StreamId) {
     Show-Stream (Invoke-RestMethod "$base/v1/streams/$StreamId/refresh" -Method Post -ContentType "application/json" -Body "{}" -WebSession $ws)
+    if ($Settle) {
+      $key = "settle-" + [guid]::NewGuid().ToString("N")
+      $r = Invoke-RestMethod "$base/v1/streams/$StreamId/settle" -Method Post -ContentType "application/json" -Body "{}" -WebSession $ws -Headers @{ "Idempotency-Key" = $key }
+      Approve-Action $r | Out-Null
+      Show-Stream (Invoke-RestMethod "$base/v1/streams/$StreamId" -WebSession $ws)
+    }
     return
   }
 

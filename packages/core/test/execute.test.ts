@@ -157,6 +157,16 @@ describe('executeAction', () => {
     expect(await executeAction(deps, req())).toEqual({ state: 'REJECTED', reasons: ['CROSS_POOL'] });
   });
 
+  it('a sidecar that errors before authorization leaves the action FAILED, not stuck in VALIDATING', async () => {
+    const { deps, store, sidecar } = setup();
+    sidecar.propose = async () => {
+      throw new Error('sidecar error');
+    };
+    expect(await executeAction(deps, req())).toEqual({ state: 'FAILED', reason: 'SIDECAR_UNAVAILABLE' });
+    expect((await store.get('act-1'))?.state).toBe('FAILED');
+    expect(sidecar.calls).not.toContain('execute');
+  });
+
   it('W6 at the LuteGuard layer: a cross-pool proposal is rejected even if the sidecar built it', async () => {
     const { deps, sidecar } = setup();
     sidecar.summaryOver = { input_pools: ['sapling'], output_pools: ['ironwood'] };
