@@ -1,5 +1,14 @@
 # Build status
 
+## 2026-10-25 22:50 WAT — Claude Code — P1b mainnet gate passed; streams on mainnet
+IMPLEMENTED: API on the VPS (zlute-api + zlute-postgres, loopback, log caps) with auth, sends via executeAction, payment requests, streams (create/accrual/pause/resume/cancel/settle/refresh), tx status in the sidecar; tools/lute-pay.ps1 (owner laptop: SSH tunnel, -Setup, pay, -Stream, -StreamId [-Settle]); error handler keeps Fastify 4xx and logs 5xx without messages; executeAction fails an action on a pre-authorization sidecar error; sidecar 409 INSUFFICIENT_SPENDABLE_FUNDS.
+VERIFIED (mainnet, PRIVACY-EVIDENCE.md): E-004 Zodl paid a Lute request (address + memo, 3 conf); E-005 owner-approved CLI payout; E-006 API path with LuteGuard ALLOW before authorization; E-008 120 s stream, 30,000 zat in two owner-approved settlements, all confirmed, failed attempt never counted as paid. Regtest: E-007 approvals run 3 (W8, W12, W13, W14a/b, no approval, forged key).
+TEST RESULTS: core 51, api 31, luteguard 50, sidecar unit tests: all pass in CI.
+FUNDS: payout wallet 60,000 zat Ironwood (owner's test money; sweep back to her Zodl before submission).
+NOT DONE: web dashboard + Privacy Center; SDK/MCP (agent spends fail closed: no mandates); README; video; owner submission.
+NEXT ACTIONS: apps/web (Next.js) over the API: dashboard, payments, requests, streams, Privacy Center with LuteGuard decisions and evidence; then README + video script; sweep.
+MODULE STATUS: send=PROVEN(mainnet) requests=PROVEN(mainnet receive) streams=PROVEN(mainnet) commerce=ROADMAP refunds=ROADMAP groups=ROADMAP meter=ROADMAP subs=ROADMAP sdk=ROADMAP mcp=ROADMAP crosschain=PARTIAL(classifier only) privacy-center=UNTESTED
+
 ## 2026-10-20 23:55 WAT — Claude Code — P1a gate work + P2 started (session paused: usage limit)
 IMPLEMENTED: sidecar approvals (owner-signed, one-use, caps, TTL, control DB precheck), ZIP-321 build/parse, sealed seeds (key file outside the wallet dir), server-info, authenticated loopback HTTP API (HMAC), rustls ring provider fix; tools/lute-owner (Win/Linux); packages/luteguard (50 tests), packages/core executeAction (39 tests), apps/api Fastify+Drizzle+Postgres (17 tests on PGlite); docs PRIVACY.md (light server), API.md (sidecar contract).
 VERIFIED: approvals run 1 on regtest (evidence/regtest/approvals-run1-2026-10-20.log): W14a, NO_APPROVAL, forged approval rejected, approved payment broadcast + recipient verified (txid f3b8fe3c…34f6), W8 HASH_MISMATCH, W12 PROPOSAL_EXPIRED. W13 and W14b were not demonstrated in run 1 (wrong denial reason / stale proposals); fixed in code, rerun pending. Owner key registered (D-010).
