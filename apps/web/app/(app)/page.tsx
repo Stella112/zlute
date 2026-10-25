@@ -14,6 +14,7 @@ export default function Overview() {
   const streams = useLoad(() => get<{ streams: Stream[] }>('/v1/streams'));
   const reqs = useLoad(() => get<{ requests: RequestRow[] }>('/v1/requests'));
   const privacy = useLoad(() => get<PrivacyStatus>('/v1/privacy/status'));
+  const grants = useLoad(() => get<{ grants: { revoked: boolean; expires_at: number; spent_zat: string }[] }>('/v1/agent/grants'));
 
   const b = bal.data;
   const shielded = b ? b.ironwood.total_zat + b.sapling.total_zat + b.orchard.total_zat : 0;
@@ -21,6 +22,8 @@ export default function Overview() {
   const earned = (streams.data?.streams ?? []).reduce((a, s) => a + BigInt(s.confirmed_paid_zat), 0n);
   const active = (streams.data?.streams ?? []).filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED' || BigInt(s.outstanding_zat) > 0n || BigInt(s.pending_zat) > 0n);
   const openReqs = (reqs.data?.requests ?? []).filter((r) => r.status === 'UNPAID' || r.status === 'PENDING');
+  const activeGrants = (grants.data?.grants ?? []).filter((g) => !g.revoked && g.expires_at * 1000 > Date.now());
+  const agentSpent = (grants.data?.grants ?? []).reduce((a, g) => a + BigInt(g.spent_zat), 0n);
   const proven = (privacy.data?.modules ?? []).filter((m) => m.status === 'PROVEN').length;
   const blocked = (privacy.data?.modules ?? []).filter((m) => m.status === 'BLOCKED').length;
 
@@ -87,8 +90,11 @@ export default function Overview() {
           <p className="num text-2xl font-semibold">{openReqs.length}</p>
           <p className="mt-1 text-xs text-muted">Paid only with ≥ {me.network === 'main' ? 3 : 1} confirmations</p>
         </Card>
-        <Card title="Meter and subscriptions">
-          <p className="text-sm text-muted">Not available in this build</p>
+        <Card title="Agent budgets">
+          <p className="num text-2xl font-semibold">{activeGrants.length} active</p>
+          <p className="num mt-1 text-xs text-muted">
+            {zec(agentSpent)} ZEC spent by agents inside signed mandates · subscriptions not in this build
+          </p>
         </Card>
       </div>
 

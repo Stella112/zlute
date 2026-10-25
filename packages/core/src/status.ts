@@ -128,9 +128,28 @@ export const MODULES: readonly ModuleDef[] = [
   },
   { key: 'commerce', label: 'Commerce, receipts and refunds', implemented: false, moves_money: true, tests: [], evidence: [] },
   { key: 'groups', label: 'Groups', implemented: false, moves_money: true, tests: [], evidence: [] },
-  { key: 'meter', label: 'Metered billing', implemented: false, moves_money: true, tests: [], evidence: [] },
+  {
+    key: 'meter',
+    label: 'Metered billing (agent pays per call)',
+    implemented: true,
+    moves_money: true,
+    tests: [{ suite: 'api', file: /agents\.test/ }],
+    evidence: ['E-010'],
+  },
   { key: 'subscriptions', label: 'Subscriptions', implemented: false, moves_money: true, tests: [], evidence: [] },
-  { key: 'agents', label: 'Agent mandates (SDK and MCP spends)', implemented: false, moves_money: true, tests: [], evidence: [] },
+  {
+    key: 'agents',
+    label: 'Agent mandates and MCP',
+    implemented: true,
+    moves_money: true,
+    tests: [
+      { suite: 'core', file: /execute\.test/, name: /for agents/ },
+      { suite: 'api', file: /agents\.test/ },
+      { suite: 'sidecar', name: /mandate/ },
+      { suite: 'mcp' },
+    ],
+    evidence: ['E-010'],
+  },
 ];
 
 export interface ModuleReport {

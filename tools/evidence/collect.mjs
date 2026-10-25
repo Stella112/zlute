@@ -105,6 +105,8 @@ execFileSync('pnpm', ['-r', 'build'], { cwd: ROOT, stdio: 'inherit', shell: true
 vitest('luteguard', 'packages/luteguard');
 vitest('core', 'packages/core');
 vitest('api', 'apps/api');
+vitest('mcp', 'apps/mcp');
+vitest('web', 'apps/web');
 cargo('sidecar', 'services/wallet-sidecar', 'wallet-sidecar');
 cargo('lute-owner', 'tools/lute-owner', 'lute-owner');
 

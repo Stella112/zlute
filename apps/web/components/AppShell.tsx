@@ -11,13 +11,12 @@ const NAV: { href: string; label: string; off?: boolean }[] = [
   { href: '/receive', label: 'Receive' },
   { href: '/requests', label: 'Requests' },
   { href: '/streams', label: 'Streams' },
-  { href: '/unavailable/meter', label: 'Meter', off: true },
+  { href: '/agents', label: 'Agents and Meter' },
   { href: '/unavailable/subscriptions', label: 'Subscriptions', off: true },
   { href: '/unavailable/groups', label: 'Groups', off: true },
   { href: '/unavailable/commerce', label: 'Commerce', off: true },
   { href: '/activity', label: 'Actions' },
   { href: '/cross-chain', label: 'Cross-Chain' },
-  { href: '/unavailable/developers', label: 'Developers', off: true },
   { href: '/privacy', label: 'Privacy Center' },
 ];
 

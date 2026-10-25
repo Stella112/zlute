@@ -29,6 +29,9 @@ const STATUS_STYLE: Record<string, string> = {
   PARTIAL: 'text-warn border-warn/40 bg-warn/10',
   BLOCKED: 'text-bad border-bad/40 bg-bad/10',
   ROADMAP: 'text-muted border-line bg-raised',
+  ACTIVE: 'text-ok border-ok/40 bg-ok/10',
+  REVOKED: 'text-bad border-bad/40 bg-bad/10',
+  EXPIRED: 'text-muted border-line bg-raised',
   UNTESTED: 'text-muted border-line bg-raised',
 };
 
