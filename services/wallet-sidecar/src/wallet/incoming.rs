@@ -102,7 +102,61 @@ pub fn classify(
     }
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct TxStatus {
+    pub txid: String,
+    /// False if this wallet has no record of the transaction.
+    pub known: bool,
+    pub mined_height: Option<u32>,
+    pub confirmations: u32,
+    /// True once the transaction expired unmined (it can no longer confirm).
+    pub expired_unmined: bool,
+}
+
 impl Wallet {
+    /// Status of a transaction this wallet created or received, from its own DB (no server call
+    /// beyond the regular sync, so nothing extra is revealed to the light server).
+    pub fn tx_status(&self, txid_hex: &str) -> anyhow::Result<TxStatus> {
+        let txid = TxId::from_hex(txid_hex).ok_or_else(|| anyhow::anyhow!("invalid txid"))?;
+        let tip = self
+            .db()?
+            .chain_height()?
+            .map(u32::from)
+            .unwrap_or_default();
+        let conn = Connection::open_with_flags(
+            self.dir.join(super::DB_FILE),
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .context("opening wallet DB read-only")?;
+        let row: Option<(Option<i64>, Option<i64>)> = conn
+            .query_row(
+                "SELECT mined_height, expiry_height FROM transactions WHERE txid = ?1",
+                params![txid.as_ref().to_vec()],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .ok();
+        Ok(match row {
+            None => TxStatus {
+                txid: txid.to_string(),
+                known: false,
+                mined_height: None,
+                confirmations: 0,
+                expired_unmined: false,
+            },
+            Some((mined, expiry)) => {
+                let mined_height = mined.map(|h| h as u32);
+                TxStatus {
+                    txid: txid.to_string(),
+                    known: true,
+                    mined_height,
+                    confirmations: mined_height.map_or(0, |h| tip.saturating_sub(h) + 1),
+                    expired_unmined: mined_height.is_none()
+                        && expiry.is_some_and(|e| e > 0 && (e as u32) < tip),
+                }
+            }
+        })
+    }
+
     /// Non-change outputs received at exactly `address` (one Lute request = one address).
     pub fn received_to(&self, address: &str) -> anyhow::Result<Vec<IncomingOutput>> {
         let tip = self

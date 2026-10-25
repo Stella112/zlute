@@ -128,6 +128,11 @@ enum WalletCmd {
         #[arg(long, default_value_t = 1)]
         min_conf: u32,
     },
+    /// Status of a transaction in this wallet (mined height, confirmations).
+    TxStatus {
+        #[arg(long)]
+        txid: String,
+    },
     /// Step 1: build, policy-check and store a payment proposal (nothing is signed).
     Propose {
         #[arg(long)]
@@ -306,6 +311,12 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                         .check_request(&address, zat, &opaque_ref, min_conf)
                         .await?;
                     println!("{}", serde_json::to_string(&c)?);
+                }
+                WalletCmd::TxStatus { txid } => {
+                    println!(
+                        "{}",
+                        serde_json::to_string(&Wallet::open(&dir)?.tx_status(&txid)?)?
+                    );
                 }
                 WalletCmd::Propose { to, zat, memo } => {
                     let v = Wallet::open(&dir)?.propose(&to, zat, memo.as_deref())?;
