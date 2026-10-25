@@ -223,11 +223,7 @@ fn main() -> anyhow::Result<()> {
 
             let tty = std::io::stderr();
             let mut out = tty.lock();
-            writeln!(
-                out,
-                "
-=== Lute agent mandate ==="
-            )?;
+            writeln!(out, "\n=== Lute agent mandate ===")?;
             writeln!(out, "network:        {network}")?;
             writeln!(out, "wallet:         {}", s("wallet")?)?;
             writeln!(out, "purpose:        {}", s("purpose")?)?;
@@ -247,8 +243,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 write!(
                     out,
-                    "
-Type `approve mandate {}` to sign, anything else to abort: ",
+                    "\nType `approve mandate {}` to sign, anything else to abort: ",
                     &hash[..8]
                 )?;
                 out.flush()?;
