@@ -181,9 +181,12 @@ mod tests {
         );
     }
 
+    /// A mutation of a valid mandate and the error it must produce.
+    type Case = (fn(&mut Mandate), MandateError);
+
     #[test]
     fn bounds_are_enforced_even_when_signed() {
-        let cases: Vec<(fn(&mut Mandate), MandateError)> = vec![
+        let cases: Vec<Case> = vec![
             (
                 |m| m.max_tx_zat = MAX_TX_ZAT + 1,
                 MandateError::MandateOverCaps,
