@@ -7,7 +7,11 @@
 //!   decoded payment and asks the owner to type `approve <first 8 hash chars>` before signing.
 //!   It never signs a hash it did not compute itself.
 //!
-//! The message format and hash must match `services/wallet-sidecar/src/approval.rs`.
+//! - `sign-mandate --key <file>`: reads a mandate (JSON) from stdin, shows its bounds, and signs
+//!   its canonical hash after the owner types `approve mandate <first 8 hash chars>`.
+//!
+//! The message formats and hashes must match `services/wallet-sidecar/src/approval.rs` and
+//! `services/wallet-sidecar/src/mandate.rs`.
 
 use std::io::{BufRead, Read, Write};
 use std::path::{Path, PathBuf};
@@ -46,6 +50,29 @@ enum Cmd {
         #[arg(long)]
         unattended_regtest: bool,
     },
+    /// Review an agent mandate (JSON on stdin) and sign it after typed confirmation.
+    SignMandate {
+        #[arg(long)]
+        key: PathBuf,
+        /// As for `sign`: refused unless the mandate's network is `regtest`.
+        #[arg(long)]
+        unattended_regtest: bool,
+    },
+}
+
+/// Reads one line from the terminal (not stdin, which carries the JSON) and compares it.
+fn confirm(expected: &str) -> anyhow::Result<()> {
+    let mut answer = String::new();
+    #[cfg(unix)]
+    let tty_in = std::fs::File::open("/dev/tty");
+    #[cfg(windows)]
+    let tty_in = std::fs::File::open("CONIN$");
+    std::io::BufReader::new(tty_in.context("opening the terminal for confirmation")?)
+        .read_line(&mut answer)?;
+    if answer.trim() != expected {
+        bail!("not approved");
+    }
+    Ok(())
 }
 
 fn read_key(path: &Path) -> anyhow::Result<SigningKey> {
@@ -166,19 +193,69 @@ fn main() -> anyhow::Result<()> {
                 )?;
                 out.flush()?;
                 drop(out);
-                // Read the confirmation from the terminal, not from the JSON stream.
-                let mut answer = String::new();
-                #[cfg(unix)]
-                let tty_in = std::fs::File::open("/dev/tty");
-                #[cfg(windows)]
-                let tty_in = std::fs::File::open("CONIN$");
-                std::io::BufReader::new(tty_in.context("opening the terminal for confirmation")?)
-                    .read_line(&mut answer)?;
-                if answer.trim() != format!("approve {}", &hash[..8]) {
-                    bail!("not approved");
-                }
+                confirm(&format!("approve {}", &hash[..8]))?;
             }
             let msg = format!("lute-approve-v1|{network}|{hash}");
+            println!("{}", hex::encode(sk.sign(msg.as_bytes()).to_bytes()));
+        }
+        Cmd::SignMandate {
+            key,
+            unattended_regtest,
+        } => {
+            let sk = read_key(&key)?;
+            let mut input = String::new();
+            std::io::stdin().read_to_string(&mut input)?;
+            let m: serde_json::Value =
+                serde_json::from_str(input.trim()).context("parsing JSON")?;
+            let hash = canonical_hash(&m)?;
+            let s = |k: &str| -> anyhow::Result<String> {
+                Ok(field(&m, k)?.as_str().unwrap_or_default().to_string())
+            };
+            let n =
+                |k: &str| -> anyhow::Result<u64> { Ok(field(&m, k)?.as_u64().unwrap_or_default()) };
+            let network = s("network")?;
+            let recipients = field(&m, "allowed_recipients")?
+                .as_array()
+                .ok_or_else(|| anyhow!("allowed_recipients must be a list"))?
+                .iter()
+                .map(|r| truncate(r.as_str().unwrap_or_default()))
+                .collect::<Vec<_>>();
+
+            let tty = std::io::stderr();
+            let mut out = tty.lock();
+            writeln!(
+                out,
+                "
+=== Lute agent mandate ==="
+            )?;
+            writeln!(out, "network:        {network}")?;
+            writeln!(out, "wallet:         {}", s("wallet")?)?;
+            writeln!(out, "purpose:        {}", s("purpose")?)?;
+            writeln!(out, "per payment:    up to {} ZEC", zec(n("max_tx_zat")?))?;
+            writeln!(out, "total budget:   {} ZEC", zec(n("total_zat")?))?;
+            writeln!(out, "may pay only:   {}", recipients.join(", "))?;
+            writeln!(out, "expires (unix): {}", n("expires_at")?)?;
+            writeln!(out, "mandate id:     {}", s("mandate_id")?)?;
+            writeln!(out, "mandate hash:   {hash}")?;
+            writeln!(out, "Payments inside these bounds will NOT ask you again.")?;
+            if unattended_regtest {
+                if network != "regtest" {
+                    bail!("--unattended-regtest is refused for network `{network}`");
+                }
+                writeln!(out, "(unattended regtest signing)")?;
+                drop(out);
+            } else {
+                write!(
+                    out,
+                    "
+Type `approve mandate {}` to sign, anything else to abort: ",
+                    &hash[..8]
+                )?;
+                out.flush()?;
+                drop(out);
+                confirm(&format!("approve mandate {}", &hash[..8]))?;
+            }
+            let msg = format!("lute-mandate-v1|{network}|{hash}");
             println!("{}", hex::encode(sk.sign(msg.as_bytes()).to_bytes()));
         }
     }

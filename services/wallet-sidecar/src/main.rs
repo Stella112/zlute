@@ -164,6 +164,29 @@ enum WalletCmd {
         #[arg(long, default_value = "/opt/zlute/owner.pub")]
         owner_pub: PathBuf,
     },
+    /// Load an owner-signed mandate (canonical JSON file + signature from `lute-owner sign-mandate`).
+    LoadMandate {
+        #[arg(long)]
+        mandate: PathBuf,
+        #[arg(long)]
+        signature: String,
+        #[arg(long, default_value = "/opt/zlute/owner.pub")]
+        owner_pub: PathBuf,
+    },
+    /// Show a loaded mandate's budget (committed and remaining).
+    MandateStatus {
+        #[arg(long)]
+        mandate_id: String,
+    },
+    /// Step 3 under a loaded mandate instead of a per-proposal approval.
+    ExecuteMandate {
+        #[arg(long)]
+        proposal: String,
+        #[arg(long)]
+        mandate_id: String,
+        #[arg(long, default_value = "/opt/zlute/owner.pub")]
+        owner_pub: PathBuf,
+    },
 }
 
 fn parse_network(s: &str) -> Result<NetworkKind, String> {
@@ -339,6 +362,33 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     owner_pub,
                 } => {
                     let out = Wallet::open(&dir)?.execute(&proposal, &owner_pub).await?;
+                    println!("{}", serde_json::to_string(&out)?);
+                    if out.status != lute_sidecar::control::SpendStatus::Submitted {
+                        return Ok(ExitCode::from(3));
+                    }
+                }
+                WalletCmd::LoadMandate {
+                    mandate,
+                    signature,
+                    owner_pub,
+                } => {
+                    let json = std::fs::read_to_string(&mandate)?;
+                    let v =
+                        Wallet::open(&dir)?.load_mandate(json.trim(), &signature, &owner_pub)?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
+                WalletCmd::MandateStatus { mandate_id } => {
+                    let v = Wallet::open(&dir)?.mandate_status(&mandate_id)?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
+                WalletCmd::ExecuteMandate {
+                    proposal,
+                    mandate_id,
+                    owner_pub,
+                } => {
+                    let out = Wallet::open(&dir)?
+                        .execute_with_mandate(&proposal, &mandate_id, &owner_pub)
+                        .await?;
                     println!("{}", serde_json::to_string(&out)?);
                     if out.status != lute_sidecar::control::SpendStatus::Submitted {
                         return Ok(ExitCode::from(3));

@@ -172,6 +172,7 @@ fn from_anyhow(e: anyhow::Error) -> Response {
         ("policy denied: ", StatusCode::FORBIDDEN),
         ("execution denied: ", StatusCode::FORBIDDEN),
         ("approval rejected: ", StatusCode::FORBIDDEN),
+        ("mandate rejected: ", StatusCode::FORBIDDEN),
     ] {
         if let Some(code) = msg.strip_prefix(prefix) {
             return err(status, code.trim_matches('"'));
@@ -381,6 +382,65 @@ async fn h_execute(
 }
 
 #[derive(Deserialize)]
+struct LoadMandateReq {
+    /// The canonical mandate JSON exactly as the owner signed it.
+    mandate_json: String,
+    signature: String,
+}
+
+async fn h_load_mandate(
+    State(st): State<Arc<AppState>>,
+    UrlPath(w): UrlPath<String>,
+    Json(r): Json<LoadMandateReq>,
+) -> Response {
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    match w.load_mandate(&r.mandate_json, &r.signature, &st.owner_pub) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => from_anyhow(e),
+    }
+}
+
+async fn h_mandate(
+    State(st): State<Arc<AppState>>,
+    UrlPath((w, id)): UrlPath<(String, String)>,
+) -> Response {
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    match w.mandate_status(&id) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => from_anyhow(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct ExecuteMandateReq {
+    mandate_id: String,
+}
+
+async fn h_execute_mandate(
+    State(st): State<Arc<AppState>>,
+    UrlPath((w, id)): UrlPath<(String, String)>,
+    Json(r): Json<ExecuteMandateReq>,
+) -> Response {
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    match w
+        .execute_with_mandate(&id, &r.mandate_id, &st.owner_pub)
+        .await
+    {
+        Ok(o) => Json(o).into_response(),
+        Err(e) => from_anyhow(e),
+    }
+}
+
+#[derive(Deserialize)]
 struct VerifyReq {
     txid: String,
 }
@@ -418,6 +478,12 @@ pub fn router(cfg: &ApiConfig) -> Router {
         .route("/v1/wallets/{w}/proposals/{id}", get(h_show))
         .route("/v1/wallets/{w}/proposals/{id}/approve", post(h_approve))
         .route("/v1/wallets/{w}/proposals/{id}/execute", post(h_execute))
+        .route(
+            "/v1/wallets/{w}/proposals/{id}/execute-mandate",
+            post(h_execute_mandate),
+        )
+        .route("/v1/wallets/{w}/mandates", post(h_load_mandate))
+        .route("/v1/wallets/{w}/mandates/{id}", get(h_mandate))
         .route("/v1/wallets/{w}/verify", post(h_verify))
         .route("/v1/wallets/{w}/requests/check", post(h_check))
         .route("/v1/wallets/{w}/tx/{txid}", get(h_tx))

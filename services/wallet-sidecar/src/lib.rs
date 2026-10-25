@@ -7,6 +7,7 @@ pub mod api;
 pub mod approval;
 pub mod control;
 pub mod inspect;
+pub mod mandate;
 pub mod network;
 pub mod policy;
 pub mod wallet;

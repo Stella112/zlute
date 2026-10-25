@@ -17,6 +17,7 @@ use crate::approval::{
     approval_message, parse_owner_pubkey, ProposalSummary, MAX_TX_ZAT, POLICY, PROPOSAL_TTL_S,
 };
 use crate::control::{ControlDb, SpendStatus};
+use crate::mandate::Mandate;
 use crate::policy::StepPools;
 
 const CONTROL_FILE: &str = "control.sqlite";
@@ -217,6 +218,141 @@ impl Wallet {
             detail,
         })
     }
+}
+
+impl Wallet {
+    /// The wallet's directory name: what a mandate's `wallet` field must equal.
+    fn wallet_name(&self) -> String {
+        self.dir
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    }
+
+    fn network_label(&self) -> anyhow::Result<String> {
+        Ok(serde_json::to_value(self.config.network)?
+            .as_str()
+            .unwrap_or_default()
+            .to_string())
+    }
+
+    /// Loads an owner-signed mandate (verified against the owner public key, this wallet and
+    /// network, and the §13.1 caps) into this wallet's control DB.
+    pub fn load_mandate(
+        &self,
+        mandate_json: &str,
+        signature_hex: &str,
+        owner_pub: &Path,
+    ) -> anyhow::Result<MandateView> {
+        let owner = load_owner(owner_pub)?;
+        let network = self.network_label()?;
+        let m = Mandate::verify(
+            mandate_json,
+            signature_hex,
+            &owner,
+            &network,
+            &self.wallet_name(),
+            now(),
+        )
+        .map_err(|e| anyhow!("mandate rejected: {}", serde_json::to_string(&e).unwrap()))?;
+        let control = self.control()?;
+        control
+            .record_mandate(&m, signature_hex, now())
+            .map_err(|d| anyhow!("mandate rejected: {}", serde_json::to_string(&d).unwrap()))?;
+        self.mandate_status(&m.mandate_id)
+    }
+
+    pub fn mandate_status(&self, mandate_id: &str) -> anyhow::Result<MandateView> {
+        let (m, used) = self
+            .control()?
+            .mandate_usage(mandate_id)
+            .map_err(|d| anyhow!("execution denied: {}", serde_json::to_string(&d).unwrap()))?;
+        Ok(MandateView {
+            mandate_id: m.mandate_id.clone(),
+            mandate_hash: m.hash(),
+            max_tx_zat: m.max_tx_zat,
+            total_zat: m.total_zat,
+            committed_zat: used,
+            remaining_zat: m.total_zat.saturating_sub(used),
+            expires_at: m.expires_at,
+            allowed_recipients: m.allowed_recipients.len(),
+        })
+    }
+
+    /// Step 3 under a mandate: like `execute`, but the authorization is the loaded owner-signed
+    /// mandate (recipient allow-list, per-tx cap, remaining budget, expiry), reserved atomically.
+    pub async fn execute_with_mandate(
+        &self,
+        proposal_id: &str,
+        mandate_id: &str,
+        owner_pub: &Path,
+    ) -> anyhow::Result<ExecuteOutcome> {
+        let owner = load_owner(owner_pub)?;
+        let mut control = self.control()?;
+        let (_, summary_json, bytes) = control
+            .load_proposal(proposal_id)?
+            .ok_or_else(|| anyhow!("unknown proposal"))?;
+        let stored: ProposalSummary = serde_json::from_str(&summary_json)?;
+
+        let mut db = self.db()?;
+        let decoded: LuteProposal = ProposalProto::decode(&bytes[..])?
+            .try_into_standard_proposal(&self.params(), &db)
+            .map_err(|e| anyhow!("stored proposal no longer valid: {e}"))?;
+        let meta = Meta {
+            proposal_id: stored.proposal_id.clone(),
+            created_at: stored.created_at,
+            expires_at: stored.expires_at,
+        };
+        // The recipient checked against the mandate comes from the re-derived proposal, not from
+        // anything the caller sent.
+        let summary = self.summarize(&decoded, &meta)?;
+        let recomputed = summary.hash();
+        let spend_id = control
+            .reserve_with_mandate(
+                &owner,
+                &stored.network,
+                proposal_id,
+                &recomputed,
+                &summary.recipient,
+                mandate_id,
+                now(),
+            )
+            .map_err(|d| anyhow!("execution denied: {}", serde_json::to_string(&d).unwrap()))?;
+
+        let result = self.build_and_broadcast(&mut db, &decoded).await;
+        let (status, txid, broadcast, detail) = match result {
+            Err(e) => (SpendStatus::Released, None, None, Some(format!("{e:#}"))),
+            Ok((txid, b, detail)) => {
+                let status = match b {
+                    Broadcast::Accepted => SpendStatus::Submitted,
+                    Broadcast::Rejected => SpendStatus::Released,
+                    Broadcast::Ambiguous => SpendStatus::Ambiguous,
+                };
+                (status, Some(txid.to_string()), Some(b), detail)
+            }
+        };
+        control.finish(spend_id, status, txid.as_deref(), now())?;
+        Ok(ExecuteOutcome {
+            proposal_hash: recomputed,
+            status,
+            txid,
+            broadcast,
+            detail,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct MandateView {
+    pub mandate_id: String,
+    pub mandate_hash: String,
+    pub max_tx_zat: u64,
+    pub total_zat: u64,
+    pub committed_zat: u64,
+    pub remaining_zat: u64,
+    pub expires_at: u64,
+    /// Count only: the allow-listed addresses are not echoed back.
+    pub allowed_recipients: usize,
 }
 
 fn load_owner(path: &Path) -> anyhow::Result<ed25519_dalek::VerifyingKey> {

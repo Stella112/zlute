@@ -82,16 +82,26 @@ pub fn verify_approval(
     proposal_hash: &str,
     signature_hex: &str,
 ) -> Result<(), ApprovalError> {
+    verify_signature(
+        owner,
+        &approval_message(network, proposal_hash),
+        signature_hex,
+    )
+}
+
+/// Verifies an owner signature (hex) over `message`. Shared by approvals and mandates.
+pub fn verify_signature(
+    owner: &VerifyingKey,
+    message: &[u8],
+    signature_hex: &str,
+) -> Result<(), ApprovalError> {
     let sig: [u8; 64] = hex::decode(signature_hex.trim())
         .map_err(|_| ApprovalError::BadSignatureEncoding)?
         .try_into()
         .map_err(|_| ApprovalError::BadSignatureEncoding)?;
     owner
         // verify_strict rejects weak keys and malleable signatures.
-        .verify_strict(
-            &approval_message(network, proposal_hash),
-            &Signature::from_bytes(&sig),
-        )
+        .verify_strict(message, &Signature::from_bytes(&sig))
         .map_err(|_| ApprovalError::InvalidSignature)
 }
 

@@ -11,6 +11,7 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::Serialize;
 
 use crate::approval::{verify_approval, ProposalSummary, DAILY_CAP_ZAT, MAX_TX_ZAT};
+use crate::mandate::Mandate;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -24,6 +25,13 @@ pub enum Denial {
     AlreadyExecuted,
     OverPerTxCap,
     OverDailyCap,
+    UnknownMandate,
+    MandateInvalid,
+    MandateExpired,
+    MandateAlreadyLoaded,
+    RecipientNotInMandate,
+    OverMandatePerTx,
+    OverMandateTotal,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -90,8 +98,28 @@ impl ControlDb {
                  txid TEXT,
                  created_at INTEGER NOT NULL,
                  updated_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS mandates (
+                 id TEXT PRIMARY KEY,
+                 hash TEXT NOT NULL UNIQUE,
+                 mandate_json TEXT NOT NULL,
+                 signature TEXT NOT NULL,
+                 max_tx_zat INTEGER NOT NULL CHECK (max_tx_zat > 0),
+                 total_zat INTEGER NOT NULL CHECK (total_zat > 0),
+                 expires_at INTEGER NOT NULL,
+                 created_at INTEGER NOT NULL
              );",
         )?;
+        // Spends made under a mandate carry its id (budget accounting). Added in place so control
+        // DBs created before mandates keep their history.
+        let has_col: bool = conn
+            .prepare("SELECT 1 FROM pragma_table_info('spends') WHERE name = 'mandate_id'")?
+            .exists([])?;
+        if !has_col {
+            conn.execute_batch(
+                "ALTER TABLE spends ADD COLUMN mandate_id TEXT REFERENCES mandates(id)",
+            )?;
+        }
         Ok(ControlDb { conn })
     }
 
@@ -296,6 +324,167 @@ impl ControlDb {
         Ok(spend_id)
     }
 
+    /// Stores a mandate that `Mandate::verify` accepted. A mandate id can be loaded once.
+    pub fn record_mandate(&self, m: &Mandate, signature_hex: &str, now: u64) -> Result<(), Denial> {
+        self.conn
+            .execute(
+                "INSERT INTO mandates (id, hash, mandate_json, signature, max_tx_zat, total_zat, expires_at, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    m.mandate_id,
+                    m.hash(),
+                    m.canonical_json(),
+                    signature_hex.trim(),
+                    m.max_tx_zat as i64,
+                    m.total_zat as i64,
+                    m.expires_at as i64,
+                    now as i64,
+                ],
+            )
+            .map_err(|_| Denial::MandateAlreadyLoaded)?;
+        Ok(())
+    }
+
+    /// (mandate, budget committed: reserved + submitted + ambiguous) for a loaded mandate.
+    pub fn mandate_usage(&self, mandate_id: &str) -> Result<(Mandate, u64), Denial> {
+        let json: String = self
+            .conn
+            .query_row(
+                "SELECT mandate_json FROM mandates WHERE id = ?1",
+                params![mandate_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|_| Denial::UnknownMandate)?
+            .ok_or(Denial::UnknownMandate)?;
+        let m: Mandate = serde_json::from_str(&json).map_err(|_| Denial::MandateInvalid)?;
+        let used: i64 = self
+            .conn
+            .query_row(
+                "SELECT COALESCE(SUM(amount_zat), 0) FROM spends
+                 WHERE mandate_id = ?1 AND status IN ('reserved','submitted','ambiguous')",
+                params![mandate_id],
+                |r| r.get(0),
+            )
+            .map_err(|_| Denial::UnknownMandate)?;
+        Ok((m, used as u64))
+    }
+
+    /// Like `reserve`, but authorized by a loaded owner-signed mandate instead of a per-proposal
+    /// approval. Atomically checks: proposal (expiry, hash binding, not executed); mandate (loaded,
+    /// signature still valid, unexpired, recipient on its allow-list, per-tx cap, remaining total);
+    /// the §13.1 caps; then reserves budget against both the day and the mandate.
+    #[allow(clippy::too_many_arguments)]
+    pub fn reserve_with_mandate(
+        &mut self,
+        owner: &VerifyingKey,
+        network: &str,
+        proposal_id: &str,
+        recomputed_hash: &str,
+        recipient: &str,
+        mandate_id: &str,
+        now: u64,
+    ) -> Result<i64, Denial> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| Denial::UnknownProposal)?;
+
+        let row: Option<(String, i64, i64)> = tx
+            .query_row(
+                "SELECT hash, amount_zat, expires_at FROM proposals WHERE id = ?1",
+                params![proposal_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()
+            .map_err(|_| Denial::UnknownProposal)?;
+        let (hash, amount, expires_at) = row.ok_or(Denial::UnknownProposal)?;
+        if (now as i64) >= expires_at {
+            return Err(Denial::ProposalExpired);
+        }
+        if recomputed_hash != hash {
+            return Err(Denial::HashMismatch);
+        }
+        let executed: bool = tx
+            .query_row(
+                "SELECT 1 FROM spends WHERE proposal_hash = ?1",
+                params![hash],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(|_| Denial::AlreadyExecuted)?
+            .is_some();
+        if executed {
+            return Err(Denial::AlreadyExecuted);
+        }
+
+        let mrow: Option<(String, String)> = tx
+            .query_row(
+                "SELECT mandate_json, signature FROM mandates WHERE id = ?1",
+                params![mandate_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| Denial::UnknownMandate)?;
+        let (mjson, msig) = mrow.ok_or(Denial::UnknownMandate)?;
+        let m: Mandate = serde_json::from_str(&mjson).map_err(|_| Denial::MandateInvalid)?;
+        // Re-verify the stored signature: a mandate row edited on disk is not a mandate.
+        crate::approval::verify_signature(
+            owner,
+            &crate::mandate::mandate_message(network, &m.hash()),
+            &msig,
+        )
+        .map_err(|_| Denial::MandateInvalid)?;
+        if m.network != network {
+            return Err(Denial::MandateInvalid);
+        }
+        if now >= m.expires_at {
+            return Err(Denial::MandateExpired);
+        }
+        if !m.allowed_recipients.iter().any(|r| r == recipient) {
+            return Err(Denial::RecipientNotInMandate);
+        }
+        if amount as u64 > m.max_tx_zat {
+            return Err(Denial::OverMandatePerTx);
+        }
+        let used: i64 = tx
+            .query_row(
+                "SELECT COALESCE(SUM(amount_zat), 0) FROM spends
+                 WHERE mandate_id = ?1 AND status IN ('reserved','submitted','ambiguous')",
+                params![mandate_id],
+                |r| r.get(0),
+            )
+            .map_err(|_| Denial::OverMandateTotal)?;
+        if (used + amount) as u64 > m.total_zat {
+            return Err(Denial::OverMandateTotal);
+        }
+
+        if amount as u64 > MAX_TX_ZAT {
+            return Err(Denial::OverPerTxCap);
+        }
+        let spent_today: i64 = tx
+            .query_row(
+                "SELECT COALESCE(SUM(amount_zat), 0) FROM spends
+                 WHERE day = ?1 AND status IN ('reserved','submitted','ambiguous')",
+                params![day(now)],
+                |r| r.get(0),
+            )
+            .map_err(|_| Denial::OverDailyCap)?;
+        if (spent_today + amount) as u64 > DAILY_CAP_ZAT {
+            return Err(Denial::OverDailyCap);
+        }
+
+        tx.execute(
+            "INSERT INTO spends (proposal_hash, amount_zat, day, status, created_at, updated_at, mandate_id)
+             VALUES (?1, ?2, ?3, 'reserved', ?4, ?4, ?5)",
+            params![hash, amount, day(now), now as i64, mandate_id],
+        )
+        .map_err(|_| Denial::AlreadyExecuted)?;
+        let spend_id = tx.last_insert_rowid();
+        tx.commit().map_err(|_| Denial::AlreadyExecuted)?;
+        Ok(spend_id)
+    }
+
     /// Settles a reservation. `Released` frees the budget (the transaction was not accepted);
     /// `Ambiguous` keeps it reserved until reconciled by txid (W16); never retried here.
     pub fn finish(
@@ -457,6 +646,173 @@ mod tests {
         assert_eq!(
             db.reserve(&owner().verifying_key(), "regtest", "p", &s.hash(), NOW + 1),
             Err(Denial::OverPerTxCap)
+        );
+    }
+
+    const MID: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    fn mandate(total: u64, max_tx: u64) -> (Mandate, String) {
+        let m = Mandate {
+            mandate_id: MID.into(),
+            network: "regtest".into(),
+            wallet: "agent".into(),
+            purpose: "agent".into(),
+            max_tx_zat: max_tx,
+            total_zat: total,
+            allowed_recipients: vec!["uregtest1x".into()],
+            expires_at: NOW + 3600,
+            nonce: "n".into(),
+        };
+        let sig = hex::encode(
+            owner()
+                .sign(&crate::mandate::mandate_message("regtest", &m.hash()))
+                .to_bytes(),
+        );
+        (m, sig)
+    }
+
+    fn mandate_db(amounts: &[u64]) -> (ControlDb, Vec<ProposalSummary>) {
+        let db = ControlDb::in_memory().unwrap();
+        let (m, sig) = mandate(30_000, 20_000);
+        db.record_mandate(&m, &sig, NOW).unwrap();
+        let ps = amounts
+            .iter()
+            .enumerate()
+            .map(|(i, a)| {
+                let s = summary(&format!("m{i}"), *a);
+                db.insert_proposal(&s, b"x").unwrap();
+                s
+            })
+            .collect();
+        (db, ps)
+    }
+
+    fn rm(
+        db: &mut ControlDb,
+        ps: &[ProposalSummary],
+        i: usize,
+        recipient: &str,
+        mandate_id: &str,
+        now: u64,
+    ) -> Result<i64, Denial> {
+        db.reserve_with_mandate(
+            &owner().verifying_key(),
+            "regtest",
+            &format!("m{i}"),
+            &ps[i].hash(),
+            recipient,
+            mandate_id,
+            now,
+        )
+    }
+
+    /// A2/A3 in the sidecar: a mandate's per-tx cap and total budget, without any owner approval.
+    #[test]
+    fn mandate_spends_within_budget_then_denies() {
+        let (mut db, ps) = mandate_db(&[20_000, 20_000, 25_000, 10_000]);
+        assert!(rm(&mut db, &ps, 0, "uregtest1x", MID, NOW + 1).is_ok());
+        assert_eq!(
+            rm(&mut db, &ps, 2, "uregtest1x", MID, NOW + 1),
+            Err(Denial::OverMandatePerTx)
+        );
+        // 20k + 20k > 30k total.
+        assert_eq!(
+            rm(&mut db, &ps, 1, "uregtest1x", MID, NOW + 1),
+            Err(Denial::OverMandateTotal)
+        );
+        assert!(rm(&mut db, &ps, 3, "uregtest1x", MID, NOW + 1).is_ok()); // exactly 30k
+        assert_eq!(db.mandate_usage(MID).unwrap().1, 30_000);
+    }
+
+    #[test]
+    fn mandate_recipient_unknown_replay_binding_expiry() {
+        let (mut db, ps) = mandate_db(&[10_000, 10_000]);
+        let pk = owner().verifying_key();
+        assert_eq!(
+            rm(&mut db, &ps, 0, "uregtest1attacker", MID, NOW + 1),
+            Err(Denial::RecipientNotInMandate)
+        );
+        assert_eq!(
+            rm(
+                &mut db,
+                &ps,
+                0,
+                "uregtest1x",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                NOW + 1
+            ),
+            Err(Denial::UnknownMandate)
+        );
+        rm(&mut db, &ps, 0, "uregtest1x", MID, NOW + 1).unwrap();
+        assert_eq!(
+            rm(&mut db, &ps, 0, "uregtest1x", MID, NOW + 2),
+            Err(Denial::AlreadyExecuted)
+        );
+        // The approval path still needs a per-proposal owner approval.
+        assert_eq!(
+            db.reserve(&pk, "regtest", "m1", &ps[1].hash(), NOW + 1),
+            Err(Denial::NoApproval)
+        );
+        // W8 binding applies to mandate spends too.
+        let mut mutated = ps[1].clone();
+        mutated.amount_zat += 1;
+        assert_eq!(
+            db.reserve_with_mandate(
+                &pk,
+                "regtest",
+                "m1",
+                &mutated.hash(),
+                "uregtest1x",
+                MID,
+                NOW + 1
+            ),
+            Err(Denial::HashMismatch)
+        );
+        assert_eq!(
+            rm(&mut db, &ps, 1, "uregtest1x", MID, NOW + 300),
+            Err(Denial::ProposalExpired)
+        );
+    }
+
+    #[test]
+    fn mandate_expires_and_tampering_or_reload_is_refused() {
+        let (mut db, ps) = mandate_db(&[10_000, 10_000]);
+        let (m, sig) = mandate(30_000, 20_000);
+        assert_eq!(
+            db.record_mandate(&m, &sig, NOW),
+            Err(Denial::MandateAlreadyLoaded)
+        );
+        // Someone with DB access raises the budget: the stored signature no longer matches.
+        db.conn
+            .execute(
+                "UPDATE mandates SET mandate_json = replace(mandate_json, '30000', '5000000')",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            rm(&mut db, &ps, 0, "uregtest1x", MID, NOW + 1),
+            Err(Denial::MandateInvalid)
+        );
+    }
+
+    #[test]
+    fn expired_mandate_spends_nothing() {
+        let db = ControlDb::in_memory().unwrap();
+        let mut db = db;
+        let (mut m, _) = mandate(30_000, 20_000);
+        m.expires_at = NOW + 10;
+        let sig = hex::encode(
+            owner()
+                .sign(&crate::mandate::mandate_message("regtest", &m.hash()))
+                .to_bytes(),
+        );
+        db.record_mandate(&m, &sig, NOW).unwrap();
+        let mut s = summary("m0", 10_000);
+        s.expires_at = NOW + 300;
+        db.insert_proposal(&s, b"x").unwrap();
+        assert_eq!(
+            rm(&mut db, &[s], 0, "uregtest1x", MID, NOW + 10),
+            Err(Denial::MandateExpired)
         );
     }
 
