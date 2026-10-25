@@ -1,0 +1,36 @@
+           id           | total_zat |  start_ts  |   end_ts   | events | network 
+------------------------+-----------+------------+------------+--------+---------
+ JSN5-FR7ha0x3tBdhuZerA |     30000 | 1792947328 | 1792947448 | []     | main
+(1 row)
+
+ seq | amount_zat |       action_id        |   state   |    reject_reason    |                          proposal_hash                           |                               txid                               
+-----+------------+------------------------+-----------+---------------------+------------------------------------------------------------------+------------------------------------------------------------------
+   1 |      15250 | 3TaYYL2CePKet0GNdbUjqQ | CONFIRMED |                     | 8876a605037c4e0d47ed026d5d5702e395057840cb72c8b4f09205017aa6753d | 0517b048d4830f00dd27a35919443c4a1931164329f7c41893853296bbf2a49c
+   2 |      14750 | Cg9h1bGy8eZALju2hFEIlQ | FAILED    | SIDECAR_UNAVAILABLE |                                                                  | 
+   3 |      14750 | dBeknloUbm_KFhq96ddtEg | SUBMITTED |                     | f31da19c35fd1113d41f26a3318c723d9c10b39a77ef116d7a5664bb6821f9b2 | aa5294dd01a59b788dacbd562afca471d3cdfccb11a21d22457c89898be72f7d
+(3 rows)
+
+       action_id        |       from_state       |        to_state        | actor  |         at_utc         
+------------------------+------------------------+------------------------+--------+------------------------
+ 3TaYYL2CePKet0GNdbUjqQ | CREATED                | VALIDATING             | owner  | 2026-10-25 16:56:29+00
+ 3TaYYL2CePKet0GNdbUjqQ | VALIDATING             | AWAITING_AUTHORIZATION | owner  | 2026-10-25 16:56:29+00
+ 3TaYYL2CePKet0GNdbUjqQ | AWAITING_AUTHORIZATION | AUTHORIZED             | owner  | 2026-10-25 16:56:46+00
+ 3TaYYL2CePKet0GNdbUjqQ | AUTHORIZED             | PREPARING              | owner  | 2026-10-25 16:56:46+00
+ 3TaYYL2CePKet0GNdbUjqQ | PREPARING              | SUBMITTED              | owner  | 2026-10-25 16:57:19+00
+ Cg9h1bGy8eZALju2hFEIlQ | CREATED                | VALIDATING             | owner  | 2026-10-25 16:57:29+00
+ Cg9h1bGy8eZALju2hFEIlQ | VALIDATING             | FAILED                 | system | 2026-10-25 17:09:12+00
+ 3TaYYL2CePKet0GNdbUjqQ | SUBMITTED              | PENDING_CONFIRMATION   | system | 2026-10-25 21:34:32+00
+ 3TaYYL2CePKet0GNdbUjqQ | PENDING_CONFIRMATION   | CONFIRMED              | system | 2026-10-25 21:34:32+00
+ dBeknloUbm_KFhq96ddtEg | CREATED                | VALIDATING             | owner  | 2026-10-25 21:34:32+00
+ dBeknloUbm_KFhq96ddtEg | VALIDATING             | AWAITING_AUTHORIZATION | owner  | 2026-10-25 21:34:32+00
+ dBeknloUbm_KFhq96ddtEg | AWAITING_AUTHORIZATION | AUTHORIZED             | owner  | 2026-10-25 21:35:34+00
+ dBeknloUbm_KFhq96ddtEg | AUTHORIZED             | PREPARING              | owner  | 2026-10-25 21:35:34+00
+ dBeknloUbm_KFhq96ddtEg | PREPARING              | SUBMITTED              | owner  | 2026-10-25 21:36:05+00
+(14 rows)
+
+       action_id        | outcome | policy_version  |         at_utc         | n_checks | non_pass 
+------------------------+---------+-----------------+------------------------+----------+----------
+ 3TaYYL2CePKet0GNdbUjqQ | ALLOW   | luteguard/1.0.0 | 2026-10-25 16:56:29+00 |       20 |        0
+ dBeknloUbm_KFhq96ddtEg | ALLOW   | luteguard/1.0.0 | 2026-10-25 21:34:32+00 |       20 |        0
+(2 rows)
+
