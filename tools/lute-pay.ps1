@@ -50,13 +50,18 @@ try {
   $login = Invoke-WebRequest "$base/v1/auth/login" -Method Post -ContentType "application/json" -UseBasicParsing `
     -Body (@{ username = $User; password = $pw } | ConvertTo-Json)
   $pw = $null
-  # The session cookie is marked Secure; send it explicitly over the local tunnel.
-  $cookie = ($login.Headers["Set-Cookie"] -split ";")[0]
-  $h = @{ Cookie = $cookie; "Idempotency-Key" = ("pay-" + [guid]::NewGuid().ToString("N")) }
+  # The session cookie is marked Secure, so .NET will not resend it over the http tunnel by itself,
+  # and PowerShell 5.1 drops a "Cookie" header passed via -Headers. Put it in a web session instead.
+  $pair = ($login.Headers["Set-Cookie"] -split ";")[0]
+  $name, $value = $pair -split "=", 2
+  if ($name -ne "lute_session" -or -not $value) { throw "login did not return a session" }
+  $ws = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+  $ws.Cookies.Add((New-Object System.Net.Cookie($name, $value, "/", "127.0.0.1")))
+  $h = @{ "Idempotency-Key" = ("pay-" + [guid]::NewGuid().ToString("N")) }
 
   $body = @{ wallet = $Wallet; to = $To; amount_zec = $Zec }
   if ($MemoRef) { $body.memo_ref = $MemoRef }
-  $r = Invoke-RestMethod "$base/v1/actions/send" -Method Post -ContentType "application/json" -Headers $h -Body ($body | ConvertTo-Json)
+  $r = Invoke-RestMethod "$base/v1/actions/send" -Method Post -ContentType "application/json" -Headers $h -WebSession $ws -Body ($body | ConvertTo-Json)
   $id = $r.action_id
   Write-Host "action $id -> $($r.result.state)"
   if ($r.result.state -ne "AWAITING_AUTHORIZATION") {
@@ -70,7 +75,7 @@ try {
   if (-not $sig) { Write-Host "not approved; nothing was sent"; return }
 
   $h.Remove("Idempotency-Key")
-  $a = Invoke-RestMethod "$base/v1/actions/$id/authorize" -Method Post -ContentType "application/json" -Headers $h `
+  $a = Invoke-RestMethod "$base/v1/actions/$id/authorize" -Method Post -ContentType "application/json" -Headers $h -WebSession $ws `
     -Body (@{ signature = $sig.Trim() } | ConvertTo-Json)
   Write-Host ("result: " + ($a.result | ConvertTo-Json -Compress))
 } finally {
