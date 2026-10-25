@@ -38,6 +38,8 @@ rm -rf "$BASE/src.old"; [ -d "$BASE/src" ] && mv "$BASE/src" "$BASE/src.old"; mv
 
 cd "$BASE/src/infrastructure/api"
 docker compose up -d
+# The API bind-mounts $BASE/src, which was just replaced: recreate it so it runs the new build.
+docker compose up -d --force-recreate --no-deps api
 sleep 8
 docker ps --filter name=zlute- --format '{{.Names}}\t{{.Status}}'
 curl -s http://127.0.0.1:48200/v1/health; echo
