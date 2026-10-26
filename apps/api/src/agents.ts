@@ -77,6 +77,7 @@ const GrantBody = z.object({ agent_name: z.string().regex(/^[A-Za-z0-9 _.-]{1,48
 export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'NOT_FOUND' });
   const svcAad = (id: string) => `lute-meter-service|${id}|address`;
+  let lastServiceSync = 0;
 
   async function owner(req: FastifyRequest) {
     const u = await d.user(req);
@@ -307,6 +308,11 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const svc = (await service(s.service_id))!;
     if (BigInt(v.due_zat) + svc.price_per_call_zat > svc.credit_limit_zat) {
       return reply.code(402).send({ error: 'PAYMENT_REQUIRED', due_zat: v.due_zat, credit_limit_zat: v.service.credit_limit_zat });
+    }
+    // Keep the answer current: the service wallet syncs at most once a minute.
+    if (d.now() - lastServiceSync >= 60) {
+      await d.requestSidecar.sync(SERVICE_WALLET).catch(() => undefined);
+      lastServiceSync = d.now();
     }
     const b = await d.requestSidecar.balance(SERVICE_WALLET);
     await d.db.update(meterSessions).set({ calls: sql`${meterSessions.calls} + 1`, updated_at: d.now() }).where(eq(meterSessions.id, s.id));

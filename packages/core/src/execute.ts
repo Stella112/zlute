@@ -133,6 +133,31 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { reject_reason: 'MISSING_PARAMETERS' });
       return { state: 'REJECTED', reasons: ['MISSING_PARAMETERS'] };
     }
+    const facts: EvaluationContext['action'] = {
+      id: a.id,
+      type: a.type,
+      network: a.network,
+      amount_zat: a.amount_zat,
+      idempotency_key: a.idempotency_key,
+      expires_at: a.expires_at,
+      ...(a.memo ? { memo: a.memo } : {}),
+      ...(a.recipient_ref ? { recipient_ref: a.recipient_ref } : {}),
+    };
+    // Agents: check the grant (op, caps, remaining budget, recipient, expiry, mandate) before the
+    // wallet does anything. An unauthorized spend never gets a proposal built for it.
+    if (req.principal.kind === 'agent') {
+      const pre = evaluate(
+        { action: facts, configured_network: deps.configured_network, caller: req.caller, via_execute_action: true, principal: req.principal, spend_authorization: authorizationFor(req.principal) },
+        { now: deps.now, newId: deps.newId },
+      );
+      const authFails = pre.checks.filter((c) => c.policy === 'AuthorizationPolicy' && c.outcome !== 'PASS');
+      if (authFails.length > 0) {
+        await store.saveDecision(pre);
+        const reasons = authFails.map((c) => c.reason_code);
+        await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { last_decision_id: pre.decision_id, reject_reason: reasons.join(',') });
+        return { state: 'REJECTED', reasons, decision_id: pre.decision_id };
+      }
+    }
     let recipient: RecipientInspection;
     let proposal: ProposalView | undefined;
     try {
@@ -156,16 +181,7 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       return { state: 'FAILED', reason: 'SIDECAR_UNAVAILABLE' };
     }
     const ctx: EvaluationContext = {
-      action: {
-        id: a.id,
-        type: a.type,
-        network: a.network,
-        amount_zat: a.amount_zat,
-        idempotency_key: a.idempotency_key,
-        expires_at: a.expires_at,
-        ...(a.memo ? { memo: a.memo } : {}),
-        ...(a.recipient_ref ? { recipient_ref: a.recipient_ref } : {}),
-      },
+      action: facts,
       configured_network: deps.configured_network,
       caller: req.caller,
       via_execute_action: true,

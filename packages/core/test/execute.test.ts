@@ -305,6 +305,14 @@ describe('executeAction for agents (§13.3, A1–A5)', () => {
     }
   });
 
+  it('an agent over its grant is denied before the wallet is asked to build anything', async () => {
+    const { deps, store, sidecar } = setup(meter);
+    const r = await executeAction(deps, req({ principal: agent(grant({ spent_zat: 10_001n })), caller: 'mcp' }));
+    expect(r).toMatchObject({ state: 'REJECTED', reasons: ['OVER_GRANT_TOTAL'] });
+    expect(sidecar.calls).toEqual([]);
+    expect(store.decisions[0]?.outcome).toBe('DENY');
+  });
+
   it('an agent cannot use an owner signature to get around its grant', async () => {
     const { deps, sidecar } = setup({ ...meter, amount_zat: 15_001n });
     const r = await executeAction(deps, req({ principal: agent(grant()), caller: 'mcp', ownerSignature: 'a'.repeat(128) }));
