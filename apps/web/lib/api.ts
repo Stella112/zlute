@@ -58,6 +58,7 @@ export interface ActionRow {
   amount_zat: string;
   txid: string | null;
   reject_reason: string | null;
+  expires_at: number;
   created_at: number;
   updated_at: number;
 }

@@ -133,7 +133,7 @@ describe('API', () => {
     expect(r2.json().result).toEqual({ state: 'SUBMITTED', txid: 'abcd', ambiguous: false });
     const view = (await t.app.inject({ method: 'GET', url: `/v1/actions/${action_id}`, headers: { cookie } })).json();
     expect(view.state).toBe('SUBMITTED');
-    expect(t.sidecar.calls).toEqual(['inspect', 'propose', 'approve', 'execute']);
+    expect(t.sidecar.calls).toEqual(['inspect', 'inspect', 'propose', 'approve', 'execute']);
   });
 
   it('F3: the same Idempotency-Key never creates a second action or a second proposal', async () => {
@@ -203,7 +203,7 @@ describe('API', () => {
     const d = (await t.app.inject({ method: 'GET', url: '/v1/privacy/decisions', headers: { cookie } })).json();
     expect(d.decisions[0].outcome).toBe('DENY');
     expect(JSON.stringify(d)).not.toContain(RECIPIENT);
-    expect(t.sidecar.calls).toEqual(['inspect']);
+    expect(t.sidecar.calls).toEqual(['inspect', 'inspect']);
   });
 
   it('a forged approval keeps the action awaiting and never executes', async () => {

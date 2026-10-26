@@ -131,7 +131,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     minPayoutZat: deps.minPayoutZat ?? 100_000n,
   });
 
-  registerDashboardRoutes(app, { db: deps.db, sidecar: deps.requestSidecar, network: deps.network, user, resultsFile: deps.resultsFile ?? 'evidence/results.json' });
+  registerDashboardRoutes(app, { db: deps.db, sidecar: deps.requestSidecar, network: deps.network, user, resultsFile: deps.resultsFile ?? 'evidence/results.json', store: deps.store, now: deps.now });
 
   registerCommerceRoutes(app, { db: deps.db, store: deps.store, cipher: deps.cipher, sidecar: deps.sidecar, requestSidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });
 
@@ -226,7 +226,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       ));
     // The wallet must know the current tip before a proposal is built: its expiry height is
     // derived from it, and a stale tip yields a transaction that is already expired.
-    if (action.state === 'CREATED') await deps.requestSidecar.sync(walletOf(u, body.data.wallet));
+    // An address LuteGuard will refuse needs no wallet sync: refuse it immediately.
+    const payable = action.state === 'CREATED' && (await deps.sidecar.inspect(body.data.to).catch(() => null))?.verdict === 'ALLOWED';
+    if (payable) {
+      await deps.requestSidecar.sync(walletOf(u, body.data.wallet));
+    }
     const principal: Principal = { kind: 'owner', id: u.id, authenticated: true };
     const result = await executeAction(
       { store: deps.store, sidecar: deps.sidecar, configured_network: deps.network, now: deps.now, newId: opaqueId },

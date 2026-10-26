@@ -140,6 +140,11 @@ body {
   font-family: var(--font-display);
   font-weight: 500;
   letter-spacing: -0.01em;
+  /* Lining figures: old-style numerals make a 1 look like an I, which is unacceptable for money. */
+  font-variant-numeric: lining-nums;
+}
+.font-display.num {
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Small spaced capitals for section labels. */

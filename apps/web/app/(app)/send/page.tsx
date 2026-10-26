@@ -51,7 +51,8 @@ export default function PayPage() {
       if (result.state === 'AWAITING_AUTHORIZATION') setRes(r);
       else {
         const codes = 'reasons' in result && result.reasons ? result.reasons : 'reason' in result && result.reason ? [result.reason] : [result.state];
-        setError(codes.map((c) => BLOCKED[c] ?? c).join(' '));
+        const known = codes.map((c) => BLOCKED[c]).filter(Boolean);
+        setError(known.length ? known.join(' ') : 'Lute refused this payment to keep it private. Nothing was sent.');
       }
     } catch (err) {
       setError(err instanceof ApiError ? (err.code === 'BAD_AMOUNT' || err.code === 'BAD_REQUEST' ? 'Check the amount and the address.' : (BLOCKED[err.code] ?? err.code)) : 'Something went wrong. Nothing was sent.');

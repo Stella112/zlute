@@ -22,10 +22,13 @@ const OUT_TITLE: Record<string, string> = {
   METER_SETTLEMENT: 'AI agent payment',
 };
 
-function actionStatus(s: string): ActivityItem['status'] {
+function actionStatus(s: string, expiresAt: number): ActivityItem['status'] {
   if (s === 'CONFIRMED' || s === 'RECONCILED') return { label: 'Completed', tone: 'ok' };
   if (s === 'SUBMITTED' || s === 'PENDING_CONFIRMATION' || s === 'AUTHORIZED' || s === 'PREPARING') return { label: 'Confirming', tone: 'wait' };
-  if (s === 'AWAITING_AUTHORIZATION' || s === 'CREATED' || s === 'VALIDATING') return { label: 'Needs approval', tone: 'wait' };
+  if (s === 'AWAITING_AUTHORIZATION' || s === 'CREATED' || s === 'VALIDATING') {
+    // Never approved in time: nothing was sent.
+    return expiresAt * 1000 < Date.now() ? { label: 'Expired', tone: 'muted' } : { label: 'Needs approval', tone: 'wait' };
+  }
   if (s === 'REJECTED') return { label: 'Blocked', tone: 'bad' };
   return { label: s === 'EXPIRED' ? 'Expired' : 'Failed', tone: 'muted' };
 }
@@ -44,7 +47,7 @@ export function buildActivity(actions: ActionRow[], requests: RequestRow[]): Act
     title: OUT_TITLE[a.type] ?? a.type.replaceAll('_', ' ').toLowerCase(),
     at: a.created_at,
     amount_zat: a.amount_zat,
-    status: actionStatus(a.state),
+    status: actionStatus(a.state, a.expires_at),
     txid: a.txid,
   }));
   const inn: ActivityItem[] = requests.map((r) => ({
@@ -83,8 +86,8 @@ export function ActivityList({ items, network, empty }: { items: ActivityItem[];
               <p className="text-xs text-muted">{ago(i.at)}</p>
             </div>
             <div className="text-right">
-              <p className={`num text-[15px] ${i.direction === 'in' && i.status.tone === 'ok' ? 'text-ok' : ''}`}>
-                {i.direction === 'in' ? '+' : '−'}
+              <p className={`num text-[15px] ${i.direction === 'in' && i.status.tone === 'ok' ? 'text-ok' : ''} ${i.status.tone === 'bad' || i.status.tone === 'muted' ? 'text-muted line-through decoration-1' : ''}`}>
+                {i.status.tone === 'bad' || (i.status.tone === 'muted' && i.direction === 'out') ? '' : i.direction === 'in' ? '+' : '−'}
                 {zecShort(i.amount_zat)} <span className="text-xs text-muted">ZEC</span>
               </p>
               <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${TONE[i.status.tone]}`}>{i.status.label}</span>

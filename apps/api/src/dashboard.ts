@@ -12,6 +12,8 @@ import { WALLET_ROLES, walletOf, type SessionUser, type WalletRole } from './aut
 import { actions, paymentRequests, privacyDecisions } from './db/schema.js';
 import type { Db } from './db/store.js';
 import type { RequestSidecar } from './sidecar.js';
+import type { PgActionStore } from './db/store.js';
+import type { ActionState } from '@lute/core';
 
 export interface DashboardDeps {
   db: Db;
@@ -20,7 +22,13 @@ export interface DashboardDeps {
   user: (req: FastifyRequest) => Promise<SessionUser | null>;
   /** Path of evidence/results.json; a missing or unreadable file means every module is UNTESTED. */
   resultsFile: string;
+  /** Moves broadcast payments to confirmed when they are listed. */
+  store?: PgActionStore;
+  now?: () => number;
 }
+
+const SYNC_EVERY_S = 60;
+const MIN_CONF_MAIN = 3;
 
 
 export async function loadResults(path: string): Promise<Results | null> {
@@ -33,6 +41,15 @@ export async function loadResults(path: string): Promise<Results | null> {
 }
 
 export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps): void {
+  const now = d.now ?? (() => Math.floor(Date.now() / 1000));
+  const lastSync = new Map<string, number>();
+  /** Syncs a wallet with the network at most once a minute, so balances and statuses are current. */
+  async function fresh(w: string) {
+    if (now() - (lastSync.get(w) ?? 0) < SYNC_EVERY_S) return;
+    lastSync.set(w, now());
+    await d.sidecar.sync(w).catch(() => undefined);
+  }
+
   const owner = async (req: FastifyRequest) => {
     const u = await d.user(req);
     return u && u.role === 'owner' ? u : u ? 'forbidden' : null;
@@ -47,7 +64,29 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
   app.get('/v1/actions', async (req, reply) => {
     const u = await d.user(req);
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
-    const rows = await d.db.select().from(actions).where(eq(actions.owner_user_id, u.id)).orderBy(desc(actions.created_at)).limit(100);
+    let rows = await d.db.select().from(actions).where(eq(actions.owner_user_id, u.id)).orderBy(desc(actions.created_at)).limit(100);
+    // Payments in flight move to confirmed here (their own wallet DB; no extra server query).
+    const inFlight = rows.filter((a) => a.txid && a.wallet && (a.state === 'SUBMITTED' || a.state === 'PENDING_CONFIRMATION'));
+    if (d.store && inFlight.length) {
+      for (const w of new Set(inFlight.map((a) => a.wallet!))) await fresh(w);
+      for (const a of inFlight) {
+        const st = await d.sidecar.txStatus(a.wallet!, a.txid!).catch(() => null);
+        if (!st) continue;
+        let state = a.state as ActionState;
+        if (st.expired_unmined && st.mined_height === null) {
+          await d.store.transition(a.id, state, 'FAILED', 'system', { reject_reason: 'EXPIRED_UNMINED' }).catch(() => undefined);
+          continue;
+        }
+        if (state === 'SUBMITTED' && st.mined_height !== null) {
+          await d.store.transition(a.id, 'SUBMITTED', 'PENDING_CONFIRMATION', 'system').catch(() => undefined);
+          state = 'PENDING_CONFIRMATION';
+        }
+        if (state === 'PENDING_CONFIRMATION' && st.confirmations >= (d.network === 'main' ? MIN_CONF_MAIN : 1)) {
+          await d.store.transition(a.id, 'PENDING_CONFIRMATION', 'CONFIRMED', 'system').catch(() => undefined);
+        }
+      }
+      rows = await d.db.select().from(actions).where(eq(actions.owner_user_id, u.id)).orderBy(desc(actions.created_at)).limit(100);
+    }
     return {
       actions: rows.map((a) => ({
         id: a.id,
@@ -57,6 +96,7 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
         amount_zat: a.amount_zat.toString(),
         txid: a.txid,
         reject_reason: a.reject_reason,
+        expires_at: a.expires_at,
         created_at: a.created_at,
         updated_at: a.updated_at,
       })),
@@ -86,6 +126,7 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
     if (u === 'forbidden' || !(WALLET_ROLES as readonly string[]).includes(req.params.w)) return reply.code(404).send({ error: 'NOT_FOUND' });
     const w = walletOf(u, req.params.w as WalletRole);
+    await fresh(w);
     try {
       return await d.sidecar.balance(w);
     } catch {
