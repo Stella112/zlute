@@ -29,6 +29,8 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Test (native)
         run: cargo test
+      - name: Install clang and llvm (wasm32 C toolchain for secp256k1-sys)
+        run: sudo apt-get update && sudo apt-get install -y clang llvm && which clang llvm-ar
       - name: Build WebAssembly
         # secp256k1-sys (pulled in by the PCZT signer) compiles C for wasm32 with clang.
         env:

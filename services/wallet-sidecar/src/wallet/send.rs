@@ -124,6 +124,9 @@ pub fn fetch_params() -> anyhow::Result<()> {
 
 impl Wallet {
     fn spending_key(&self) -> anyhow::Result<UnifiedSpendingKey> {
+        if self.config.browser_signed {
+            bail!("browser-signed wallet: Lute holds no spending key; use prepare-pczt / execute-signed");
+        }
         let seed = self.load_seed()?;
         let db = self.db()?;
         let account = db
@@ -235,7 +238,16 @@ impl Wallet {
             bail!("expected exactly one transaction, got {}", txids.len());
         }
         let txid = *txids.first();
+        let (broadcast, detail) = self.broadcast(db, txid).await?;
+        Ok((txid, broadcast, detail))
+    }
 
+    /// Broadcasts a transaction stored in the wallet DB exactly once.
+    pub(crate) async fn broadcast(
+        &self,
+        db: &super::Db,
+        txid: TxId,
+    ) -> anyhow::Result<(Broadcast, Option<String>)> {
         let tx = db
             .get_transaction(txid)?
             .ok_or_else(|| anyhow!("built transaction not found in wallet"))?;
@@ -260,7 +272,7 @@ impl Wallet {
                 Err(status) => (Broadcast::Ambiguous, Some(status.to_string())),
             },
         };
-        Ok((txid, broadcast, detail))
+        Ok((broadcast, detail))
     }
 
     /// REGTEST-ONLY test helper: propose + policy-check + build + broadcast without an owner

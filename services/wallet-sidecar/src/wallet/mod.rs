@@ -10,6 +10,7 @@ pub mod approve;
 pub mod cache;
 pub mod incoming;
 pub mod keystore;
+pub mod pczt;
 pub mod send;
 
 use std::fs;
@@ -59,6 +60,10 @@ pub struct WalletConfig {
     /// Key-encryption-key file sealing `seed.enc`; `None` only for legacy regtest wallets.
     #[serde(default)]
     pub kek_path: Option<PathBuf>,
+    /// Non-custodial wallet: Lute holds only the viewing key; the seed lives in the user's
+    /// browser, which signs each payment (`pczt.rs`). No seed or key file exists on the server.
+    #[serde(default)]
+    pub browser_signed: bool,
 }
 
 pub type Db = WalletDb<rusqlite::Connection, LuteNetwork, SystemClock, OsRng>;
@@ -252,6 +257,72 @@ impl Wallet {
             account: account.expose_uuid(),
             birthday_height: u32::from(birthday.height()),
             kek_path: kek_path.map(Path::to_path_buf),
+            browser_signed: false,
+        };
+        fs::write(
+            dir.join(CONFIG_FILE),
+            serde_json::to_string_pretty(&config)?,
+        )?;
+        Ok(Wallet {
+            dir: dir.to_path_buf(),
+            config,
+        })
+    }
+
+    /// Creates a non-custodial wallet from a unified full viewing key derived in the user's
+    /// browser. No seed is stored: the server can see and build payments, not sign them. The key
+    /// must have an Orchard component (Ironwood uses Orchard keys) and no transparent component.
+    pub async fn init_view_only(
+        dir: &Path,
+        name: &str,
+        network: NetworkKind,
+        server: &str,
+        ufvk: &str,
+    ) -> anyhow::Result<Self> {
+        if dir.join(CONFIG_FILE).exists() {
+            bail!("{} already holds a wallet", dir.display());
+        }
+        let params = network.params();
+        let ufvk = zcash_keys::keys::UnifiedFullViewingKey::decode(&params, ufvk)
+            .map_err(|e| anyhow!("invalid viewing key: {e}"))?;
+        if ufvk.orchard().is_none() {
+            bail!("invalid viewing key: no Orchard component");
+        }
+        fs::create_dir_all(dir)?;
+        restrict_dir(dir)?;
+        let mut client = connect(server).await?;
+        let tip: u32 = client
+            .get_latest_block(service::ChainSpec::default())
+            .await?
+            .into_inner()
+            .height
+            .try_into()?;
+        let birthday = birthday(
+            &mut client,
+            &params,
+            BlockHeight::from_u32(tip.saturating_sub(100)),
+        )
+        .await?;
+        let mut db = WalletDb::for_path(dir.join(DB_FILE), params, SystemClock, OsRng)?;
+        init_wallet_db(&mut db, None).map_err(|e| anyhow!("init wallet db: {e:?}"))?;
+        // zcash_client_backend@0.24.0 `WalletWrite::import_account_ufvk`. "Spending" purpose: the
+        // account's notes may be spent, by signatures made elsewhere (the user's browser).
+        let account = db.import_account_ufvk(
+            name,
+            &ufvk,
+            &birthday,
+            zcash_client_backend::data_api::AccountPurpose::Spending { derivation: None },
+            None,
+        )?;
+        db.update_chain_tip(BlockHeight::from_u32(tip))?;
+        let config = WalletConfig {
+            name: name.to_string(),
+            network,
+            server: server.to_string(),
+            account: zcash_client_backend::data_api::Account::id(&account).expose_uuid(),
+            birthday_height: u32::from(birthday.height()),
+            kek_path: None,
+            browser_signed: true,
         };
         fs::write(
             dir.join(CONFIG_FILE),

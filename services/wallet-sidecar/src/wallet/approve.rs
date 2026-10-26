@@ -22,7 +22,7 @@ use crate::policy::StepPools;
 
 const CONTROL_FILE: &str = "control.sqlite";
 
-fn now() -> u64 {
+pub(super) fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("clock after 1970")
@@ -46,21 +46,25 @@ const ALL_POOLS: [PoolType; 4] = [
 ];
 
 /// Metadata that is not derivable from the proposal itself.
-struct Meta {
-    proposal_id: String,
-    created_at: u64,
-    expires_at: u64,
+pub(super) struct Meta {
+    pub(super) proposal_id: String,
+    pub(super) created_at: u64,
+    pub(super) expires_at: u64,
 }
 
 impl Wallet {
-    fn control(&self) -> anyhow::Result<ControlDb> {
+    pub(super) fn control(&self) -> anyhow::Result<ControlDb> {
         Ok(ControlDb::open(&self.dir.join(CONTROL_FILE))?)
     }
 
     /// Derives the bound summary from a proposal. Used both at propose time and, on the decoded
     /// stored proposal, at execute time, so a stored proposal that was altered no longer matches
     /// the approved hash (W8).
-    fn summarize(&self, proposal: &LuteProposal, meta: &Meta) -> anyhow::Result<ProposalSummary> {
+    pub(super) fn summarize(
+        &self,
+        proposal: &LuteProposal,
+        meta: &Meta,
+    ) -> anyhow::Result<ProposalSummary> {
         if proposal.steps().len() != 1 {
             bail!("multi-step proposal");
         }
@@ -172,6 +176,10 @@ impl Wallet {
         proposal_id: &str,
         owner_pub: &Path,
     ) -> anyhow::Result<ExecuteOutcome> {
+        if self.config.browser_signed {
+            // Before the approval is consumed: this wallet can only pay with browser signatures.
+            bail!("browser-signed wallet: Lute holds no spending key; use prepare-pczt / execute-signed");
+        }
         let owner = load_owner(owner_pub)?;
         let mut control = self.control()?;
         control
@@ -287,6 +295,9 @@ impl Wallet {
         mandate_id: &str,
         owner_pub: &Path,
     ) -> anyhow::Result<ExecuteOutcome> {
+        if self.config.browser_signed {
+            bail!("browser-signed wallet: Lute holds no spending key; use prepare-pczt / execute-signed");
+        }
         let owner = load_owner(owner_pub)?;
         let mut control = self.control()?;
         let (_, summary_json, bytes) = control
@@ -355,7 +366,7 @@ pub struct MandateView {
     pub allowed_recipients: usize,
 }
 
-fn load_owner(path: &Path) -> anyhow::Result<ed25519_dalek::VerifyingKey> {
+pub(super) fn load_owner(path: &Path) -> anyhow::Result<ed25519_dalek::VerifyingKey> {
     let hex_str = std::fs::read_to_string(path)
         .with_context(|| format!("reading owner public key {}", path.display()))?;
     parse_owner_pubkey(&hex_str).map_err(|e| anyhow!("owner public key: {e:?}"))

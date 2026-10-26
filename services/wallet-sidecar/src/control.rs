@@ -111,6 +111,11 @@ impl ControlDb {
                  total_zat INTEGER NOT NULL CHECK (total_zat > 0),
                  expires_at INTEGER NOT NULL,
                  created_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS pczts (
+                 proposal_id TEXT PRIMARY KEY REFERENCES proposals(id),
+                 pczt BLOB NOT NULL,
+                 created_at INTEGER NOT NULL
              );",
         )?;
         // Spends made under a mandate carry its id (budget accounting). Added in place so control
@@ -486,6 +491,26 @@ impl ControlDb {
         let spend_id = tx.last_insert_rowid();
         tx.commit().map_err(|_| Denial::AlreadyExecuted)?;
         Ok(spend_id)
+    }
+
+    /// Stores the proved, unsigned PCZT built for a browser-signed proposal (first one wins, so a
+    /// retried prepare returns the same transaction the browser may already be signing).
+    pub fn store_pczt(&self, proposal_id: &str, pczt: &[u8], now: u64) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO pczts (proposal_id, pczt, created_at) VALUES (?1, ?2, ?3)",
+            params![proposal_id, pczt, now as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn load_pczt(&self, proposal_id: &str) -> rusqlite::Result<Option<Vec<u8>>> {
+        self.conn
+            .query_row(
+                "SELECT pczt FROM pczts WHERE proposal_id = ?1",
+                params![proposal_id],
+                |r| r.get(0),
+            )
+            .optional()
     }
 
     /// Settles a reservation. `Released` frees the budget (the transaction was not accepted);

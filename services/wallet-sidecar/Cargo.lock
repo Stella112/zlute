@@ -1535,6 +1535,9 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "hmac 0.12.1",
+ "lute-signer",
+ "orchard",
+ "pczt",
  "prost",
  "rand_core",
  "rusqlite",
@@ -1555,6 +1558,23 @@ dependencies = [
  "zcash_protocol",
  "zip32",
  "zip321",
+]
+
+[[package]]
+name = "lute-signer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "orchard",
+ "pczt",
+ "rand_core",
+ "serde",
+ "serde_json",
+ "zcash_address",
+ "zcash_keys",
+ "zcash_protocol",
+ "zip32",
 ]
 
 [[package]]
@@ -1781,6 +1801,7 @@ checksum = "a5592f4f3eba7f9344cc423f45b6e65911e0630c9b89968d5a20792aadd5a0eb"
 dependencies = [
  "blake2b_simd",
  "bls12_381",
+ "document-features",
  "ff",
  "getset",
  "jubjub",
@@ -3216,6 +3237,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bech32",
+ "bip32",
  "bls12_381",
  "bs58",
  "byteorder",
@@ -3231,12 +3253,16 @@ dependencies = [
  "nonempty",
  "orchard",
  "pasta_curves",
+ "pczt",
  "percent-encoding",
+ "postcard",
  "prost",
  "rand_core",
  "rayon",
  "sapling-crypto",
+ "secp256k1",
  "secrecy",
+ "serde",
  "shardtree",
  "subtle",
  "time",
@@ -3400,6 +3426,7 @@ dependencies = [
  "rand_core",
  "redjubjub",
  "sapling-crypto",
+ "secp256k1",
  "sha2 0.10.9",
  "zcash_encoding",
  "zcash_note_encryption",

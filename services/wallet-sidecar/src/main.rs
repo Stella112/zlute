@@ -80,6 +80,36 @@ enum Cmd {
         #[command(subcommand)]
         cmd: WalletCmd,
     },
+    /// The browser signer's logic (services/lute-signer) as a CLI, for regtest/testnet runs of
+    /// browser-signed wallets. Refuses mainnet: on mainnet the seed only ever exists in a browser.
+    Signer {
+        #[command(subcommand)]
+        cmd: SignerCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum SignerCmd {
+    /// Print the unified full viewing key for an account of a seed (hex file).
+    DeriveUfvk {
+        #[arg(long)]
+        seed_file: PathBuf,
+        #[arg(long, value_parser = parse_network)]
+        network: NetworkKind,
+        #[arg(long, default_value_t = 0)]
+        account: u32,
+    },
+    /// Check and sign a PCZT view (JSON from `wallet prepare-pczt`); prints the signatures JSON.
+    SignPczt {
+        #[arg(long)]
+        seed_file: PathBuf,
+        #[arg(long, value_parser = parse_network)]
+        network: NetworkKind,
+        #[arg(long, default_value_t = 0)]
+        account: u32,
+        #[arg(long)]
+        view: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -99,6 +129,32 @@ enum WalletCmd {
         /// Required on main and test networks.
         #[arg(long)]
         kek: Option<PathBuf>,
+    },
+    /// Create a non-custodial (browser-signed) wallet from a unified full viewing key.
+    InitViewOnly {
+        #[arg(long)]
+        name: String,
+        #[arg(long, value_parser = parse_network)]
+        network: NetworkKind,
+        #[arg(long)]
+        server: String,
+        #[arg(long)]
+        ufvk: String,
+    },
+    /// Browser-signed wallets: build and prove the unsigned PCZT for a stored proposal.
+    PreparePczt {
+        #[arg(long)]
+        proposal: String,
+    },
+    /// Browser-signed wallets: apply signatures (JSON `[{"index":..,"sig":".."}]`) and broadcast,
+    /// after the owner's approval was recorded with `approve`.
+    ExecuteSigned {
+        #[arg(long)]
+        proposal: String,
+        #[arg(long)]
+        sigs: String,
+        #[arg(long, default_value = "/opt/zlute/owner.pub")]
+        owner_pub: PathBuf,
     },
     /// Sync the wallet with its server.
     Sync,
@@ -325,6 +381,34 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                         .await?;
                     println!("{}", serde_json::to_string(&w.config)?);
                 }
+                WalletCmd::InitViewOnly {
+                    name,
+                    network,
+                    server,
+                    ufvk,
+                } => {
+                    let w = Wallet::init_view_only(&dir, &name, network, &server, &ufvk).await?;
+                    println!("{}", serde_json::to_string(&w.config)?);
+                }
+                WalletCmd::PreparePczt { proposal } => {
+                    let v = Wallet::open(&dir)?.prepare_pczt(&proposal)?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
+                WalletCmd::ExecuteSigned {
+                    proposal,
+                    sigs,
+                    owner_pub,
+                } => {
+                    let sigs: Vec<lute_sidecar::wallet::pczt::SpendSig> =
+                        serde_json::from_str(&sigs)?;
+                    let out = Wallet::open(&dir)?
+                        .execute_signed(&proposal, &sigs, &owner_pub)
+                        .await?;
+                    println!("{}", serde_json::to_string(&out)?);
+                    if out.status != lute_sidecar::control::SpendStatus::Submitted {
+                        return Ok(ExitCode::from(3));
+                    }
+                }
                 WalletCmd::Sync => {
                     let w = Wallet::open(&dir)?;
                     w.sync().await?;
@@ -422,6 +506,55 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 WalletCmd::Verify { txid } => {
                     let v = Wallet::open(&dir)?.verify(&txid).await?;
                     println!("{}", serde_json::to_string(&v)?);
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Cmd::Signer { cmd } => {
+            let net = |n: NetworkKind| -> anyhow::Result<lute_signer::Net> {
+                match n {
+                    NetworkKind::Main => {
+                        anyhow::bail!("refused on mainnet: the seed belongs in the user's browser")
+                    }
+                    NetworkKind::Test => Ok(lute_signer::Net::Test),
+                    NetworkKind::Regtest => Ok(lute_signer::Net::Regtest),
+                }
+            };
+            let seed = |p: &PathBuf| -> anyhow::Result<Vec<u8>> {
+                Ok(hex::decode(std::fs::read_to_string(p)?.trim())?)
+            };
+            match cmd {
+                SignerCmd::DeriveUfvk {
+                    seed_file,
+                    network,
+                    account,
+                } => println!(
+                    "{}",
+                    lute_signer::derive_ufvk(&seed(&seed_file)?, net(network)?, account)?
+                ),
+                SignerCmd::SignPczt {
+                    seed_file,
+                    network,
+                    account,
+                    view,
+                } => {
+                    let v: serde_json::Value =
+                        serde_json::from_str(&std::fs::read_to_string(view)?)?;
+                    let field = |k: &str| v["summary"][k].clone();
+                    let expect = lute_signer::Expect {
+                        recipient: field("recipient").as_str().unwrap_or_default().to_string(),
+                        amount_zat: field("amount_zat").as_u64().unwrap_or_default(),
+                        fee_zat: field("fee_zat").as_u64().unwrap_or_default(),
+                    };
+                    let pczt = hex::decode(v["pczt_hex"].as_str().unwrap_or_default())?;
+                    let sigs = lute_signer::sign_pczt(
+                        &seed(&seed_file)?,
+                        net(network)?,
+                        account,
+                        &pczt,
+                        &expect,
+                    )?;
+                    println!("{}", serde_json::to_string(&sigs)?);
                 }
             }
             Ok(ExitCode::SUCCESS)

@@ -192,6 +192,15 @@ fn from_anyhow(e: anyhow::Error) -> Response {
     if msg.contains("Insufficient balance") {
         return err(StatusCode::CONFLICT, "INSUFFICIENT_SPENDABLE_FUNDS");
     }
+    if msg.starts_with("browser-signed wallet") {
+        return err(StatusCode::CONFLICT, "BROWSER_SIGNED_WALLET");
+    }
+    if msg.starts_with("not a browser-signed wallet") {
+        return err(StatusCode::CONFLICT, "NOT_BROWSER_SIGNED");
+    }
+    if msg.starts_with("invalid viewing key") {
+        return err(StatusCode::BAD_REQUEST, "BAD_VIEWING_KEY");
+    }
     if msg.starts_with("unknown proposal") {
         return err(StatusCode::NOT_FOUND, "UNKNOWN_PROPOSAL");
     }
@@ -408,6 +417,10 @@ struct CreateWalletReq {
     name: String,
     /// The wallet owner's Ed25519 public key (hex). Stored once; no route can change it.
     owner_pub: String,
+    /// Non-custodial wallet: the unified full viewing key derived in the owner's browser. When
+    /// set, no seed is created or stored on the server; payments are signed in the browser.
+    #[serde(default)]
+    ufvk: Option<String>,
 }
 
 /// Creates a wallet (fresh seed sealed with its own key-encryption-key file) bound to its owner's
@@ -434,11 +447,21 @@ async fn h_create_wallet(
         NetworkKind::Test => "test",
         NetworkKind::Regtest => "regtest",
     };
-    let kek = keys_dir.join(format!("{net}-{}.kek", r.name));
-    if kek.exists() {
-        return err(StatusCode::CONFLICT, "WALLET_EXISTS");
-    }
-    if let Err(e) = Wallet::init(&dir, &r.name, st.network, server, None, Some(&kek)).await {
+    let created = match r.ufvk.as_deref() {
+        Some(ufvk) => Wallet::init_view_only(&dir, &r.name, st.network, server, ufvk).await,
+        None => {
+            let kek = keys_dir.join(format!("{net}-{}.kek", r.name));
+            if kek.exists() {
+                return err(StatusCode::CONFLICT, "WALLET_EXISTS");
+            }
+            Wallet::init(&dir, &r.name, st.network, server, None, Some(&kek)).await
+        }
+    };
+    if let Err(e) = created {
+        // A half-created view-only wallet directory would block a retry with the same name.
+        if r.ufvk.is_some() && !dir.join("wallet.json").exists() {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
         return from_anyhow(e);
     }
     let written = std::fs::OpenOptions::new()
@@ -449,7 +472,48 @@ async fn h_create_wallet(
     if written.is_err() {
         return err(StatusCode::INTERNAL_SERVER_ERROR, "SIDECAR_ERROR");
     }
-    Json(json!({ "name": r.name, "owner_key": "set" })).into_response()
+    Json(json!({ "name": r.name, "owner_key": "set", "browser_signed": r.ufvk.is_some() }))
+        .into_response()
+}
+
+/// Browser-signed wallets: the proved, unsigned transaction for a stored proposal.
+async fn h_prepare_pczt(
+    State(st): State<Arc<AppState>>,
+    UrlPath((w, id)): UrlPath<(String, String)>,
+) -> Response {
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    // Proving takes a few seconds of CPU: keep it off the async runtime threads.
+    match tokio::task::spawn_blocking(move || w.prepare_pczt(&id)).await {
+        Ok(Ok(v)) => Json(v).into_response(),
+        Ok(Err(e)) => from_anyhow(e),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "SIDECAR_ERROR"),
+    }
+}
+
+#[derive(Deserialize)]
+struct ExecuteSignedReq {
+    spend_auth_sigs: Vec<crate::wallet::pczt::SpendSig>,
+}
+
+/// Browser-signed wallets: applies the browser's signatures to the stored PCZT and broadcasts,
+/// after the owner's approval (recorded by `approve`) is consumed with the usual checks.
+async fn h_execute_signed(
+    State(st): State<Arc<AppState>>,
+    UrlPath((w, id)): UrlPath<(String, String)>,
+    Json(r): Json<ExecuteSignedReq>,
+) -> Response {
+    let owner_pub = owner_pub_for(&st, &w);
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    match w.execute_signed(&id, &r.spend_auth_sigs, &owner_pub).await {
+        Ok(o) => Json(o).into_response(),
+        Err(e) => from_anyhow(e),
+    }
 }
 
 #[derive(Deserialize)]
@@ -550,6 +614,11 @@ pub fn router(cfg: &ApiConfig) -> Router {
         .route("/v1/wallets/{w}/proposals/{id}", get(h_show))
         .route("/v1/wallets/{w}/proposals/{id}/approve", post(h_approve))
         .route("/v1/wallets/{w}/proposals/{id}/execute", post(h_execute))
+        .route("/v1/wallets/{w}/proposals/{id}/pczt", post(h_prepare_pczt))
+        .route(
+            "/v1/wallets/{w}/proposals/{id}/execute-signed",
+            post(h_execute_signed),
+        )
         .route(
             "/v1/wallets/{w}/proposals/{id}/execute-mandate",
             post(h_execute_mandate),
