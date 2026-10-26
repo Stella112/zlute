@@ -80,7 +80,7 @@ function BrowserMandateSign({ username, mandate, onSigned }: { username: string;
 }
 
 function NewService({ onDone }: { onDone: () => void }) {
-  const [name, setName] = useState('Chain tip API');
+  const [name, setName] = useState('Document extraction');
   const [price, setPrice] = useState('1000');
   const [limit, setLimit] = useState('15000');
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +101,7 @@ function NewService({ onDone }: { onDone: () => void }) {
       <Field label="Service name">
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} required />
       </Field>
-      <Field label="Price per call (zat)">
+      <Field label="Price per page or call (zat)">
         <input className={`${inputCls} num`} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" required />
       </Field>
       <Field label="Credit limit (zat)">
@@ -174,7 +174,7 @@ function NewGrant({ services, onDone }: { services: Service[]; onDone: () => voi
             <select className={inputCls} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({zat(s.price_per_call_zat)} zat/call)
+                  {s.name} ({zat(s.price_per_call_zat)} zat/page)
                 </option>
               ))}
             </select>
@@ -335,7 +335,7 @@ export default function AgentsPage() {
               <li key={s.id} className="flex flex-wrap justify-between gap-2 py-2">
                 <span>{s.name}</span>
                 <span className="num text-muted">
-                  {zat(s.price_per_call_zat)} zat/call · credit limit {zat(s.credit_limit_zat)} zat
+                  {zat(s.price_per_call_zat)} zat per page or call · credit limit {zat(s.credit_limit_zat)} zat
                 </span>
               </li>
             ))}

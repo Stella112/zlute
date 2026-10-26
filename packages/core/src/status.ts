@@ -148,7 +148,7 @@ export const MODULES: readonly ModuleDef[] = [
     implemented: true,
     moves_money: true,
     tests: [{ suite: 'api', file: /agents\.test/ }],
-    evidence: ['E-010', 'E-011'],
+    evidence: ['E-010', 'E-011', 'E-015'],
   },
   {
     key: 'subscriptions',
@@ -169,7 +169,7 @@ export const MODULES: readonly ModuleDef[] = [
       { suite: 'sidecar', name: /mandate/ },
       { suite: 'mcp' },
     ],
-    evidence: ['E-010', 'E-011'],
+    evidence: ['E-010', 'E-011', 'E-015'],
   },
 ];
 
