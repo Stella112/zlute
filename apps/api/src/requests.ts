@@ -45,8 +45,62 @@ export function minConf(network: Network): number {
   return network === 'main' ? 3 : 1;
 }
 
+const aad = (id: string, f: string) => `lute-request|${id}|${f}`;
+
+/** Creates a payment request: fresh shielded-only address, ZIP-321 URI, opaque id = memo ref. */
+export async function createRequest(
+  d: Pick<RequestDeps, 'db' | 'cipher' | 'sidecar' | 'network' | 'now'>,
+  ownerUserId: string,
+  wallet: string,
+  amount: bigint,
+  opts: { details_ciphertext?: string; ttl_s?: number } = {},
+): Promise<{ id: string; share_path: string; expires_at: number }> {
+  const id = opaqueId();
+  const address = await d.sidecar.newAddress(wallet);
+  const uri = await d.sidecar.buildZip321(address, amount, id);
+  const now = d.now();
+  const expires_at = now + (opts.ttl_s ?? DEFAULT_TTL_S);
+  await d.db.insert(paymentRequests).values({
+    id,
+    owner_user_id: ownerUserId,
+    wallet,
+    network: d.network,
+    amount_zat: amount,
+    address_enc: d.cipher.encrypt(address, aad(id, 'address')),
+    zip321_enc: d.cipher.encrypt(uri, aad(id, 'zip321')),
+    details_ciphertext: opts.details_ciphertext ?? null,
+    status: 'UNPAID',
+    expires_at,
+    created_at: now,
+    updated_at: now,
+  });
+  // The client appends #k=<base64url key> itself; the key never reaches the server (U2).
+  return { id, share_path: `/r/${id}`, expires_at };
+}
+
+/** Re-checks an unpaid request with the sidecar (sync + check) and stores the result. */
+export async function refreshRequest(d: Pick<RequestDeps, 'db' | 'cipher' | 'sidecar' | 'network' | 'now'>, id: string) {
+  const r = (await d.db.select().from(paymentRequests).where(eq(paymentRequests.id, id)).limit(1))[0];
+  if (!r) return null;
+  if (r.status !== 'PAID') {
+    await d.sidecar.sync(r.wallet);
+    const c = await d.sidecar.checkRequest(r.wallet, {
+      address: d.cipher.decrypt(r.address_enc, aad(r.id, 'address')),
+      amount_zat: r.amount_zat,
+      opaque_ref: r.id,
+      min_conf: minConf(d.network),
+    });
+    // An expired, still-unpaid request becomes EXPIRED; anything received is still reported.
+    const status = c.status === 'UNPAID' && d.now() >= r.expires_at ? 'EXPIRED' : c.status;
+    await d.db
+      .update(paymentRequests)
+      .set({ status, received_zat: BigInt(c.received_confirmed_zat), matched_by: c.matched_by, txids: c.txids, updated_at: d.now() })
+      .where(eq(paymentRequests.id, r.id));
+  }
+  return (await d.db.select().from(paymentRequests).where(eq(paymentRequests.id, r.id)).limit(1))[0]!;
+}
+
 export function registerRequestRoutes(app: FastifyInstance, d: RequestDeps): void {
-  const aad = (id: string, f: string) => `lute-request|${id}|${f}`;
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'NOT_FOUND' });
 
   app.post('/v1/requests', async (req, reply) => {
@@ -64,27 +118,10 @@ export function registerRequestRoutes(app: FastifyInstance, d: RequestDeps): voi
     }
     if (amount <= 0n) return reply.code(400).send({ error: 'BAD_AMOUNT' });
 
-    const id = opaqueId();
-    const address = await d.sidecar.newAddress(body.data.wallet);
-    const uri = await d.sidecar.buildZip321(address, amount, id);
-    const now = d.now();
-    const expires_at = now + (body.data.ttl_s ?? DEFAULT_TTL_S);
-    await d.db.insert(paymentRequests).values({
-      id,
-      owner_user_id: u.id,
-      wallet: body.data.wallet,
-      network: d.network,
-      amount_zat: amount,
-      address_enc: d.cipher.encrypt(address, aad(id, 'address')),
-      zip321_enc: d.cipher.encrypt(uri, aad(id, 'zip321')),
-      details_ciphertext: body.data.details_ciphertext ?? null,
-      status: 'UNPAID',
-      expires_at,
-      created_at: now,
-      updated_at: now,
+    return createRequest(d, u.id, body.data.wallet, amount, {
+      ...(body.data.details_ciphertext ? { details_ciphertext: body.data.details_ciphertext } : {}),
+      ...(body.data.ttl_s ? { ttl_s: body.data.ttl_s } : {}),
     });
-    // The client appends #k=<base64url key> itself; the key never reaches the server (U2).
-    return { id, share_path: `/r/${id}`, expires_at };
   });
 
   /** Owner view: refreshes status from the sidecar (sync + check). */
@@ -99,28 +136,7 @@ export function registerRequestRoutes(app: FastifyInstance, d: RequestDeps): voi
       .limit(1);
     const r = rows[0];
     if (!r) return notFound(reply);
-    if (r.status !== 'PAID') {
-      await d.sidecar.sync(r.wallet);
-      const c = await d.sidecar.checkRequest(r.wallet, {
-        address: d.cipher.decrypt(r.address_enc, aad(r.id, 'address')),
-        amount_zat: r.amount_zat,
-        opaque_ref: r.id,
-        min_conf: minConf(d.network),
-      });
-      // An expired, still-unpaid request becomes EXPIRED; anything received is still reported.
-      const status = c.status === 'UNPAID' && d.now() >= r.expires_at ? 'EXPIRED' : c.status;
-      await d.db
-        .update(paymentRequests)
-        .set({
-          status,
-          received_zat: BigInt(c.received_confirmed_zat),
-          matched_by: c.matched_by,
-          txids: c.txids,
-          updated_at: d.now(),
-        })
-        .where(eq(paymentRequests.id, r.id));
-    }
-    const fresh = (await d.db.select().from(paymentRequests).where(eq(paymentRequests.id, r.id)).limit(1))[0]!;
+    const fresh = (await refreshRequest(d, r.id))!;
     return {
       id: fresh.id,
       status: fresh.status,

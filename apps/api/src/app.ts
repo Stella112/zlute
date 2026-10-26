@@ -5,6 +5,7 @@ import type { Network, Principal } from '@lute/luteguard';
 import { login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { registerAgentRoutes } from './agents.js';
+import { registerCommerceRoutes } from './commerce.js';
 import { registerDashboardRoutes } from './dashboard.js';
 import { registerRequestRoutes } from './requests.js';
 import { registerStreamRoutes } from './streams.js';
@@ -104,6 +105,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   registerDashboardRoutes(app, { db: deps.db, sidecar: deps.requestSidecar, network: deps.network, user, resultsFile: deps.resultsFile ?? 'evidence/results.json' });
+
+  registerCommerceRoutes(app, { db: deps.db, store: deps.store, cipher: deps.cipher, sidecar: deps.sidecar, requestSidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });
 
   if (deps.mandates) {
     registerAgentRoutes(app, { db: deps.db, store: deps.store, cipher: deps.cipher, sidecar: deps.sidecar, requestSidecar: deps.requestSidecar, mandates: deps.mandates, network: deps.network, now: deps.now, user });

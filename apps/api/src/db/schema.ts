@@ -145,3 +145,31 @@ export const meterSettlements = pgTable('meter_settlements', {
   amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
+
+export const signingKeys = pgTable('signing_keys', {
+  id: text('id').primaryKey(),
+  purpose: text('purpose').notNull(),
+  public_key: text('public_key').notNull(),
+  private_key_enc: text('private_key_enc').notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const orders = pgTable('orders', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  request_id: text('request_id').notNull(),
+  item_enc: text('item_enc').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  receipt_id: text('receipt_id'),
+  receipt_json: text('receipt_json'),
+  receipt_sig: text('receipt_sig'),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const orderRefunds = pgTable('order_refunds', {
+  order_id: text('order_id').notNull(),
+  seq: integer('seq').notNull(),
+  action_id: text('action_id').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});

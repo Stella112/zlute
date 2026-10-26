@@ -157,3 +157,34 @@ CREATE TABLE IF NOT EXISTS meter_settlements (
 
 -- Spends made by an agent carry its grant (budget accounting).
 ALTER TABLE actions ADD COLUMN IF NOT EXISTS grant_id TEXT;
+
+-- Commerce (mandate §19.3). Orders are checkouts backed by a payment request. Receipts are signed
+-- with an Ed25519 receipt key (not a wallet or owner key), stored encrypted in signing_keys.
+CREATE TABLE IF NOT EXISTS signing_keys (
+  id              TEXT PRIMARY KEY,
+  purpose         TEXT NOT NULL UNIQUE,
+  public_key      TEXT NOT NULL,          -- raw 32-byte Ed25519 public key, hex
+  private_key_enc TEXT NOT NULL,          -- PKCS#8 DER, AES-256-GCM
+  created_at      BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id            TEXT PRIMARY KEY,
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  request_id    TEXT NOT NULL UNIQUE REFERENCES payment_requests(id),
+  item_enc      TEXT NOT NULL,
+  amount_zat    BIGINT NOT NULL CHECK (amount_zat > 0),
+  receipt_id    TEXT UNIQUE,
+  receipt_json  TEXT,
+  receipt_sig   TEXT,
+  created_at    BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS order_refunds (
+  order_id   TEXT NOT NULL REFERENCES orders(id),
+  seq        INTEGER NOT NULL CHECK (seq > 0),
+  action_id  TEXT NOT NULL UNIQUE REFERENCES actions(id),
+  amount_zat BIGINT NOT NULL CHECK (amount_zat > 0),
+  created_at BIGINT NOT NULL,
+  PRIMARY KEY (order_id, seq)
+);
