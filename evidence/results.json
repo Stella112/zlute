@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-26T14:25:34.506Z",
- "commit": "515eb7d400095f7bdf474d78909fd0ff2a182e73",
+ "generated_at": "2026-10-26T15:13:48.782Z",
+ "commit": "f5db6c0657b83fd3d01bc99643b831624b5c1085",
  "dirty": false,
  "suites": [
   {
@@ -1622,6 +1622,17 @@
     "7d9b68260c0a9a80ba204d48613eca8b0ad15a81ce415745401b6ddc988032b0"
    ],
    "limits": "A first run left the refund SUBMITTED (merchant wallet not synced before the confirmation check); fixed and re-run (this row). Receipts are signed by a key held by the operator (encrypted at rest); they prove what the merchant attests, not more. A refund needs an address from the customer (a shielded payment does not reveal its sender)."
+  },
+  {
+   "id": "E-013",
+   "env": "regtest",
+   "claim": "Subscriptions and groups on regtest through the real API code, with real shielded payments from a separate wallet: a subscription is ACTIVE once its period invoice is paid, DUE when the next period starts unpaid, LAPSED after grace; a split bill gives each member their own request and the organizer sees exactly who paid",
+   "txids": [
+    "7cf0203b2d7e8b7a379188b1a522efbb9b096cbb83e8c5f3b33a47f55d4f2ce3",
+    "ea0b8ba5bb5c62690920627b1716040963e5ec5dad73ea1306cb96fc663b5295",
+    "5c865f17b8206f3ce143d053a5b4546f0764f5a73c2e797c886e4c66a4f40b02"
+   ],
+   "limits": "Lute never pulls subscription funds (no auto-debit in shielded Zcash): each period is a payment the subscriber makes. Receiving into Lute wallets is the same request path proven on mainnet (E-004)."
   },
   {
    "id": "E-003",
