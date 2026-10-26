@@ -58,7 +58,7 @@ export default function Overview() {
             <dt className="text-muted">Network</dt>
             <dd>{me.network === 'main' ? 'Zcash mainnet' : me.network}</dd>
             <dt className="text-muted">Signer</dt>
-            <dd>Owner key on your laptop (lute-owner)</dd>
+            <dd>{me.self_serve ? 'Your approval key, held in this browser' : 'Owner key on your laptop (lute-owner)'}</dd>
             <dt className="text-muted">Wallet sync</dt>
             <dd className="num">{b ? `height ${b.fully_scanned_height.toLocaleString()} / tip ${b.chain_tip_height.toLocaleString()}` : '—'}</dd>
             <dt className="text-muted">Privacy</dt>

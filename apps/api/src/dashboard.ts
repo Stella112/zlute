@@ -85,7 +85,14 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
     const u = await owner(req);
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
     if (u === 'forbidden' || !(WALLET_ROLES as readonly string[]).includes(req.params.w)) return reply.code(404).send({ error: 'NOT_FOUND' });
-    return d.sidecar.balance(walletOf(u, req.params.w as WalletRole));
+    const w = walletOf(u, req.params.w as WalletRole);
+    try {
+      return await d.sidecar.balance(w);
+    } catch {
+      // A wallet that has never synced has no balance yet: sync it once and retry.
+      await d.sidecar.sync(w);
+      return d.sidecar.balance(w);
+    }
   });
 
   app.get('/v1/privacy/status', async (req, reply) => {

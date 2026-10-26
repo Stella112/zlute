@@ -175,6 +175,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       if (!r.ok) return reply.code(503).send({ error: 'WALLET_CREATION_FAILED' });
     }
     await createUser(deps.db, body.data.username, body.data.password, 'owner', deps.now(), { wallet_prefix: prefix, owner_pub: body.data.owner_pub });
+    // Start the new wallets' first sync in the background so the dashboard has balances to show.
+    for (const role of WALLET_ROLES) void deps.requestSidecar.sync(walletOf({ wallet_prefix: prefix }, role)).catch(() => undefined);
     const r = await login(deps.db, body.data.username, body.data.password, deps.now());
     const secure = deps.secureCookies ? '; Secure' : '';
     reply.header('set-cookie', `${SESSION_COOKIE}=${r!.token}; HttpOnly${secure}; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_S}`);
