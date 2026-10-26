@@ -27,7 +27,7 @@ const STEPS: [string, string][] = [
 const FAQ: [string, string][] = [
   ['What does my payer need?', 'Only a Zcash wallet that supports shielded payments, such as Zodl. No account, no sign-up, no app from us.'],
   ['Who can see my payments?', 'On the blockchain, nobody can see the sender, the recipient or the amount. Lute’s server knows your own wallets’ activity; details like recipients and notes are stored encrypted.'],
-  ['Who holds the money?', 'This hosted version keeps your Lute wallets on the server, like a hot wallet, so use small amounts. Payments out always need your approval key. Self-hosting removes the operator.'],
+  ['Who holds the money?', 'Your wallets are held by Lute, each with its own sealed key, and Lute’s software moves nothing without your approval key. Payments are limited to 0.02 ZEC each and 0.05 ZEC a day. Businesses that prefer full self-custody can run Lute on their own server.'],
   ['What does it cost?', 'Lute adds no fee. The Zcash network fee for a payment is about 0.0001 ZEC.'],
   ['What still leaks?', 'The light-wallet server Lute syncs from sees network-level information such as IP address and timing, but never keys, amounts or memos. The Privacy page lists every known limit.'],
 ];
@@ -92,7 +92,7 @@ export default function Welcome() {
                 See how it works
               </a>
             </div>
-            <p className="mt-6 text-xs text-muted">Hosted demo: your Lute wallets are hot wallets on our server. Use small amounts.</p>
+            <p className="mt-6 text-xs text-muted">Held by Lute. Released only with your key.</p>
           </div>
 
           <div className="relative">
@@ -223,7 +223,7 @@ export default function Welcome() {
               <span className="grid h-7 w-7 place-items-center rounded-md bg-accent text-xs font-display text-[1.05em] text-on-accent">L</span>
               <span className="font-semibold">Lute</span>
             </div>
-            <p className="mt-3 max-w-sm text-muted">Private payments on Zcash. Built for ZECATHON 2026. Hosted demo: use small amounts.</p>
+            <p className="mt-3 max-w-sm text-muted">Private payments on Zcash. Built for ZECATHON 2026.</p>
           </div>
           <div>
             <p className="font-medium">Product</p>

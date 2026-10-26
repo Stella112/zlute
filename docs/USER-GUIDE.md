@@ -7,7 +7,7 @@ you sign. Every payment is shielded: on the blockchain nobody can see who paid w
 - **App:** https://uselute.xyz (Zcash mainnet)
 - **Who needs an account:** only you, the person getting paid or paying out. Your payers need
   nothing but a Zcash wallet that supports shielded payments, such as Zodl.
-- **Hosted demo:** your Lute wallets are hot wallets on the server. Use small amounts.
+- **Custody:** your Lute wallets are held by Lute; nothing leaves them without your approval key.
 
 ---
 
@@ -126,7 +126,7 @@ An agent can pay a metered API on its own, call by call, inside a budget you sig
 holds an address or a key and cannot pay anyone else.
 
 ### Set up a budget (in the app)
-1. **AI agents → Metered services → Add service** (price per call, credit limit). In this demo the
+1. **AI agents → Metered services → Add service** (price per call, credit limit). The built-in
    service is a "Chain tip API" run by Lute that returns the current Zcash block height.
 2. **Agent wallet → Create funding link**, then pay that link from Zodl (or from **Pay**). Agent
    payments come only from this wallet.
@@ -249,8 +249,9 @@ where noted. Amounts are strings in ZEC on input (`"0.0001"`) and strings in zat
 
 - **Limits:** 0.02 ZEC per payment and 0.05 ZEC per day per wallet; agent mandates at most 48 hours.
 - **Fees:** Lute adds none. The Zcash network fee is about 0.0001 ZEC per payment.
-- **Custody:** in this hosted demo your Lute wallets are hot wallets on the server. Payments out need
-  your key (or a mandate you signed). Your payers always pay from their own wallets.
+- **Custody:** your Lute wallets are held on Lute's servers, each with its own sealed key. Payments
+  out need your approval key (or a mandate you signed). Your payers always pay from their own
+  wallets. Businesses that want full self-custody can run Lute on their own server.
 - **Privacy:** the **Privacy** page shows which features are proven by real test runs and mainnet
   transactions, and every known limit (for example, the light-wallet server sees the server's IP and
   sync timing).

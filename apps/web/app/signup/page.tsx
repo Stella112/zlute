@@ -10,7 +10,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 const ERRORS: Record<string, string> = {
   USERNAME_TAKEN: 'That username is taken.',
-  SIGNUPS_CLOSED: 'This demo has reached its account limit.',
+  SIGNUPS_CLOSED: 'New accounts are paused right now. Please try again later.',
   RATE_LIMITED: 'Too many attempts. Try again in a minute.',
   WALLET_CREATION_FAILED: 'Could not create your wallets right now. Try again shortly.',
   SIGNUP_DISABLED: 'Sign-up is not enabled on this server.',
@@ -25,7 +25,6 @@ export default function SignupPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backup, setBackup] = useState<string | null>(null);
@@ -102,16 +101,13 @@ export default function SignupPage() {
         <Field label="Password" hint="At least 12 characters">
           <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={12} required />
         </Field>
-        <label className="flex items-start gap-2 text-xs text-muted">
-          <input type="checkbox" className="mt-0.5" checked={ack} onChange={(e) => setAck(e.target.checked)} />
-          <span>
-            I understand this is a hosted demo: my Lute wallets are hot wallets held on the operator&apos;s server, so I will only use small amounts. My payers only ever use their own wallets.
-          </span>
-        </label>
         <ErrorNote error={error} />
-        <Button type="submit" disabled={busy || !ack} className="w-full">
+        <Button type="submit" disabled={busy} className="w-full">
           {busy ? 'Creating your wallets…' : 'Create account'}
         </Button>
+        <p className="text-xs leading-relaxed text-muted">
+          Your shielded wallets are held by Lute; nothing leaves them without the approval key created in this browser. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
+        </p>
         <p className="text-center text-xs text-muted">
           Already have an account?{' '}
           <Link href="/login" className="text-accent hover:underline">
