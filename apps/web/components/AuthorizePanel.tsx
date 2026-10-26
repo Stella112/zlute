@@ -6,7 +6,7 @@ import { zec, zat, when, short } from '@/lib/format';
 import { Button, ErrorNote, Txid, inputCls } from './ui';
 
 const SIGN_CMD =
-  '$OutputEncoding = New-Object System.Text.UTF8Encoding $false; Get-Clipboard | & "$HOME\\lute-owner\\lute-owner.exe" sign --key "$HOME\\lute-owner\\owner.key" | Set-Clipboard';
+  'powershell -ExecutionPolicy Bypass -File C:\\zecathon\\tools\\lute-sign.ps1';
 
 /**
  * Owner approval of the sidecar's exact proposal (D-009). The browser never holds the owner key:
@@ -92,7 +92,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
           </Button>
         </li>
         <li>
-          In PowerShell on your laptop, run this and type the <code>approve …</code> line it asks for. It puts the signature on your clipboard.
+          In PowerShell on your laptop, start this first (it waits for step 1&apos;s copy, so click Copy proposal after it says Waiting), then type the <code>approve …</code> line it asks for. It puts the signature on your clipboard.
           <pre className="mt-2 overflow-x-auto rounded-md border border-line bg-bg p-2 font-mono text-xs">{SIGN_CMD}</pre>
         </li>
         <li>

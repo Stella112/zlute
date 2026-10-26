@@ -39,7 +39,7 @@ interface Mandate {
 }
 
 const SIGN_MANDATE_CMD =
-  '$OutputEncoding = New-Object System.Text.UTF8Encoding $false; Get-Clipboard | & "$HOME\\lute-owner\\lute-owner.exe" sign-mandate --key "$HOME\\lute-owner\\owner.key" | Set-Clipboard';
+  'powershell -ExecutionPolicy Bypass -File C:\\zecathon\\tools\\lute-sign.ps1 -Mandate';
 
 function NewService({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('Chain tip API');
@@ -190,7 +190,7 @@ function NewGrant({ services, onDone }: { services: Service[]; onDone: () => voi
               </Button>
             </li>
             <li>
-              In PowerShell, run this and type the <code>approve mandate …</code> line it asks for:
+              In PowerShell, start this first (it waits for the copy, so click Copy mandate after it says Waiting), then type the <code>approve mandate …</code> line it asks for:
               <pre className="mt-2 overflow-x-auto rounded-md border border-line bg-bg p-2 font-mono text-xs">{SIGN_MANDATE_CMD}</pre>
             </li>
             <li>
