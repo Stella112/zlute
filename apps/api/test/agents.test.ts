@@ -106,7 +106,7 @@ async function setup() {
   await createUser(db, 'maris', PW, 'owner', T0);
   const app = await buildApp({ db, store, sidecar, requestSidecar: req, mandates: req, cipher, network: 'regtest', now: () => clock, secureCookies: false, appOrigin: 'https://x' });
   const cookie = String((await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'maris', password: PW } })).headers['set-cookie']).split(';')[0]!;
-  return { app, sidecar, req, cookie };
+  return { app, sidecar, req, cookie, pg };
 }
 
 describe('agents and metered billing (A group, §19.6/§19.8)', () => {
@@ -205,6 +205,37 @@ describe('agents and metered billing (A group, §19.6/§19.8)', () => {
     const v = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/refresh`)).json();
     expect(v).toMatchObject({ usage_zat: '6000', paid_zat: '6000', due_zat: '0' });
     expect(v.settlements[0].state).toBe('CONFIRMED');
+  });
+
+  it('document extraction: fields out, charged per page, budget and batching shown, text never stored', async () => {
+    const { g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    const INVOICE = ['ACME Design Ltd', 'Invoice #INV-2041', 'Date: 2026-10-14', 'Bill to: ops@example.org', 'Logo design .... $1,200.00', 'Hosting 3 months 0.4 ZEC', 'Total due: $1,350.00', 'Pay at https://pay.example.org/inv-2041'].join('\n');
+    const r = await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: INVOICE });
+    expect(r.statusCode).toBe(200);
+    const b = r.json();
+    expect(b.result).toMatchObject({ title: 'ACME Design Ltd', invoice_number: 'INV-2041', dates: ['2026-10-14'], emails: ['ops@example.org'], urls: ['https://pay.example.org/inv-2041'], total: { value: '1350.00', currency: 'USD' } });
+    expect(b.result.amounts).toContainEqual({ value: '0.4', currency: 'ZEC', label: 'Hosting 3 months' });
+    expect(b.charge).toEqual({ pages: 1, price_per_page_zat: '1500', charged_zat: '1500' });
+    expect(b.session).toMatchObject({ due_zat: '1500', credit_limit_zat: '30000' });
+    expect(b.budget).toMatchObject({ remaining_zat: '25000', per_payment_cap_zat: '15000', due_is_payable: true });
+    expect(b.settlement).toMatchObject({ batched: true, network_fee_zat: '10000' });
+    // 5,001 characters = 3 pages.
+    const big = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: 'x'.repeat(5001) })).json();
+    expect(big.charge).toMatchObject({ pages: 3, charged_zat: '4500' });
+    // Past the credit limit: refused with the reason and what it would cost; nothing charged.
+    const huge = await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: 'y'.repeat(40000) });
+    expect(huge.statusCode).toBe(402);
+    expect(huge.json()).toMatchObject({ error: 'PAYMENT_REQUIRED', would_charge_zat: '30000', due_zat: '6000' });
+    expect(huge.json().reason).toMatch(/credit limit/);
+    expect((await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: '' })).statusCode).toBe(400);
+    // The document text is nowhere in the database.
+    const dump = JSON.stringify((await t.pg.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")).rows);
+    for (const { table_name } of JSON.parse(dump) as { table_name: string }[]) {
+      const rows = JSON.stringify((await t.pg.query(`SELECT * FROM "${table_name}"`)).rows);
+      expect(rows).not.toContain('INV-2041');
+      expect(rows).not.toContain('ops@example.org');
+    }
   });
 
   // ---- R: payment restrictions (docs/PRIVACY-EVIDENCE.md E-015) ----

@@ -66,7 +66,7 @@ agent (MCP client) ──stdio──> lute MCP server ──HTTPS, bearer token�
 | **Agent history** | MCP tools take only a session id as input and return only what the next step needs: status, amounts, budget, the session id. Grant, mandate, service and action ids and txids are withheld (`apps/mcp/src/tools.ts`, test "withholds linking identifiers"). `LUTE_MCP_VERBOSE=1` opts back in. | Amounts and call counts go into the conversation the AI provider stores. Use a local model to avoid that. | Partial |
 | **Credentials** | The agent token is grant-scoped, shown once, stored by Lute only as a hash, revocable; it can only pay one recipient inside the signed budget. | It sits in the MCP client's config file on the agent's machine. Anyone who reads it can spend the remaining budget until it is revoked or the mandate expires. | Partial |
 | **Timing** | — | The Lute operator (and the service) can correlate call times with settlement times. Settlements are batched by the credit limit, which blurs per-call timing on chain. | Leaks to operator |
-| **The service** | The service learns usage (calls, timing) and payments, not who the agent's owner is. | In this build the demo service is run by the Lute operator, so service and operator are the same party. | Leaks to operator |
+| **The service** | The service learns usage (calls, pages, timing) and payments, not who the agent's owner is. Extraction text is processed in memory, not stored or logged (test "document extraction … text never stored"). | In this build the extraction service is run by the Lute operator, so service and operator are the same party, and the operator's server sees each document while extracting it. | Leaks to operator |
 
 ## 4. Who learns what (paid API call through Lute's MCP)
 

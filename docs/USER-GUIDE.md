@@ -127,12 +127,19 @@ Lute pays from your **payout** wallet if it has enough, otherwise from **merchan
 
 ## 4. AI agents and MCP
 
-An agent can pay a metered API on its own, call by call, inside a budget you sign once. It never
-holds an address or a key and cannot pay anyone else.
+An agent can pay for a metered service on its own, inside a budget you sign once. It never holds an
+address or a key and cannot pay anyone else.
+
+The useful built-in service is **document extraction**: the agent sends the text of an invoice,
+receipt or email and gets back the title, invoice number, dates, amounts with currencies, the total,
+emails and links. It is charged per page (2,000 characters) at the service's price. Every response
+shows the charge, what is due, the remaining budget and the network fee; payment is **batched**: one
+shielded payment settles everything due, so a hundred pages cost one network fee, not a hundred. The
+text is processed in memory and never stored (a test checks the database for it). The same service
+also answers a one-unit "chain tip" call (the current Zcash block height).
 
 ### Set up a budget (in the app)
-1. **AI agents → Metered services → Add service** (price per call, credit limit). The built-in
-   service is a "Chain tip API" run by Lute that returns the current Zcash block height.
+1. **AI agents → Metered services → Add service** (price per page or call, credit limit).
 2. **Agent wallet → Create funding link**, then pay that link from Zodl (or from **Pay**). Agent
    payments come only from this wallet.
 3. **New agent grant**: per-payment cap, total budget, hours (at most 48) → **Draft mandate**.
@@ -179,18 +186,20 @@ Any MCP client that can start a stdio server works the same way.
 |---|---|
 | `lute_get_wallet_status` | Budget: per-payment cap, total, spent, remaining, expiry |
 | `lute_create_meter_session` | Opens a usage session with the service |
-| `lute_call_metered_api` | One paid call; returns `402 PAYMENT_REQUIRED` at the credit limit |
+| `lute_extract_document` | Paid per page: `{session_id, text}` → extracted fields, the charge, what is due, remaining budget, network fee, how settlement is batched; `402 PAYMENT_REQUIRED` with the reason past the credit limit |
+| `lute_call_metered_api` | One paid unit (chain tip); returns `402 PAYMENT_REQUIRED` at the credit limit |
 | `lute_get_meter_session` | Calls, usage, pending and paid amounts, what is due |
 | `lute_propose_settlement` | Pays what is due under the mandate; denied with a reason if over budget |
 | `lute_verify_settlement` | Moves payments to confirmed once mined |
 
-Tools take only a session id as input, so text injected into a prompt cannot change who is paid or
-how much. Tool output omits ids that would link the agent to its grant, mandate or transactions
+Tools take only a session id (and, for extraction, the document text) as input, never an address
+or an amount, so text injected into a prompt or a document cannot change who is paid. What a
+document can change is its own size, which is bounded by the credit limit and the signed budget. Tool output omits ids that would link the agent to its grant, mandate or transactions
 (set `LUTE_MCP_VERBOSE=1` to include them).
 
-**Try it:** "Use the Lute tools. Check your budget, open a metered session, call the metered API until
-it asks for payment, then pay what you owe, and keep going." The agent pays inside the budget, then
-is refused with `OVER_GRANT_TOTAL` once the next payment would exceed it.
+**Try it:** "Use the Lute tools. Check your budget, open a metered session, and extract the fields
+from these three invoices: … Then pay what you owe and tell me the remaining budget." The agent
+pays inside the budget, then is refused with `OVER_GRANT_TOTAL` once a payment would exceed it.
 
 What stays private, and what does not, is traced in [PRIVATE-PAID-APIS.md](PRIVATE-PAID-APIS.md).
 
@@ -244,6 +253,7 @@ lute-approve-v1|<network>|<proposal hash>
 | `POST /v1/agent/grants/{id}/revoke` | Owner: revoke |
 | `GET /v1/agent/me` | Agent: budget |
 | `POST /v1/meter/sessions`, `POST /v1/meter/sessions/{id}/call` | Agent: session, paid call |
+| `POST /v1/meter/sessions/{id}/extract` | Agent: `{text}` → extraction, charged per page |
 | `POST /v1/meter/sessions/{id}/settle` (+ Idempotency-Key), `/refresh` | Agent: pay, confirm |
 
 ### Public (no login)

@@ -1,8 +1,9 @@
 /**
  * Lute MCP tools (mandate §19.8). Each tool is backed by a real API route; nothing else exists.
- * Inputs are only opaque session ids (validated): an agent cannot name a recipient or an amount,
- * so prompt-injected text cannot redirect or inflate a payment (A8). Amounts are what the metered
- * service says is owed; recipients are resolved server-side from the grant.
+ * Inputs are opaque session ids (validated) and, for extraction, the document text: an agent cannot
+ * name a recipient or an amount, so prompt-injected text cannot redirect or inflate a payment (A8).
+ * Amounts are what the metered service says is owed (per call or per page, bounded by the credit
+ * limit and the signed budget); recipients are resolved server-side from the grant.
  */
 import { z } from 'zod';
 import type { LuteAgentClient } from './client.js';
@@ -40,6 +41,14 @@ export const TOOLS: ToolDef[] = [
       'Calls the metered demo API once (it returns the current Zcash chain tip height seen by Lute) and adds its price to the session. Returns PAYMENT_REQUIRED (402) when the unpaid amount reaches the credit limit; settle before calling again.',
     input: { session_id: SessionId },
     run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/call`),
+  },
+  {
+    name: 'lute_extract_document',
+    title: 'Extract fields from a document (paid per page)',
+    description:
+      'Paid document extraction: send the plain text of an invoice, receipt or email; get back its title, invoice number, dates, amounts with currencies and labels, the total, emails and links. Charged per page (2,000 characters) to the session. The response shows the charge, what is due, the remaining budget and the network fee; payment is batched into one shielded settlement. The text is not stored. Over the credit limit it returns PAYMENT_REQUIRED (402) with the reason: settle first.',
+    input: { session_id: SessionId, text: z.string().min(1).max(40000).describe('The document as plain text (up to 40,000 characters).') },
+    run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/extract`, {}, { text: a.text }),
   },
   {
     name: 'lute_get_meter_session',

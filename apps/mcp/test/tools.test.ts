@@ -6,9 +6,9 @@ const TOKEN = `lute_agent_${'A'.repeat(43)}`;
 const SID = 'S'.repeat(22);
 
 function fake() {
-  const seen: { method: string; url: string; headers: Record<string, string> }[] = [];
+  const seen: { method: string; url: string; headers: Record<string, string>; body?: string }[] = [];
   const fetchImpl = (async (url: URL, init: RequestInit) => {
-    seen.push({ method: String(init.method), url: String(url), headers: init.headers as Record<string, string> });
+    seen.push({ method: String(init.method), url: String(url), headers: init.headers as Record<string, string>, ...(init.body ? { body: String(init.body) } : {}) });
     const body = String(url).endsWith(`/v1/meter/sessions/${SID}`) ? { settlements: [{}, {}] } : { ok: true };
     return new Response(JSON.stringify(body), { status: 200 });
   }) as typeof fetch;
@@ -21,11 +21,13 @@ describe('Lute MCP tools (A6, A8, A9)', () => {
       'lute_get_wallet_status',
       'lute_create_meter_session',
       'lute_call_metered_api',
+      'lute_extract_document',
       'lute_get_meter_session',
       'lute_propose_settlement',
       'lute_verify_settlement',
     ]);
-    for (const t of TOOLS) expect(Object.keys(t.input).every((k) => k === 'session_id')).toBe(true);
+    // Inputs are a session id and, for extraction, the document text: never an address or an amount.
+    for (const t of TOOLS) expect(Object.keys(t.input).every((k) => k === 'session_id' || (t.name === 'lute_extract_document' && k === 'text'))).toBe(true);
   });
 
   it('A8: session ids are validated, so injected text never reaches a URL', () => {
@@ -37,9 +39,16 @@ describe('Lute MCP tools (A6, A8, A9)', () => {
 
   it('A6: every call goes to the Lute API with the agent token, never to the sidecar', async () => {
     const { seen, client } = fake();
-    for (const t of TOOLS) await t.run(client, { session_id: SID });
+    for (const t of TOOLS) await t.run(client, { session_id: SID, text: 'Invoice #1' });
     expect(seen.every((r) => r.url.startsWith('http://127.0.0.1:48300/v1/') && !r.url.includes(':48100'))).toBe(true);
     expect(seen.every((r) => r.headers.authorization === `Bearer ${TOKEN}` && r.headers['x-lute-caller'] === 'mcp')).toBe(true);
+  });
+
+  it('extraction sends only the text, to the session extract route', async () => {
+    const { seen, client } = fake();
+    await TOOLS.find((t) => t.name === 'lute_extract_document')!.run(client, { session_id: SID, text: 'Invoice #7, total $10' });
+    expect(seen[0]!.url).toBe(`http://127.0.0.1:48300/v1/meter/sessions/${SID}/extract`);
+    expect(JSON.parse(seen[0]!.body!)).toEqual({ text: 'Invoice #7, total $10' });
   });
 
   it('settlement retries are idempotent per (session, settlement number)', async () => {

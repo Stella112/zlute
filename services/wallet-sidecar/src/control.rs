@@ -918,7 +918,11 @@ mod tests {
             .into_iter()
             .map(|h| h.join().unwrap())
             .collect();
-        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1, "{results:?}");
+        assert_eq!(
+            results.iter().filter(|r| r.is_ok()).count(),
+            1,
+            "{results:?}"
+        );
         assert!(results
             .iter()
             .filter(|r| r.is_err())

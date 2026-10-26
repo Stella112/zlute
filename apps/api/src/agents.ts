@@ -19,6 +19,7 @@ import { AmountError, executeAction, parseZec, type ActionState, type SidecarCli
 import type { AgentGrant, Caller, Network, Principal } from '@lute/luteguard';
 import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
+import { MAX_CHARS, extract, pagesOf } from './extract.js';
 import { actions, agentGrants, meterServices, meterSessions, meterSettlements } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
 import { minConf } from './requests.js';
@@ -55,6 +56,7 @@ function canonical(v: unknown): string {
   return JSON.stringify(v);
 }
 
+const ExtractBody = z.object({ text: z.string().min(1).max(MAX_CHARS) }).strict();
 const ServiceBody = z.object({ name: z.string().min(1).max(64), price_per_call_zat: z.number().int().min(1).max(2_000_000), credit_limit_zat: z.number().int().min(1).max(2_000_000) }).strict();
 const DraftBody = z.object({ service_id: z.string().regex(ID), max_tx_zec: z.string().max(32), total_zec: z.string().max(32), ttl_hours: z.number().int().min(1).max(48) }).strict();
 const MandateShape = z
@@ -328,7 +330,73 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     }
     const b = await d.requestSidecar.balance(svc.wallet);
     await d.db.update(meterSessions).set({ calls: sql`${meterSessions.calls} + 1`, updated_at: d.now() }).where(eq(meterSessions.id, s.id));
-    return { call: s.calls + 1, charged_zat: svc.price_per_call_zat.toString(), result: { network: d.network, chain_tip_height: b.chain_tip_height, observed_at: d.now() } };
+    return {
+      call: s.calls + 1,
+      charged_zat: svc.price_per_call_zat.toString(),
+      result: { network: d.network, chain_tip_height: b.chain_tip_height, observed_at: d.now() },
+      ...(await billing(g, s.id)),
+    };
+  });
+
+  /**
+   * What the agent is told after each charge: usage and what is due on the session, what is left of
+   * its budget, and how payment happens (batched, one shielded payment per settlement, with the
+   * network fee paid by the agent wallet on top of the budgeted amount).
+   */
+  async function billing(g: typeof agentGrants.$inferSelect, sessionId: string) {
+    const s = (await d.db.select().from(meterSessions).where(eq(meterSessions.id, sessionId)).limit(1))[0]!;
+    const v = await sessionView(s);
+    const remaining = g.cap_total_zat - (await spent(g.id));
+    const due = BigInt(v.due_zat);
+    return {
+      session: { usage_zat: v.usage_zat, due_zat: v.due_zat, paid_zat: v.paid_zat, pending_zat: v.pending_zat, credit_limit_zat: v.service.credit_limit_zat },
+      budget: {
+        remaining_zat: (remaining > 0n ? remaining : 0n).toString(),
+        per_payment_cap_zat: g.cap_per_tx_zat.toString(),
+        due_is_payable: due <= remaining && due <= g.cap_per_tx_zat,
+        ...(due > remaining ? { note: 'What is due exceeds the remaining budget: a settlement will be refused (OVER_GRANT_TOTAL).' } : due > g.cap_per_tx_zat ? { note: 'What is due exceeds the per-payment cap: a settlement will be refused (OVER_GRANT_PER_TX).' } : {}),
+      },
+      settlement: {
+        batched: true,
+        how: 'Charges accrue on the session. One shielded Zcash payment settles everything due, when you call lute_propose_settlement or when the credit limit is reached (402).',
+        network_fee_zat: '10000',
+        network_fee_note: 'ZIP-317 fee per settlement, paid by the agent wallet in addition to the budgeted amount.',
+      },
+    };
+  }
+
+  /**
+   * Metered document extraction: text in, structured fields out, charged per page (2,000
+   * characters) at the service's price. The text is used in memory only: never stored, never
+   * logged, and only its size reaches the database (as billed pages).
+   */
+  app.post<{ Params: { id: string } }>('/v1/meter/sessions/:id/extract', async (req, reply) => {
+    const g = await agent(req);
+    if (!g) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
+    const s = await session(g, req.params.id);
+    if (!s) return notFound(reply);
+    const body = ExtractBody.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST', reason: `Send {"text": "..."} with 1 to ${MAX_CHARS} characters.` });
+    const svc = (await service(s.service_id))!;
+    const pages = pagesOf(body.data.text);
+    const charge = BigInt(pages) * svc.price_per_call_zat;
+    const v = await sessionView(s);
+    if (BigInt(v.due_zat) + charge > svc.credit_limit_zat) {
+      return reply.code(402).send({
+        error: 'PAYMENT_REQUIRED',
+        reason: `This document (${pages} page${pages === 1 ? '' : 's'}) would take the unpaid amount past the credit limit. Settle what is due first.`,
+        would_charge_zat: charge.toString(),
+        due_zat: v.due_zat,
+        credit_limit_zat: v.service.credit_limit_zat,
+      });
+    }
+    const result = extract(body.data.text);
+    await d.db.update(meterSessions).set({ calls: sql`${meterSessions.calls} + ${pages}`, updated_at: d.now() }).where(eq(meterSessions.id, s.id));
+    return {
+      result,
+      charge: { pages, price_per_page_zat: svc.price_per_call_zat.toString(), charged_zat: charge.toString() },
+      ...(await billing(g, s.id)),
+    };
   });
 
   /** Pays what the session owes, from the agent wallet, under the grant and its mandate. */

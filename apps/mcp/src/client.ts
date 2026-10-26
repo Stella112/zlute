@@ -21,11 +21,11 @@ export class LuteAgentClient {
     this.fetchImpl = o.fetchImpl ?? fetch;
   }
 
-  async call(method: 'GET' | 'POST', path: string, headers: Record<string, string> = {}): Promise<{ status: number; body: unknown }> {
+  async call(method: 'GET' | 'POST', path: string, headers: Record<string, string> = {}, json: object = {}): Promise<{ status: number; body: unknown }> {
     const res = await this.fetchImpl(new URL(path, this.baseUrl), {
       method,
       headers: { authorization: `Bearer ${this.token}`, 'x-lute-caller': 'mcp', ...(method === 'POST' ? { 'content-type': 'application/json' } : {}), ...headers },
-      ...(method === 'POST' ? { body: '{}' } : {}),
+      ...(method === 'POST' ? { body: JSON.stringify(json) } : {}),
     });
     const body = await res.json().catch(() => ({ error: `HTTP_${res.status}` }));
     return { status: res.status, body };
