@@ -6,7 +6,8 @@ const api = process.env.LUTE_API_URL ?? 'http://127.0.0.1:48200';
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  // 'wasm-unsafe-eval': the payment signer is WebAssembly served from this origin (/lute-signer/).
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",

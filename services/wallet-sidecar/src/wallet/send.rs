@@ -122,6 +122,20 @@ pub fn fetch_params() -> anyhow::Result<()> {
         .map_err(|e| anyhow!("downloading Sapling parameters: {e}"))
 }
 
+/// A transaction stored in the wallet DB, serialized for `SendTransaction`. Read before any await
+/// so no wallet DB reference is held across one.
+pub(crate) fn raw_transaction(
+    db: &super::Db,
+    txid: TxId,
+) -> anyhow::Result<service::RawTransaction> {
+    let tx = db
+        .get_transaction(txid)?
+        .ok_or_else(|| anyhow!("built transaction not found in wallet"))?;
+    let mut raw = service::RawTransaction::default();
+    tx.write(&mut raw.data)?;
+    Ok(raw)
+}
+
 impl Wallet {
     fn spending_key(&self) -> anyhow::Result<UnifiedSpendingKey> {
         if self.config.browser_signed {
@@ -238,22 +252,16 @@ impl Wallet {
             bail!("expected exactly one transaction, got {}", txids.len());
         }
         let txid = *txids.first();
-        let (broadcast, detail) = self.broadcast(db, txid).await?;
+        let raw = raw_transaction(db, txid)?;
+        let (broadcast, detail) = self.broadcast(raw).await;
         Ok((txid, broadcast, detail))
     }
 
-    /// Broadcasts a transaction stored in the wallet DB exactly once.
+    /// Broadcasts a transaction exactly once.
     pub(crate) async fn broadcast(
         &self,
-        db: &super::Db,
-        txid: TxId,
-    ) -> anyhow::Result<(Broadcast, Option<String>)> {
-        let tx = db
-            .get_transaction(txid)?
-            .ok_or_else(|| anyhow!("built transaction not found in wallet"))?;
-        let mut raw = service::RawTransaction::default();
-        tx.write(&mut raw.data)?;
-
+        raw: service::RawTransaction,
+    ) -> (Broadcast, Option<String>) {
         // Broadcast exactly once. Any transport failure is "ambiguous", never retried here.
         let (broadcast, detail) = match connect(&self.config.server).await {
             Err(e) => (Broadcast::Ambiguous, Some(format!("connect: {e}"))),
@@ -272,7 +280,7 @@ impl Wallet {
                 Err(status) => (Broadcast::Ambiguous, Some(status.to_string())),
             },
         };
-        Ok((broadcast, detail))
+        (broadcast, detail)
     }
 
     /// REGTEST-ONLY test helper: propose + policy-check + build + broadcast without an owner

@@ -254,13 +254,11 @@ impl Wallet {
             zip32::AccountId::ZERO,
         )
         .map_err(|e| anyhow!("deriving keys: {e:?}"))?;
-        let full = usk.to_unified_full_viewing_key();
-        let ufvk = zcash_keys::keys::UnifiedFullViewingKey::new(
-            None,
-            full.sapling().cloned(),
-            full.orchard().cloned(),
+        let ufvk = zcash_keys::keys::UnifiedFullViewingKey::decode(
+            &params,
+            &lute_signer::shielded_only_ufvk(&usk.to_unified_full_viewing_key().encode(&params))?,
         )
-        .map_err(|e| anyhow!("viewing key: {e:?}"))?;
+        .map_err(|e| anyhow!("viewing key: {e}"))?;
         let fingerprint = zip32::fingerprint::SeedFingerprint::from_seed(seed.expose_secret())
             .ok_or_else(|| anyhow!("seed fingerprint"))?;
         let account = db.import_account_ufvk(
@@ -312,7 +310,9 @@ impl Wallet {
             bail!("{} already holds a wallet", dir.display());
         }
         let params = network.params();
-        let ufvk = zcash_keys::keys::UnifiedFullViewingKey::decode(&params, ufvk)
+        let shielded = lute_signer::shielded_only_ufvk(ufvk)
+            .map_err(|e| anyhow!("invalid viewing key: {e}"))?;
+        let ufvk = zcash_keys::keys::UnifiedFullViewingKey::decode(&params, &shielded)
             .map_err(|e| anyhow!("invalid viewing key: {e}"))?;
         if ufvk.orchard().is_none() {
             bail!("invalid viewing key: no Orchard component");

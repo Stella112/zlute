@@ -71,10 +71,28 @@ fn usk(seed: &[u8], net: Net, account: u32) -> anyhow::Result<UnifiedSpendingKey
     UnifiedSpendingKey::from_seed(&net, seed, account).map_err(|e| anyhow!("deriving keys: {e:?}"))
 }
 
-/// The unified full viewing key for `account` of this seed: what Lute's server is given.
+/// The unified full viewing key for `account` of this seed: what Lute's server is given. Shielded
+/// parts only: a transparent part would make the server's sync ask the light server about
+/// transparent addresses.
 pub fn derive_ufvk(seed: &[u8], net: Net, account: u32) -> anyhow::Result<String> {
-    Ok(usk(seed, net, account)?
-        .to_unified_full_viewing_key()
+    shielded_only_ufvk(
+        &usk(seed, net, account)?
+            .to_unified_full_viewing_key()
+            .encode(&net),
+    )
+}
+
+/// Removes any transparent component from an encoded unified full viewing key (ZIP 316).
+pub fn shielded_only_ufvk(encoded: &str) -> anyhow::Result<String> {
+    use zcash_address::unified::{Container, Encoding, Fvk, Ufvk};
+    let (net, ufvk) = Ufvk::decode(encoded).map_err(|e| anyhow!("viewing key: {e}"))?;
+    let items: Vec<Fvk> = ufvk
+        .items()
+        .into_iter()
+        .filter(|i| !matches!(i, Fvk::P2pkh(_)))
+        .collect();
+    Ok(Ufvk::try_from_items(items)
+        .map_err(|e| anyhow!("viewing key: {e}"))?
         .encode(&net))
 }
 
@@ -203,6 +221,16 @@ mod tests {
             .unwrap()
             .starts_with("uviewregtest1"));
         assert!(derive_ufvk(&[1u8; 16], Net::Main, 0).is_err());
+    }
+
+    #[test]
+    fn viewing_key_has_no_transparent_part() {
+        use zcash_address::unified::{Container, Encoding, Fvk, Ufvk};
+        let k = derive_ufvk(&[9u8; 64], Net::Main, 1).unwrap();
+        let (_, u) = Ufvk::decode(&k).unwrap();
+        assert!(u.items().iter().all(|i| !matches!(i, Fvk::P2pkh(_))));
+        assert!(u.items().iter().any(|i| matches!(i, Fvk::Orchard(_))));
+        assert_eq!(shielded_only_ufvk(&k).unwrap(), k);
     }
 
     #[test]

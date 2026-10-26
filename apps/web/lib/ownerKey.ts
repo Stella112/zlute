@@ -67,21 +67,69 @@ export async function signText(username: string, text: string): Promise<string> 
   return hex(await crypto.subtle.sign({ name: 'Ed25519' }, k.privateKey, new TextEncoder().encode(text)));
 }
 
-/** Backup file: the private key (PKCS#8) and public key. Anyone holding it can approve spends. */
+const seedSlot = (username: string) => `wallet-phrase:${username}`;
+
+/**
+ * Non-custodial accounts: the wallet's 24-word recovery phrase (BIP-39), created and kept in this
+ * browser. Lute's server only ever receives viewing keys derived from it. The same phrase restores
+ * the wallet in Zodl (account 0 = Lute merchant wallet, account 1 = payout wallet).
+ */
+export async function createWalletPhrase(username: string): Promise<string> {
+  if (await getItem<string>(seedSlot(username))) throw new Error('PHRASE_EXISTS');
+  const { generateMnemonic } = await import('@scure/bip39');
+  const { wordlist } = await import('@scure/bip39/wordlists/english');
+  const phrase = generateMnemonic(wordlist, 256);
+  await put(seedSlot(username), phrase);
+  return phrase;
+}
+
+export async function walletPhrase(username: string): Promise<string | null> {
+  return (await getItem<string>(seedSlot(username))) ?? null;
+}
+
+/** The BIP-39 seed (hex) of the phrase: what the signer derives keys from. */
+export async function walletSeedHex(username: string): Promise<string> {
+  const phrase = await walletPhrase(username);
+  if (!phrase) throw new Error('NO_WALLET_PHRASE_IN_THIS_BROWSER');
+  const { mnemonicToSeed } = await import('@scure/bip39');
+  return hex(await mnemonicToSeed(phrase));
+}
+
+/**
+ * Backup file: the approval key (PKCS#8, public key) and, for non-custodial accounts, the wallet's
+ * recovery phrase. Anyone holding it can approve and sign payments: keep it private.
+ */
 export async function exportBackup(username: string): Promise<string> {
   const k = await getItem<Stored>(slot(username));
   if (!k) throw new Error('NO_KEY_IN_THIS_BROWSER');
   const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', k.privateKey));
-  return JSON.stringify({ lute_owner_key: 1, username, public_key: k.publicHex, pkcs8: btoa(String.fromCharCode(...pkcs8)) }, null, 1);
+  const phrase = await walletPhrase(username);
+  return JSON.stringify(
+    {
+      lute_owner_key: 1,
+      username,
+      public_key: k.publicHex,
+      pkcs8: btoa(String.fromCharCode(...pkcs8)),
+      ...(phrase ? { wallet_recovery_phrase: phrase, wallet_note: 'Restores your Lute wallets in Zodl or another ZIP-32 Zcash wallet: account index 0 is the merchant wallet, index 1 the payout wallet.' } : {}),
+    },
+    null,
+    1,
+  );
 }
 
 export async function importBackup(username: string, json: string, expectedPublicHex: string | null): Promise<void> {
-  const b = JSON.parse(json) as { lute_owner_key?: number; public_key?: string; pkcs8?: string };
+  const b = JSON.parse(json) as { lute_owner_key?: number; public_key?: string; pkcs8?: string; wallet_recovery_phrase?: string };
   if (b.lute_owner_key !== 1 || !b.pkcs8 || !b.public_key) throw new Error('NOT_A_LUTE_KEY_BACKUP');
   if (expectedPublicHex && b.public_key !== expectedPublicHex) throw new Error('BACKUP_IS_FOR_ANOTHER_ACCOUNT');
   const der = Uint8Array.from(atob(b.pkcs8), (c) => c.charCodeAt(0));
   const privateKey = await crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, true, ['sign']);
   await put(slot(username), { privateKey, publicHex: b.public_key } satisfies Stored);
+  if (b.wallet_recovery_phrase) {
+    const { validateMnemonic } = await import('@scure/bip39');
+    const { wordlist } = await import('@scure/bip39/wordlists/english');
+    if (!validateMnemonic(b.wallet_recovery_phrase, wordlist)) throw new Error('BAD_RECOVERY_PHRASE');
+    await put(seedSlot(username), b.wallet_recovery_phrase);
+  }
 }
 
 /** Sorted-key compact JSON: the same canonical form the sidecar and lute-owner hash. */

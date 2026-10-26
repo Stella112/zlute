@@ -35,6 +35,8 @@ export interface Me {
   /** Self-serve accounts approve with a key held in their browser. */
   owner_pub: string | null;
   self_serve: boolean;
+  /** Non-custodial: payouts are signed in this browser; Lute holds viewing keys only. */
+  browser_signed?: boolean;
 }
 
 export interface PoolBalance {

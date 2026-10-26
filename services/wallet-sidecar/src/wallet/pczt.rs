@@ -202,7 +202,8 @@ impl Wallet {
                 zcash_client_sqlite::ReceivedNoteId,
             >(&mut db, signed, None, Some(verifying_key()))
             .map_err(|e| anyhow!("finalize: {e}"))?;
-            let (b, detail) = self.broadcast(&db, txid).await?;
+            let raw = super::send::raw_transaction(&db, txid)?;
+            let (b, detail) = self.broadcast(raw).await;
             anyhow::Ok((txid, b, detail))
         }
         .await;

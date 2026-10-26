@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ApiError, post } from '@/lib/api';
-import { createKey, exportBackup, keySupported } from '@/lib/ownerKey';
+import { ApiError, get, post } from '@/lib/api';
+import { createKey, createWalletPhrase, exportBackup, keySupported, walletSeedHex } from '@/lib/ownerKey';
+import { deriveUfvks } from '@/lib/signer';
 import { Button, ErrorNote, Field, inputCls } from '@/components/ui';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -35,9 +36,9 @@ export default function SignupPage() {
         <div className="w-full max-w-md space-y-4 rounded-xl border border-line bg-surface p-6 text-sm">
           <p className="text-lg font-semibold">Your account is ready.</p>
           <p>
-            Your approval key was created <b>in this browser</b>. Every payment out of your wallets needs it. Download a backup now: if you clear this browser&apos;s data or use another device,
-            you restore it in Settings. Anyone with this file can approve payments from your wallets, so keep it private. It is not a wallet recovery phrase: your wallets are held by Lute, and
-            this file restores approvals, not funds. You will be asked to confirm the backup before adding money.
+            Your wallet was created <b>in this browser</b>: its recovery phrase and approval key never leave it, and Lute holds only the keys needed to show your payments. Every payout is
+            signed here. Download your backup now: it holds the recovery phrase, which restores your wallets on another device or in Zodl, even without Lute. Anyone with this file can move
+            your money, so keep it private. You will be asked to confirm the backup before adding money.
           </p>
           <Button
             onClick={() => {
@@ -82,7 +83,12 @@ export default function SignupPage() {
               if (err instanceof Error && err.message === 'KEY_EXISTS') throw new Error('This browser already holds a key for that username.');
               throw new Error('This browser cannot create Ed25519 keys. Use a current Chrome, Edge, Firefox or Safari.');
             });
-            await post('/v1/auth/signup', { username: u, password, owner_pub: pub });
+            // Non-custodial: the wallet's recovery phrase is created here and never leaves this
+            // browser; Lute receives only the viewing keys derived from it.
+            const { network } = await get<{ network: string }>('/v1/health');
+            await createWalletPhrase(u).catch(() => undefined);
+            const ufvks = await deriveUfvks(await walletSeedHex(u), network);
+            await post('/v1/auth/signup', { username: u, password, owner_pub: pub, ufvks });
             setBackup(await exportBackup(u));
           } catch (err) {
             setError(err instanceof ApiError ? (ERRORS[err.code] ?? err.code) : err instanceof Error ? err.message : 'Sign-up failed.');
@@ -107,7 +113,7 @@ export default function SignupPage() {
           {busy ? 'Creating your wallets…' : 'Create account'}
         </Button>
         <p className="text-xs leading-relaxed text-muted">
-          Lute is custodial: your shielded wallets are held on Lute’s server, and Lute’s software pays out only with the approval key created in this browser. Hosted Lute can see the payment activity it needs to operate. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
+          Your wallet is created in this browser, and only this browser can sign a payment: Lute cannot move your money. Hosted Lute can see the payment activity it needs to operate. An AI-agent budget, if you set one up, is held by Lute and capped. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
         </p>
         <p className="text-center text-xs text-muted">
           Already have an account?{' '}

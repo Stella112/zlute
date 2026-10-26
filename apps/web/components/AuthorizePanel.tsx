@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { ApiError, post, type ActionResponse, type ExecuteResult, type ProposalSummary } from '@/lib/api';
 import { explorer, short, when, zecShort } from '@/lib/format';
-import { canonical, sha256Hex, signText } from '@/lib/ownerKey';
+import { canonical, sha256Hex, signText, walletSeedHex } from '@/lib/ownerKey';
+import { signPayment, type SpendAuthSig } from '@/lib/signer';
 import { useMe } from './AppShell';
 import { Icon } from './icons';
 import { ErrorNote, inputCls } from './ui';
@@ -28,11 +29,11 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
   const [error, setError] = useState<string | null>(null);
   const [final, setFinal] = useState<ExecuteResult | null>(null);
 
-  async function authorize(signature: string) {
+  async function authorize(signature: string, spendAuthSigs?: SpendAuthSig[]) {
     setBusy(true);
     setError(null);
     try {
-      const r = await post<ActionResponse>(`/v1/actions/${actionId}/authorize`, { signature });
+      const r = await post<ActionResponse>(`/v1/actions/${actionId}/authorize`, { signature, ...(spendAuthSigs ? { spend_auth_sigs: spendAuthSigs } : {}) });
       setFinal(r.result);
       onDone?.(r.result);
     } catch (e) {
@@ -129,14 +130,33 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
                 // Recompute the hash from what is shown; never sign a server-supplied hash.
                 const h = await sha256Hex(canonical(s));
                 if (h !== result.proposal_hash) throw new Error('The payment details do not match; nothing was signed.');
-                await authorize(await signText(me.username, `lute-approve-v1|${s.network}|${h}`));
+                let spendSigs: SpendAuthSig[] | undefined;
+                if (me.browser_signed) {
+                  // Non-custodial: sign the transaction itself here, after checking on the
+                  // transaction (not on the server's word) that it pays exactly what is shown.
+                  setBusy(true);
+                  const pz = await post<{ pczt_hex: string; proposal_hash: string }>(`/v1/actions/${actionId}/pczt`);
+                  if (pz.proposal_hash !== h) throw new Error('The prepared transaction does not match; nothing was signed.');
+                  spendSigs = await signPayment(await walletSeedHex(me.username), s.network, pz.pczt_hex, s);
+                }
+                await authorize(await signText(me.username, `lute-approve-v1|${s.network}|${h}`), spendSigs);
               } catch (e) {
-                setError(e instanceof Error ? (e.message === 'NO_KEY_IN_THIS_BROWSER' ? 'This browser does not hold your key. Restore your key backup in Settings.' : e.message) : 'Signing failed');
+                setBusy(false);
+                setError(
+                  e instanceof ApiError
+                    ? e.code
+                    : e instanceof Error
+                      ? e.message === 'NO_KEY_IN_THIS_BROWSER' || e.message === 'NO_WALLET_PHRASE_IN_THIS_BROWSER'
+                        ? 'This browser does not hold your keys. Restore your backup in Settings.'
+                        : e.message
+                      : 'Signing failed',
+                );
               }
             }}
           >
-            {busy ? 'Sending…' : 'Confirm and pay'}
+            {busy ? (me.browser_signed ? 'Signing in this browser…' : 'Sending…') : 'Confirm and pay'}
           </button>
+          {me.browser_signed && <p className="text-center text-xs text-muted">Signed in this browser. Lute cannot move your money without it.</p>}
         </div>
       ) : (
         <div className="mt-6 space-y-3 text-sm">
