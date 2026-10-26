@@ -46,7 +46,16 @@ seed and its key file directly.
 Lute must not claim: "non-custodial", "only you can move your money", "even the server cannot spend",
 or that the approval-key backup restores funds.
 
-## How it could become non-custodial (roadmap)
+## Next: browser-signed, non-custodial payments
+
+Lute prepares each payment; only the user's browser can sign it. The wallet's spending key is
+created in the browser and never sent to Lute; Lute keeps only a viewing key, which can see payments
+and build transactions but cannot spend. Built on PCZT (partially created Zcash transactions) in
+`zcash_client_backend` 0.24 / `pczt`, which support Ironwood: the sidecar builds and proves, the
+browser checks the outputs and adds the spend-authorization signatures, the sidecar broadcasts.
+The agent wallet stays a small Lute-held budget wallet, because an agent pays unattended.
+
+## Other routes (roadmap)
 
 1. **Recovery phrase for users:** generate wallet seeds from a BIP-39 phrase and give the user the
    phrase at sign-up, so they can restore the wallet in Zodl if Lute disappears. (Recovery, not

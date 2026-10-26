@@ -1,0 +1,49 @@
+name: lute-signer
+
+on:
+  push:
+    paths: ["services/lute-signer/**", ".github/workflows/signer.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-wasm:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/lute-signer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/lute-signer
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test (native)
+        run: cargo test
+      - name: Build WebAssembly
+        # secp256k1-sys (pulled in by the PCZT signer) compiles C for wasm32 with clang.
+        env:
+          CC_wasm32_unknown_unknown: clang
+          AR_wasm32_unknown_unknown: llvm-ar
+          RUSTFLAGS: --cfg getrandom_backend="wasm_js"
+        run: |
+          cargo build --release --target wasm32-unknown-unknown --features wasm --lib
+          V=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name=="wasm-bindgen") | .version' | head -1)
+          cargo install wasm-bindgen-cli --version "$V" --locked
+          wasm-bindgen --target web --out-dir pkg target/wasm32-unknown-unknown/release/lute_signer.wasm
+          ls -la pkg
+          sha256sum pkg/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lute-signer-wasm
+          path: services/lute-signer/pkg
+          retention-days: 14
