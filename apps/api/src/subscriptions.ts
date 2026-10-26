@@ -13,7 +13,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AmountError, parseZec } from '@lute/core';
 import type { Network } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { walletForUserId, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { paymentRequests, subscriptionInvoices, subscriptionPlans, subscriptions } from './db/schema.js';
 import type { Db } from './db/store.js';
@@ -29,7 +29,6 @@ export interface SubscriptionDeps {
   user: (req: FastifyRequest) => Promise<SessionUser | null>;
 }
 
-const WALLET = 'merchant';
 const ID = /^[A-Za-z0-9_-]{22}$/;
 
 export type SubStatus = 'ACTIVE' | 'DUE' | 'LAPSED' | 'CANCELLED';
@@ -63,7 +62,7 @@ export function registerSubscriptionRoutes(app: FastifyInstance, d: Subscription
     const base = subscriptionStatus({ start_ts: s.start_ts, period_s: p.period_s, grace_s: p.grace_s, cancelled_at: s.cancelled_at }, d.now(), false);
     let inv = (await d.db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.subscription_id, s.id), eq(subscriptionInvoices.period_no, base.period_no))).limit(1))[0];
     if (!inv && s.cancelled_at === null) {
-      const r = await createRequest(reqDeps, s.owner_user_id, WALLET, p.amount_zat, { ttl_s: Math.max(60, base.period_end - d.now() + p.grace_s) });
+      const r = await createRequest(reqDeps, s.owner_user_id, await walletForUserId(d.db, s.owner_user_id, 'merchant'), p.amount_zat, { ttl_s: Math.max(60, base.period_end - d.now() + p.grace_s) });
       await d.db.insert(subscriptionInvoices).values({ subscription_id: s.id, period_no: base.period_no, request_id: r.id, period_start: base.period_start, period_end: base.period_end, created_at: d.now() }).onConflictDoNothing();
       inv = (await d.db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.subscription_id, s.id), eq(subscriptionInvoices.period_no, base.period_no))).limit(1))[0];
     }

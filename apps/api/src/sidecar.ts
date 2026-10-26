@@ -61,6 +61,11 @@ export interface MandateStatus {
   allowed_recipients: number;
 }
 
+/** Creates a user's wallet bound to their approval key (self-serve sign-up). */
+export interface WalletAdmin {
+  createWallet(name: string, ownerPub: string): Promise<SidecarResult<{ name: string }>>;
+}
+
 /** Sidecar calls for loading and inspecting agent mandates. */
 export interface MandateSidecar {
   loadMandate(wallet: string, mandateJson: string, signature: string): Promise<SidecarResult<MandateStatus>>;
@@ -76,7 +81,7 @@ export interface RequestSidecar {
   checkRequest(wallet: string, req: { address: string; amount_zat: bigint; opaque_ref: string; min_conf: number }): Promise<RequestCheck>;
 }
 
-export class HttpSidecarClient implements SidecarClient, RequestSidecar, MandateSidecar {
+export class HttpSidecarClient implements SidecarClient, RequestSidecar, MandateSidecar, WalletAdmin {
   constructor(
     private readonly baseUrl: string,
     private readonly secret: Buffer,
@@ -149,6 +154,10 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar, Mandate
 
   async mandateStatus(wallet: string, mandateId: string): Promise<SidecarResult<MandateStatus>> {
     return this.result(await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/mandates/${encodeURIComponent(mandateId)}`));
+  }
+
+  async createWallet(name: string, ownerPub: string): Promise<SidecarResult<{ name: string }>> {
+    return this.result(await this.call('POST', '/v1/wallets', { name, owner_pub: ownerPub }));
   }
 
   async newAddress(wallet: string): Promise<string> {

@@ -9,7 +9,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AmountError, parseZec } from '@lute/core';
 import type { Network } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { groupMembers, paymentGroups, paymentRequests } from './db/schema.js';
 import type { Db } from './db/store.js';
@@ -25,7 +25,6 @@ export interface GroupDeps {
   user: (req: FastifyRequest) => Promise<SessionUser | null>;
 }
 
-const WALLET = 'merchant';
 const ID = /^[A-Za-z0-9_-]{22}$/;
 
 /** Exact split: every share differs by at most 1 zat and the shares sum to the total. */
@@ -80,7 +79,7 @@ export function registerGroupRoutes(app: FastifyInstance, d: GroupDeps): void {
     await d.db.insert(paymentGroups).values({ id, owner_user_id: u.id, title_enc: d.cipher.encrypt(b.data.title, titleAad(id)), total_zat: total, created_at: d.now() });
     const shares = splitShares(total, b.data.members.length);
     for (const [i, label] of b.data.members.entries()) {
-      const r = await createRequest(reqDeps, u.id, WALLET, shares[i]!, b.data.ttl_s ? { ttl_s: b.data.ttl_s } : {});
+      const r = await createRequest(reqDeps, u.id, walletOf(u, 'merchant'), shares[i]!, b.data.ttl_s ? { ttl_s: b.data.ttl_s } : {});
       await d.db.insert(groupMembers).values({ group_id: id, idx: i, label_enc: d.cipher.encrypt(label, memberAad(id, i)), share_zat: shares[i]!, request_id: r.id });
     }
     return view((await d.db.select().from(paymentGroups).where(eq(paymentGroups.id, id)).limit(1))[0]!);

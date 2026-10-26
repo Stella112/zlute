@@ -28,8 +28,10 @@ class FakeSidecar implements SidecarClient {
     this.calls.push('inspect');
     return this.inspection;
   }
-  async propose(_w: string, r: { amount_zat: bigint }): Promise<SidecarResult<ProposalView>> {
+  proposeWallets: string[] = [];
+  async propose(w: string, r: { amount_zat: bigint }): Promise<SidecarResult<ProposalView>> {
     this.calls.push('propose');
+    this.proposeWallets.push(w);
     const s: SidecarProposalSummary = {
       proposal_id: 'p1', account: 'a', network: 'regtest', recipient: RECIPIENT, recipient_pool: 'ironwood',
       amount_zat: Number(r.amount_zat), fee_zat: 10000, input_pools: ['ironwood'], output_pools: ['ironwood'],
@@ -71,7 +73,7 @@ class FakeRequestSidecar implements RequestSidecar {
   }
 }
 
-async function setup() {
+async function setup(opts: { signup?: boolean; maxUsers?: number } = {}) {
   const pg = new PGlite();
   await pg.exec(schemaSql());
   const db = drizzle(pg);
@@ -81,7 +83,14 @@ async function setup() {
   await createUser(db, 'mallory', PW, 'owner', NOW);
   await createUser(db, 'carol', PW, 'user', NOW);
   const reqSidecar = new FakeRequestSidecar();
-  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: ORIGIN, resultsFile: RESULTS_FILE });
+  const created: { name: string; ownerPub: string }[] = [];
+  const walletAdmin = {
+    createWallet: async (name: string, ownerPub: string) => {
+      created.push({ name, ownerPub });
+      return { ok: true as const, value: { name } };
+    },
+  };
+  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: `${ORIGIN}, http://127.0.0.1:48300`, resultsFile: RESULTS_FILE, ...(opts.signup ? { walletAdmin, maxUsers: opts.maxUsers ?? 500 } : {}) });
   const loginAs = async (username: string) => {
     const r = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username, password: PW }, headers: { origin: ORIGIN } });
     expect(r.statusCode).toBe(200);
@@ -91,7 +100,7 @@ async function setup() {
     expect(c).toContain('SameSite=Strict');
     return c.split(';')[0]!;
   };
-  return { app, pg, store, sidecar, reqSidecar, loginAs };
+  return { app, pg, store, sidecar, reqSidecar, loginAs, created };
 }
 
 const send = (cookie: string, idem = 'idem-0001', payload: object = { wallet: 'payout', to: RECIPIENT, amount_zec: '0.01', memo_ref: 'Ab3_x-9Zq1' }) => ({
@@ -240,6 +249,50 @@ describe('public deployment guards', () => {
     // Another client is unaffected.
     const other = await t.app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'maris', password: PW }, headers: { 'x-forwarded-for': '198.51.100.9' } });
     expect(other.statusCode).toBe(200);
+  });
+});
+
+describe('self-serve sign-up (public deployment)', () => {
+  const KEY = 'ab'.repeat(32);
+  const signup = (app: Awaited<ReturnType<typeof setup>>['app'], username = 'ada_lovelace', extra: object = {}) =>
+    app.inject({ method: 'POST', url: '/v1/auth/signup', payload: { username, password: 'a long enough password', owner_pub: KEY, ...extra }, headers: { origin: ORIGIN } });
+
+  it("creates the user's own three wallets bound to their browser key, then signs them in", async () => {
+    const t = await setup({ signup: true });
+    const r = await signup(t.app);
+    expect(r.statusCode).toBe(200);
+    expect(t.created).toHaveLength(3);
+    const prefix = t.created[0]!.name.split('-')[0]!;
+    expect(prefix).toMatch(/^u[0-9a-f]{10}$/);
+    expect(t.created.map((c) => c.name)).toEqual([`${prefix}-merchant`, `${prefix}-payout`, `${prefix}-agent`]);
+    expect(t.created.every((c) => c.ownerPub === KEY)).toBe(true);
+    const cookie = String(r.headers['set-cookie']).split(';')[0]!;
+    const me = (await t.app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } })).json();
+    expect(me).toMatchObject({ username: 'ada_lovelace', owner_pub: KEY, self_serve: true });
+    // Their spends come from their own wallets, never the install's.
+    await t.app.inject({ method: 'POST', url: '/v1/actions/send', payload: { wallet: 'payout', to: RECIPIENT, amount_zec: '0.001' }, headers: { cookie, origin: ORIGIN, 'idempotency-key': 'signup-send-1' } });
+    expect(t.sidecar.proposeWallets).toEqual([`${prefix}-payout`]);
+  });
+
+  it('existing accounts keep the install wallets; duplicate names, bad keys and a full install are refused', async () => {
+    const t = await setup({ signup: true, maxUsers: 4 });
+    const cookie = await t.loginAs('maris');
+    await t.app.inject({ method: 'POST', url: '/v1/actions/send', payload: { wallet: 'payout', to: RECIPIENT, amount_zec: '0.001' }, headers: { cookie, origin: ORIGIN, 'idempotency-key': 'legacy-send-1' } });
+    expect(t.sidecar.proposeWallets).toEqual(['payout']);
+    expect((await signup(t.app, 'maris')).json()).toEqual({ error: 'USERNAME_TAKEN' });
+    expect((await signup(t.app, 'bob', { owner_pub: 'zz' })).statusCode).toBe(400);
+    expect((await signup(t.app, 'bob')).statusCode).toBe(200);
+    expect((await signup(t.app, 'cyd')).json()).toEqual({ error: 'SIGNUPS_CLOSED' });
+    // Another install-wallet name cannot be smuggled in: wallet is a role, not a name.
+    const r = await t.app.inject({ method: 'POST', url: '/v1/actions/send', payload: { wallet: 'u0000000000-payout', to: RECIPIENT, amount_zec: '0.001' }, headers: { cookie, origin: ORIGIN, 'idempotency-key': 'smuggle-1' } });
+    expect(r.statusCode).toBe(400);
+  });
+
+  it('is absent when sign-up is not enabled; the second configured origin is accepted', async () => {
+    const t = await setup();
+    expect((await signup(t.app)).statusCode).toBe(404);
+    const r = await t.app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'maris', password: PW }, headers: { origin: 'http://127.0.0.1:48300' } });
+    expect(r.statusCode).toBe(200);
   });
 });
 

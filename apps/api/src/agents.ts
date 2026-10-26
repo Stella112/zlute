@@ -17,7 +17,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AmountError, executeAction, parseZec, type ActionState, type SidecarClient } from '@lute/core';
 import type { AgentGrant, Caller, Network, Principal } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { actions, agentGrants, meterServices, meterSessions, meterSettlements } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
@@ -36,8 +36,6 @@ export interface AgentDeps {
   user: (req: FastifyRequest) => Promise<SessionUser | null>;
 }
 
-const AGENT_WALLET = 'agent';
-const SERVICE_WALLET = 'merchant';
 const ID = /^[A-Za-z0-9_-]{22}$/;
 const NOT_SPENT: ActionState[] = ['REJECTED', 'FAILED', 'EXPIRED', 'CANCELLED'];
 const PENDING: ReadonlySet<string> = new Set(['CREATED', 'VALIDATING', 'AWAITING_AUTHORIZATION', 'AUTHORIZED', 'PREPARING', 'SUBMITTED', 'PENDING_CONFIRMATION']);
@@ -132,12 +130,12 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const b = ServiceBody.safeParse(req.body);
     if (!b.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
     const id = opaqueId();
-    const address = await d.requestSidecar.newAddress(SERVICE_WALLET);
+    const address = await d.requestSidecar.newAddress(walletOf(u, 'merchant'));
     await d.db.insert(meterServices).values({
       id,
       owner_user_id: u.id,
       name: b.data.name,
-      wallet: SERVICE_WALLET,
+      wallet: walletOf(u, 'merchant'),
       address_enc: d.cipher.encrypt(address, svcAad(id)),
       price_per_call_zat: BigInt(b.data.price_per_call_zat),
       credit_limit_zat: BigInt(b.data.credit_limit_zat),
@@ -179,7 +177,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
       nonce: randomBytes(8).toString('hex'),
       purpose: 'agent',
       total_zat: Number(total),
-      wallet: AGENT_WALLET,
+      wallet: walletOf(u, 'agent'),
     };
     return { mandate, mandate_hash: sha256(canonical(mandate)) };
   });
@@ -195,10 +193,10 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const m = b.data.mandate;
     const svcAddress = d.cipher.decrypt(svc.address_enc, svcAad(svc.id));
     // The grant may only pay this service: the mandate must be bound to exactly its address.
-    if (m.wallet !== AGENT_WALLET || m.network !== d.network || m.allowed_recipients.length !== 1 || m.allowed_recipients[0] !== svcAddress) {
+    if (m.wallet !== walletOf(u, 'agent') || m.network !== d.network || m.allowed_recipients.length !== 1 || m.allowed_recipients[0] !== svcAddress) {
       return reply.code(400).send({ error: 'MANDATE_DOES_NOT_MATCH_SERVICE' });
     }
-    const loaded = await d.mandates.loadMandate(AGENT_WALLET, canonical(m), b.data.signature);
+    const loaded = await d.mandates.loadMandate(walletOf(u, 'agent'), canonical(m), b.data.signature);
     if (!loaded.ok) return reply.code(403).send({ error: loaded.code });
     const token = `lute_agent_${randomBytes(32).toString('base64url')}`;
     const id = opaqueId();
@@ -206,7 +204,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
       id,
       owner_user_id: u.id,
       agent_name: b.data.agent_name,
-      wallet: AGENT_WALLET,
+      wallet: walletOf(u, 'agent'),
       network: d.network,
       service_id: svc.id,
       mandate_id: m.mandate_id,
@@ -311,10 +309,10 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     }
     // Keep the answer current: the service wallet syncs at most once a minute.
     if (d.now() - lastServiceSync >= 60) {
-      await d.requestSidecar.sync(SERVICE_WALLET).catch(() => undefined);
+      await d.requestSidecar.sync(svc.wallet).catch(() => undefined);
       lastServiceSync = d.now();
     }
-    const b = await d.requestSidecar.balance(SERVICE_WALLET);
+    const b = await d.requestSidecar.balance(svc.wallet);
     await d.db.update(meterSessions).set({ calls: sql`${meterSessions.calls} + 1`, updated_at: d.now() }).where(eq(meterSessions.id, s.id));
     return { call: s.calls + 1, charged_zat: svc.price_per_call_zat.toString(), result: { network: d.network, chain_tip_height: b.chain_tip_height, observed_at: d.now() } };
   });

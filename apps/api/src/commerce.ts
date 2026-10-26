@@ -15,7 +15,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AmountError, executeAction, parseZec, type ActionState, type SidecarClient } from '@lute/core';
 import type { Network } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { actions, orderRefunds, orders, paymentRequests, signingKeys } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
@@ -33,7 +33,6 @@ export interface CommerceDeps {
   user: (req: FastifyRequest) => Promise<SessionUser | null>;
 }
 
-const WALLET = 'merchant';
 const ID = /^[A-Za-z0-9_-]{22}$/;
 const NOT_REFUNDED: ActionState[] = ['REJECTED', 'FAILED', 'EXPIRED', 'CANCELLED'];
 const SPKI_ED25519_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
@@ -181,7 +180,7 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
       throw e;
     }
     if (amount <= 0n) return reply.code(400).send({ error: 'BAD_AMOUNT' });
-    const r = await createRequest(reqDeps, u.id, WALLET, amount, b.data.ttl_s ? { ttl_s: b.data.ttl_s } : {});
+    const r = await createRequest(reqDeps, u.id, walletOf(u, 'merchant'), amount, b.data.ttl_s ? { ttl_s: b.data.ttl_s } : {});
     const id = opaqueId();
     await d.db.insert(orders).values({ id, owner_user_id: u.id, request_id: r.id, item_enc: d.cipher.encrypt(b.data.item, itemAad(id)), amount_zat: amount, created_at: d.now() });
     return view((await d.db.select().from(orders).where(eq(orders.id, id)).limit(1))[0]!);
@@ -201,10 +200,11 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
     const s = await sync(o);
     // Refund payouts move to CONFIRMED like any other payout (the wallet must see the new blocks).
     const open = (await refunds(o.id)).filter((rf) => rf.txid && (rf.state === 'SUBMITTED' || rf.state === 'PENDING_CONFIRMATION'));
-    if (open.length > 0) await d.requestSidecar.sync(WALLET);
+    const wallet = walletOf(u, 'merchant');
+    if (open.length > 0) await d.requestSidecar.sync(wallet);
     for (const rf of open) {
       if (!rf.txid || (rf.state !== 'SUBMITTED' && rf.state !== 'PENDING_CONFIRMATION')) continue;
-      const st = await d.requestSidecar.txStatus(WALLET, rf.txid);
+      const st = await d.requestSidecar.txStatus(wallet, rf.txid);
       let state = rf.state;
       if (state === 'SUBMITTED' && st.mined_height !== null) {
         await d.store.transition(rf.action_id, 'SUBMITTED', 'PENDING_CONFIRMATION', 'system');
@@ -246,7 +246,7 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
           network: d.network,
           state: 'CREATED',
           amount_zat: amount,
-          wallet: WALLET,
+          wallet: walletOf(u, 'merchant'),
           recipient_address: b.data.to.trim(),
           recipient_ref: o.id,
           memo: { kind: 'lute_ref', ref },
@@ -259,7 +259,7 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
       await d.db.insert(orderRefunds).values({ order_id: o.id, seq: v.refunds.length + 1, action_id: action.id, amount_zat: amount, created_at: d.now() });
     }
     // The wallet must know the current tip before a proposal is built (expiry height).
-    if (action.state === 'CREATED') await d.requestSidecar.sync(WALLET);
+    if (action.state === 'CREATED') await d.requestSidecar.sync(walletOf(u, 'merchant'));
     const result = await executeAction(
       { store: d.store, sidecar: d.sidecar, configured_network: d.network, now: d.now, newId: opaqueId },
       { actionId: action.id, principal: { kind: 'owner', id: u.id, authenticated: true }, caller: 'api', idempotencyKey: idem },

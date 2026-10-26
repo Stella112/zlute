@@ -10,6 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    BIGINT NOT NULL
 );
 
+-- Self-serve accounts (public deployment): each user has their own wallets `<prefix>-merchant`,
+-- `<prefix>-payout`, `<prefix>-agent` and their own approval key (generated in their browser).
+-- Accounts created before self-serve have no prefix and use the install's wallets and owner key.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_prefix TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS owner_pub TEXT;
+
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,              -- SHA-256 of the cookie token; the token itself is never stored
   user_id    TEXT NOT NULL REFERENCES users(id),

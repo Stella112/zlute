@@ -8,7 +8,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { computeStatus, type Results } from '@lute/core';
 import { POLICY_VERSION, type Network } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { WALLET_ROLES, walletOf, type SessionUser, type WalletRole } from './auth.js';
 import { actions, paymentRequests, privacyDecisions } from './db/schema.js';
 import type { Db } from './db/store.js';
 import type { RequestSidecar } from './sidecar.js';
@@ -22,7 +22,6 @@ export interface DashboardDeps {
   resultsFile: string;
 }
 
-const WALLETS = new Set(['payout', 'merchant']);
 
 export async function loadResults(path: string): Promise<Results | null> {
   try {
@@ -42,7 +41,7 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
   app.get('/v1/me', async (req, reply) => {
     const u = await d.user(req);
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
-    return { username: u.username, role: u.role, network: d.network };
+    return { username: u.username, role: u.role, network: d.network, owner_pub: u.owner_pub, self_serve: u.wallet_prefix !== null };
   });
 
   app.get('/v1/actions', async (req, reply) => {
@@ -85,8 +84,8 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
   app.get<{ Params: { w: string } }>('/v1/wallets/:w/balance', async (req, reply) => {
     const u = await owner(req);
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
-    if (u === 'forbidden' || !WALLETS.has(req.params.w)) return reply.code(404).send({ error: 'NOT_FOUND' });
-    return d.sidecar.balance(req.params.w);
+    if (u === 'forbidden' || !(WALLET_ROLES as readonly string[]).includes(req.params.w)) return reply.code(404).send({ error: 'NOT_FOUND' });
+    return d.sidecar.balance(walletOf(u, req.params.w as WalletRole));
   });
 
   app.get('/v1/privacy/status', async (req, reply) => {

@@ -2,7 +2,10 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { z } from 'zod';
 import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionRecord, type SidecarClient } from '@lute/core';
 import type { Network, Principal } from '@lute/luteguard';
-import { login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, type SessionUser } from './auth.js';
+import { createUser, login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, WALLET_ROLES, walletOf, type SessionUser } from './auth.js';
+import { randomBytes } from 'node:crypto';
+import { eq, sql } from 'drizzle-orm';
+import { users } from './db/schema.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { registerAgentRoutes } from './agents.js';
 import { registerCommerceRoutes } from './commerce.js';
@@ -11,7 +14,7 @@ import { registerSubscriptionRoutes } from './subscriptions.js';
 import { registerDashboardRoutes } from './dashboard.js';
 import { registerRequestRoutes } from './requests.js';
 import { registerStreamRoutes } from './streams.js';
-import type { MandateSidecar, RequestSidecar } from './sidecar.js';
+import type { MandateSidecar, RequestSidecar, WalletAdmin } from './sidecar.js';
 import { PgActionStore, type Db } from './db/store.js';
 import { clientIp, LIMITS, RateLimiter } from './ratelimit.js';
 
@@ -33,6 +36,10 @@ export interface AppDeps {
   resultsFile?: string;
   /** Agent mandates. Without it, agent and meter routes do not exist (fail closed). */
   mandates?: MandateSidecar;
+  /** Self-serve sign-up (own wallets per user). Without it, sign-up does not exist. */
+  walletAdmin?: WalletAdmin;
+  /** Most accounts the install accepts through sign-up. */
+  maxUsers?: number;
 }
 
 const ACTION_TTL_S = 15 * 60;
@@ -64,7 +71,7 @@ function publicView(a: ActionRecord) {
 }
 
 const SendBody = z.object({
-  wallet: z.string().regex(/^[a-z0-9-]{1,32}$/),
+  wallet: z.enum(['merchant', 'payout', 'agent']),
   to: z.string().min(1).max(512),
   amount_zec: z.string().max(32),
   memo_ref: z.string().regex(OPAQUE_REF).optional(),
@@ -72,6 +79,14 @@ const SendBody = z.object({
 
 const AuthorizeBody = z.object({ signature: z.string().regex(/^[0-9a-f]{128}$/) }).strict();
 const LoginBody = z.object({ username: z.string().min(1).max(64), password: z.string().min(1).max(256) }).strict();
+const SignupBody = z
+  .object({
+    username: z.string().regex(/^[a-z0-9_]{3,32}$/),
+    password: z.string().min(12).max(256),
+    /** Ed25519 public key generated in the user's browser; it approves this user's spends. */
+    owner_pub: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .strict();
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // Request logging is minimal and never includes bodies (MetadataPolicy).
@@ -139,6 +154,33 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     return { user: { username: r.user.username, role: r.user.role } };
   });
 
+  /**
+   * Self-serve sign-up: the sidecar creates the user's own merchant, payout and agent wallets
+   * (own sealed seeds and key files) bound to the approval key their browser generated. Only then
+   * is the account created. Hosted demo: these wallets are operator-custodied hot wallets.
+   */
+  app.post('/v1/auth/signup', async (req, reply) => {
+    if (!deps.walletAdmin) return reply.code(404).send({ error: 'SIGNUP_DISABLED' });
+    const body = SignupBody.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
+    if (!limiter.take('signup|global', { max: 30, windowS: 3600 })) return reply.code(429).send({ error: 'RATE_LIMITED' });
+    const count = Number((await deps.db.select({ n: sql<string>`count(*)` }).from(users))[0]?.n ?? 0);
+    if (count >= (deps.maxUsers ?? 500)) return reply.code(403).send({ error: 'SIGNUPS_CLOSED' });
+    if ((await deps.db.select({ id: users.id }).from(users).where(eq(users.username, body.data.username)).limit(1)).length) {
+      return reply.code(409).send({ error: 'USERNAME_TAKEN' });
+    }
+    const prefix = `u${randomBytes(5).toString('hex')}`;
+    for (const role of WALLET_ROLES) {
+      const r = await deps.walletAdmin.createWallet(walletOf({ wallet_prefix: prefix }, role), body.data.owner_pub);
+      if (!r.ok) return reply.code(503).send({ error: 'WALLET_CREATION_FAILED' });
+    }
+    await createUser(deps.db, body.data.username, body.data.password, 'owner', deps.now(), { wallet_prefix: prefix, owner_pub: body.data.owner_pub });
+    const r = await login(deps.db, body.data.username, body.data.password, deps.now());
+    const secure = deps.secureCookies ? '; Secure' : '';
+    reply.header('set-cookie', `${SESSION_COOKIE}=${r!.token}; HttpOnly${secure}; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_S}`);
+    return { user: { username: r!.user.username, role: r!.user.role } };
+  });
+
   app.post('/v1/auth/logout', async (req, reply) => {
     await logout(deps.db, parseCookies(req.headers.cookie)[SESSION_COOKIE]);
     reply.header('set-cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
@@ -172,7 +214,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           network: deps.network,
           state: 'CREATED',
           amount_zat: amount,
-          wallet: body.data.wallet,
+          wallet: walletOf(u, body.data.wallet),
           recipient_address: body.data.to,
           ...(body.data.memo_ref ? { memo: { kind: 'lute_ref' as const, ref: body.data.memo_ref }, memo_text: `LUTE:${body.data.memo_ref}` } : {}),
           idempotency_key: idem,
@@ -182,7 +224,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       ));
     // The wallet must know the current tip before a proposal is built: its expiry height is
     // derived from it, and a stale tip yields a transaction that is already expired.
-    if (action.state === 'CREATED') await deps.requestSidecar.sync(body.data.wallet);
+    if (action.state === 'CREATED') await deps.requestSidecar.sync(walletOf(u, body.data.wallet));
     const principal: Principal = { kind: 'owner', id: u.id, authenticated: true };
     const result = await executeAction(
       { store: deps.store, sidecar: deps.sidecar, configured_network: deps.network, now: deps.now, newId: opaqueId },

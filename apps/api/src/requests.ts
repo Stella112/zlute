@@ -11,7 +11,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { AmountError, parseZec } from '@lute/core';
 import type { Network } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { paymentRequests } from './db/schema.js';
 import type { Db } from './db/store.js';
@@ -31,7 +31,7 @@ const DEFAULT_TTL_S = 24 * 3600;
 
 const CreateBody = z
   .object({
-    wallet: z.string().regex(/^[a-z0-9-]{1,32}$/).default('merchant'),
+    wallet: z.enum(['merchant', 'payout', 'agent']).default('merchant'),
     amount_zec: z.string().max(32),
     /** base64url ciphertext produced in the browser; never decrypted server-side. */
     details_ciphertext: z.string().regex(/^[A-Za-z0-9_-]{16,11000}$/).optional(),
@@ -118,7 +118,7 @@ export function registerRequestRoutes(app: FastifyInstance, d: RequestDeps): voi
     }
     if (amount <= 0n) return reply.code(400).send({ error: 'BAD_AMOUNT' });
 
-    return createRequest(d, u.id, body.data.wallet, amount, {
+    return createRequest(d, u.id, walletOf(u, body.data.wallet), amount, {
       ...(body.data.details_ciphertext ? { details_ciphertext: body.data.details_ciphertext } : {}),
       ...(body.data.ttl_s ? { ttl_s: body.data.ttl_s } : {}),
     });

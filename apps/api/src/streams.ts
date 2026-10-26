@@ -9,7 +9,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { accrued, AmountError, due, executeAction, parseZec, ratePerSecond, type ActionState, type SidecarClient, type StreamEvent } from '@lute/core';
 import type { Network } from '@lute/luteguard';
-import type { SessionUser } from './auth.js';
+import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { actions, streamAgreements, streamSettlements } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
@@ -35,7 +35,7 @@ const PAID: ReadonlySet<ActionState> = new Set(['CONFIRMED', 'RECONCILED']);
 
 const CreateBody = z
   .object({
-    wallet: z.string().regex(/^[a-z0-9-]{1,32}$/).default('payout'),
+    wallet: z.enum(['merchant', 'payout', 'agent']).default('payout'),
     to: z.string().min(1).max(512),
     total_zec: z.string().max(32),
     duration_s: z.number().int().min(60).max(366 * 86_400),
@@ -123,7 +123,7 @@ export function registerStreamRoutes(app: FastifyInstance, d: StreamDeps): void 
     await d.db.insert(streamAgreements).values({
       id,
       owner_user_id: u.id,
-      wallet: body.data.wallet,
+      wallet: walletOf(u, body.data.wallet),
       network: d.network,
       recipient_address_enc: d.cipher.encrypt(body.data.to, aad(id)),
       total_zat: total,
