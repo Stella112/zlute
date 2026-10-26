@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-26T20:28:51.055Z",
- "commit": "4c5abcfac99a7385b3f52c14b1504f23a2730622",
+ "generated_at": "2026-10-26T21:41:36.517Z",
+ "commit": "417f8fa235455dda1c56dd8072e214f26be3f3ff",
  "dirty": false,
  "suites": [
   {
@@ -21,14 +21,14 @@
   {
    "name": "api",
    "source": "local",
-   "passed": 55,
+   "passed": 63,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "mcp",
    "source": "local",
-   "passed": 6,
+   "passed": 7,
    "failed": 0,
    "skipped": 0
   },
@@ -41,8 +41,8 @@
   },
   {
    "name": "sidecar",
-   "source": "ci run 40393531695 @ db85596",
-   "passed": 67,
+   "source": "ci run 40400288981 @ 1e98c0b",
+   "passed": 69,
    "failed": 0,
    "skipped": 0
   },
@@ -783,6 +783,54 @@
   },
   {
    "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) document extraction: fields out, charged per page, budget and batching shown, text never stored",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R1: simultaneous settlements of one session pay the usage once",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R1: simultaneous settlements of two sessions cannot together exceed the budget",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R2: a retried settlement cannot charge twice, with the same or a new idempotency key",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R3: a changed recipient is rejected (agent-supplied address ignored; mandate for another address refused)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R4: an expired or a revoked grant pays nothing",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R5: an owner payout without an approval never executes",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) R6: a transparent destination is rejected before any proposal",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
    "file": "apps/api/test/app.test.ts",
    "name": "API rejects bad credentials with the same error for unknown users",
    "status": "passed"
@@ -1090,6 +1138,12 @@
   {
    "suite": "mcp",
    "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) extraction sends only the text, to the session extract route",
+   "status": "passed"
+  },
+  {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
    "name": "Lute MCP tools (A6, A8, A9) settlement retries are idempotent per (session, settlement number)",
    "status": "passed"
   },
@@ -1240,13 +1294,25 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::mandate_spends_within_budget_then_denies",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::r2_concurrent_retry_of_one_payout_charges_once",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
    "name": "control::tests::w12_expired_proposal_denied",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::mandate_spends_within_budget_then_denies",
+   "name": "control::tests::w13_approval_reuse_denied",
    "status": "passed"
   },
   {
@@ -1258,7 +1324,7 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w13_approval_reuse_denied",
+   "name": "control::tests::w14_w15_daily_cap",
    "status": "passed"
   },
   {
@@ -1281,12 +1347,6 @@
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w14_w15_daily_cap",
-   "status": "passed"
-  },
-  {
-   "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
    "name": "inspect::tests::orchard_only_ua_pays_ironwood",
    "status": "passed"
@@ -1295,6 +1355,12 @@
    "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
    "name": "inspect::tests::sapling_address_allowed",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::shielded_ua_allowed_ironwood_first",
    "status": "passed"
   },
   {
@@ -1324,19 +1390,19 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
-   "name": "inspect::tests::shielded_ua_allowed_ironwood_first",
-   "status": "passed"
-  },
-  {
-   "suite": "sidecar",
-   "file": "services/wallet-sidecar::inspect::tests",
    "name": "inspect::tests::w3_ua_with_transparent_receiver_pays_only_shielded",
    "status": "passed"
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::mandate::tests",
-   "name": "mandate::tests::bounds_are_enforced_even_when_signed",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::w9_wrong_network_denied",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::r1_concurrent_mandate_spends_cannot_exceed_budget",
    "status": "passed"
   },
   {
@@ -1348,7 +1414,7 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::mandate::tests",
-   "name": "mandate::tests::valid_mandate_verifies",
+   "name": "mandate::tests::bounds_are_enforced_even_when_signed",
    "status": "passed"
   },
   {
@@ -1467,8 +1533,8 @@
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::inspect::tests",
-   "name": "inspect::tests::w9_wrong_network_denied",
+   "file": "services/wallet-sidecar::mandate::tests",
+   "name": "mandate::tests::valid_mandate_verifies",
    "status": "passed"
   },
   {
@@ -1486,13 +1552,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::build_parse_roundtrip",
+   "name": "zip321req::tests::missing_or_zero_amount_rejected",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::missing_or_zero_amount_rejected",
+   "name": "zip321req::tests::build_parse_roundtrip",
    "status": "passed"
   },
   {
@@ -1528,13 +1594,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::wrong_network_denied",
+   "name": "zip321req::tests::opaque_ref_must_be_opaque",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::opaque_ref_must_be_opaque",
+   "name": "zip321req::tests::wrong_network_denied",
    "status": "passed"
   },
   {
@@ -1695,6 +1761,13 @@
    "claim": "Unit tests: recipient inspection (W1, W2, W3-address, W9), single-pool policy (W5, W6, Orchard, multi-step), network params",
    "txids": [],
    "limits": "Policy unit tests use extracted step facts, not full proposals; the regtest run E-002 exercises the real path"
+  },
+  {
+   "id": "E-015",
+   "env": "ci",
+   "claim": "Payment restrictions hold under concurrency and retries: simultaneous settlements cannot exceed a budget, a retried settlement charges once, a changed recipient is rejected, an expired or revoked grant pays nothing, a payout without approval never executes, a transparent destination is rejected before any proposal",
+   "txids": [],
+   "limits": "The API tests use a fake wallet sidecar (the sidecar's own checks are tested separately in Rust, against real SQLite connections on threads). In-process settlement serialization covers one API process; across processes the sidecar's `BEGIN IMMEDIATE` mandate reservation is the backstop (R1 sidecar). Mainnet demonstration of R1/R2 was not run (it would spend the owner's funds)."
   }
  ],
  "findings": [],

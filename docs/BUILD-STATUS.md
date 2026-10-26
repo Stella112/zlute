@@ -1,5 +1,20 @@
 # Build status
 
+## 2026-10-26 23:30 WAT — Claude Code — external review addressed: custody, claims, restrictions, useful MCP service, UI
+IMPLEMENTED:
+- Custody: docs/CUSTODY.md. Hosted Lute is custodial: the seed and its key file live on the server, approvals are enforced by software, and there is no independent recovery yet. All public claims were rewritten to match, including the operator-visibility disclosure (landing page, sign-up, guide, paid-API leak trace, README).
+- Restrictions: settlements are serialized per grant. New tests: R1 concurrent settlements (API, plus sidecar with 2 SQLite connections on threads), R2 retries, R3 changed recipient, R4 expired/revoked grant, R5 missing approval, R6 transparent destination (E-015).
+- Useful metered service: per-page document extraction (`/v1/meter/sessions/:id/extract`, MCP `lute_extract_document`). Text is never stored. Responses show the charge, due, remaining budget, network fee and batched settlement.
+- Receipts v2 use a salted item hash; the merchant can reveal the salt.
+- Payment states: requests show Partially paid / Confirming / Paid (new `seen_zat`).
+- Backup gate before funding.
+- Theme: teal accent, darker muted text, sans-serif amounts.
+- Docs site: Custody and Evidence pages (cards with E-xxx anchors, repo and explorer links); API table pipes fixed.
+- Payer preview page /preview. The fragment key is removed from the address bar once read. docs/DEMO.md written.
+VERIFIED: CI 40400288981 green at 1e98c0b. evidence/results.json at 417f8fa: luteguard 50, core 64, api 63, mcp 7, web 5, sidecar 69, lute-owner 6, all pass. Deployed to uselute.xyz (extract route live; seen_zat migrated).
+NOT DONE (owner): commerce mainnet run (Zodl checkout + refund); record the video (docs/DEMO.md); sweep wallets back to Zodl; make the repo public; submit by Oct 28 20:00 WAT.
+ROADMAP (documented in CUSTODY.md): BIP-39 recovery phrase, self-hosting, client-side spending keys.
+
 ## 2026-10-25 22:50 WAT — Claude Code — P1b mainnet gate passed; streams on mainnet
 IMPLEMENTED: API on the VPS (zlute-api + zlute-postgres, loopback, log caps) with auth, sends via executeAction, payment requests, streams (create/accrual/pause/resume/cancel/settle/refresh), tx status in the sidecar; tools/lute-pay.ps1 (owner laptop: SSH tunnel, -Setup, pay, -Stream, -StreamId [-Settle]); error handler keeps Fastify 4xx and logs 5xx without messages; executeAction fails an action on a pre-authorization sidecar error; sidecar 409 INSUFFICIENT_SPENDABLE_FUNDS.
 VERIFIED (mainnet, PRIVACY-EVIDENCE.md): E-004 Zodl paid a Lute request (address + memo, 3 conf); E-005 owner-approved CLI payout; E-006 API path with LuteGuard ALLOW before authorization; E-008 120 s stream, 30,000 zat in two owner-approved settlements, all confirmed, failed attempt never counted as paid. Regtest: E-007 approvals run 3 (W8, W12, W13, W14a/b, no approval, forged key).
