@@ -39,7 +39,7 @@ interface Mandate {
 }
 
 const SIGN_MANDATE_CMD =
-  'Get-Clipboard | & "$HOME\\lute-owner\\lute-owner.exe" sign-mandate --key "$HOME\\lute-owner\\owner.key" | Set-Clipboard';
+  '$OutputEncoding = New-Object System.Text.UTF8Encoding $false; Get-Clipboard | & "$HOME\\lute-owner\\lute-owner.exe" sign-mandate --key "$HOME\\lute-owner\\owner.key" | Set-Clipboard';
 
 function NewService({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('Chain tip API');

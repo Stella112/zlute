@@ -60,6 +60,19 @@ enum Cmd {
     },
 }
 
+/// Parses JSON text. Windows PowerShell 5.1 may prefix piped text with a UTF-8 byte order mark;
+/// it is not part of the JSON, so it is dropped.
+fn parse_json(input: &str) -> anyhow::Result<serde_json::Value> {
+    let text = input.trim().trim_start_matches('\u{feff}').trim();
+    serde_json::from_str(text).context("parsing JSON")
+}
+
+fn read_stdin_json() -> anyhow::Result<serde_json::Value> {
+    let mut input = String::new();
+    std::io::stdin().read_to_string(&mut input)?;
+    parse_json(&input)
+}
+
 /// Reads one line from the terminal (not stdin, which carries the JSON) and compares it.
 fn confirm(expected: &str) -> anyhow::Result<()> {
     let mut answer = String::new();
@@ -144,11 +157,8 @@ fn main() -> anyhow::Result<()> {
             unattended_regtest,
         } => {
             let sk = read_key(&key)?;
-            let mut input = String::new();
-            std::io::stdin().read_to_string(&mut input)?;
             // Accept either the full view (`{proposal_hash, sign_message, summary}`) or a bare summary.
-            let v: serde_json::Value =
-                serde_json::from_str(input.trim()).context("parsing JSON")?;
+            let v = read_stdin_json()?;
             let summary = v.get("summary").unwrap_or(&v);
             let hash = canonical_hash(summary)?;
             if let Some(claimed) = v.get("proposal_hash").and_then(|h| h.as_str()) {
@@ -203,10 +213,7 @@ fn main() -> anyhow::Result<()> {
             unattended_regtest,
         } => {
             let sk = read_key(&key)?;
-            let mut input = String::new();
-            std::io::stdin().read_to_string(&mut input)?;
-            let m: serde_json::Value =
-                serde_json::from_str(input.trim()).context("parsing JSON")?;
+            let m = read_stdin_json()?;
             let hash = canonical_hash(&m)?;
             let s = |k: &str| -> anyhow::Result<String> {
                 Ok(field(&m, k)?.as_str().unwrap_or_default().to_string())
@@ -260,6 +267,12 @@ fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bom_prefixed_json_parses_like_plain_json() {
+        let plain = parse_json(r#"{"a":1}"#).unwrap();
+        assert_eq!(parse_json("\u{feff}{\"a\":1}\r\n").unwrap(), plain);
+    }
 
     #[test]
     fn canonical_hash_matches_sorted_compact_json() {

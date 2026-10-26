@@ -6,7 +6,7 @@ import { zec, zat, when, short } from '@/lib/format';
 import { Button, ErrorNote, Txid, inputCls } from './ui';
 
 const SIGN_CMD =
-  'Get-Clipboard | & "$HOME\\lute-owner\\lute-owner.exe" sign --key "$HOME\\lute-owner\\owner.key" | Set-Clipboard';
+  '$OutputEncoding = New-Object System.Text.UTF8Encoding $false; Get-Clipboard | & "$HOME\\lute-owner\\lute-owner.exe" sign --key "$HOME\\lute-owner\\owner.key" | Set-Clipboard';
 
 /**
  * Owner approval of the sidecar's exact proposal (D-009). The browser never holds the owner key:
