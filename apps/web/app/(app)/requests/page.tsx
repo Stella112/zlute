@@ -29,7 +29,7 @@ export default function RequestsPage() {
 
   return (
     <>
-      <PageTitle title="Requests" sub={`Matched by unique address and memo. PAID needs ≥ ${me.network === 'main' ? 3 : 1} confirmations; anything less is PENDING.`} />
+      <PageTitle title="Payment requests" sub="Everything you have asked to be paid, and whether it arrived." />
       <ErrorNote error={error} />
       <Card action={<Link href="/receive" className="text-xs text-accent hover:underline">New request</Link>}>
         {(list.data?.requests ?? []).length === 0 ? (

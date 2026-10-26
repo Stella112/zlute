@@ -9,7 +9,7 @@ export default function CrossChain() {
   const m = st.data?.modules.find((x) => x.key === 'crosschain');
   return (
     <>
-      <PageTitle title="Cross-Chain" sub="Routes into shielded ZEC are classified, not executed." />
+      <PageTitle title="Cross-chain" sub="Paying in from other chains: Lute checks each route and refuses any that would not stay private." />
       <Card>
         <div className="flex items-center gap-3">
           <p className="text-sm">Route classifier</p>

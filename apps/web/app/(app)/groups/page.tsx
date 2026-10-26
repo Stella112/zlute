@@ -27,7 +27,7 @@ export default function GroupsPage() {
 
   return (
     <>
-      <PageTitle title="Groups" sub="Split a bill. Each member gets their own shielded payment link, so members never see each other's payments; you see who has paid." />
+      <PageTitle title="Split a bill" sub="Everyone gets their own payment link for their share. They never see each other; you see who has paid." />
       <Card title="New split" className="mb-6">
         <form
           className="grid gap-3 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end"

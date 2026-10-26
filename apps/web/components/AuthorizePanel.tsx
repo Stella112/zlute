@@ -2,32 +2,31 @@
 
 import { useState } from 'react';
 import { ApiError, post, type ActionResponse, type ExecuteResult, type ProposalSummary } from '@/lib/api';
-import { zec, zat, when, short } from '@/lib/format';
+import { explorer, short, when, zecShort } from '@/lib/format';
 import { canonical, sha256Hex, signText } from '@/lib/ownerKey';
 import { useMe } from './AppShell';
-import { Button, ErrorNote, Txid, inputCls } from './ui';
+import { Icon } from './icons';
+import { ErrorNote, inputCls } from './ui';
 
-const SIGN_CMD =
-  'powershell -ExecutionPolicy Bypass -File C:\\zecathon\\tools\\lute-sign.ps1';
+const SIGN_CMD = 'powershell -ExecutionPolicy Bypass -File C:\\zecathon\\tools\\lute-sign.ps1';
 
 /**
  * Owner approval of the sidecar's exact proposal (D-009).
- * - Install owner: the proposal is copied to the owner's machine, signed there by lute-owner
- *   after a typed confirmation, and only the signature comes back.
  * - Self-serve accounts: the key lives in this browser. The browser recomputes the proposal hash
- *   from the details shown (it never signs a hash supplied by the server) and signs after the
- *   same typed confirmation.
+ *   from the details shown (it never signs a hash supplied by the server) and signs after a typed
+ *   confirmation.
+ * - Install owner: the proposal is copied to the owner's machine and signed there by lute-owner.
  */
 export function AuthorizePanel({ actionId, result, network, onDone }: { actionId: string; result: Extract<ExecuteResult, { state: 'AWAITING_AUTHORIZATION' }>; network: string; onDone?: (r: ExecuteResult) => void }) {
   const s: ProposalSummary = result.summary;
-  const payload = JSON.stringify({ proposal_hash: result.proposal_hash, summary: s });
+  const me = useMe();
+  const code = result.proposal_hash.slice(0, 8);
+  const [typed, setTyped] = useState('');
   const [sig, setSig] = useState('');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [final, setFinal] = useState<ExecuteResult | null>(null);
-  const [typed, setTyped] = useState('');
-  const me = useMe();
 
   async function authorize(signature: string) {
     setBusy(true);
@@ -44,100 +43,132 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
   }
 
   if (final) {
+    const ok = final.state === 'SUBMITTED' && 'txid' in final && final.txid;
+    const link = ok ? explorer(final.txid as string, network) : null;
     return (
-      <div className="rounded-lg border border-line bg-raised p-4 text-sm">
-        {final.state === 'SUBMITTED' && 'txid' in final && final.txid ? (
-          <p>
-            Broadcast. txid <Txid txid={final.txid} network={network} />. It counts as paid only after confirmations.
-          </p>
+      <div className="rounded-3xl border border-line bg-surface p-6 text-center">
+        <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${ok ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad'}`}>
+          <Icon name={ok ? 'check' : 'shield'} className="h-10 w-10" />
+        </div>
+        <p className="text-xl font-semibold">{ok ? 'Sent' : 'Not sent'}</p>
+        <p className="num mt-1 text-3xl font-semibold">{zecShort(s.amount_zat)} ZEC</p>
+        {ok ? (
+          <p className="mt-2 text-sm text-muted">Confirming on the Zcash network (about 5 minutes).</p>
         ) : (
-          <p className="text-bad">
-            {final.state}
-            {'reasons' in final && final.reasons ? `: ${final.reasons.join(', ')}` : ''}
-            {'reason' in final && final.reason ? `: ${final.reason}` : ''}
-          </p>
+          <p className="mt-2 text-sm text-bad">{'reason' in final && final.reason ? final.reason : 'reasons' in final && final.reasons ? final.reasons.join(', ') : final.state}</p>
+        )}
+        {link && (
+          <a href={link} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm text-accent">
+            View on explorer
+          </a>
         )}
       </div>
     );
   }
 
-  const rows: [string, React.ReactNode][] = [
-    ['Network', s.network],
-    ['Amount', `${zec(s.amount_zat)} ZEC (${zat(s.amount_zat)} zat)`],
-    ['Fee (ZIP-317, from the library)', `${zec(s.fee_zat)} ZEC`],
-    ['Recipient', <span className="font-mono text-xs">{short(s.recipient, 12)}</span>],
-    ['Pools: in / out / change', `${s.input_pools.join(',')} / ${s.output_pools.join(',')} / ${s.change_pools.join(',')}`],
-    ['Policy', s.policy],
-    ['Expires', when(s.expires_at)],
-    ['Proposal hash', <span className="font-mono text-xs">{result.proposal_hash}</span>],
-  ];
-
   return (
-    <div className="space-y-4 rounded-lg border border-warn/40 bg-warn/5 p-4">
-      <div>
-        <p className="text-sm font-medium text-warn">LuteGuard: ALLOW. Awaiting your signature.</p>
-        <p className="mt-1 text-xs text-muted">LuteGuard evaluated this exact proposal. Nothing is signed or sent until you approve it with your own key.</p>
-      </div>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-        {rows.map(([k, v]) => (
-          <div key={k} className="contents">
-            <dt className="text-muted">{k}</dt>
-            <dd className="num break-all">{v}</dd>
-          </div>
-        ))}
+    <div className="rounded-3xl border border-line bg-surface p-6">
+      <p className="text-center text-sm text-muted">Confirm payment</p>
+      <p className="num mt-1 text-center text-5xl font-semibold tracking-tight">
+        {zecShort(s.amount_zat)} <span className="text-2xl font-normal text-muted">ZEC</span>
+      </p>
+      <dl className="mt-6 divide-y divide-line rounded-2xl bg-raised px-4 text-sm">
+        <div className="flex justify-between py-3">
+          <dt className="text-muted">To</dt>
+          <dd className="font-mono text-xs">{short(s.recipient, 10)}</dd>
+        </div>
+        <div className="flex justify-between py-3">
+          <dt className="text-muted">Network fee</dt>
+          <dd className="num">{zecShort(s.fee_zat)} ZEC</dd>
+        </div>
+        <div className="flex justify-between py-3 font-medium">
+          <dt>Total</dt>
+          <dd className="num">{zecShort(s.amount_zat + s.fee_zat)} ZEC</dd>
+        </div>
       </dl>
+      <p className="mt-3 flex items-center gap-2 text-xs text-ok">
+        <Icon name="shield" className="h-4 w-4" /> Checked by LuteGuard: fully shielded, nothing public.
+      </p>
+      <details className="mt-3 text-xs text-muted">
+        <summary className="cursor-pointer select-none">Details</summary>
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          <dt>Pool</dt>
+          <dd>
+            {s.input_pools.join(',')} → {s.output_pools.join(',')} (change {s.change_pools.join(',')})
+          </dd>
+          <dt>Policy</dt>
+          <dd>{s.policy}</dd>
+          <dt>Expires</dt>
+          <dd>{when(s.expires_at)}</dd>
+          <dt>Proposal</dt>
+          <dd className="break-all font-mono">{result.proposal_hash}</dd>
+        </dl>
+      </details>
+
       {me?.self_serve ? (
-        <div className="space-y-3 text-sm">
-          <p>
-            Type <code>approve {result.proposal_hash.slice(0, 8)}</code> to sign with the key held in this browser:
-          </p>
-          <input className={`${inputCls} font-mono`} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={`approve ${result.proposal_hash.slice(0, 8)}`} spellCheck={false} />
+        <div className="mt-6 space-y-3">
+          <label className="block text-sm">
+            Type <span className="rounded bg-raised px-1.5 py-0.5 font-mono text-accent">approve {code}</span> to confirm
+            <input
+              className={`${inputCls} mt-2 rounded-xl py-3 font-mono`}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={`approve ${code}`}
+              spellCheck={false}
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+          </label>
           <ErrorNote error={error} />
-          <Button
-            disabled={busy || typed.trim() !== `approve ${result.proposal_hash.slice(0, 8)}`}
+          <button
+            className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:bg-accent/40"
+            disabled={busy || typed.trim().toLowerCase() !== `approve ${code}`}
             onClick={async () => {
               setError(null);
               try {
                 // Recompute the hash from what is shown; never sign a server-supplied hash.
                 const h = await sha256Hex(canonical(s));
-                if (h !== result.proposal_hash) throw new Error('HASH_MISMATCH: the details do not match the proposal hash; not signing');
+                if (h !== result.proposal_hash) throw new Error('The payment details do not match; nothing was signed.');
                 await authorize(await signText(me.username, `lute-approve-v1|${s.network}|${h}`));
               } catch (e) {
                 setError(e instanceof Error ? (e.message === 'NO_KEY_IN_THIS_BROWSER' ? 'This browser does not hold your key. Restore your key backup in Settings.' : e.message) : 'Signing failed');
               }
             }}
           >
-            {busy ? 'Submitting…' : 'Sign in this browser and send'}
-          </Button>
+            {busy ? 'Sending…' : 'Confirm and pay'}
+          </button>
         </div>
       ) : (
-      <>
-      <ol className="list-decimal space-y-3 pl-5 text-sm">
-        <li>
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              await navigator.clipboard.writeText(payload);
-              setCopied(true);
-            }}
-          >
-            {copied ? 'Copied' : 'Copy proposal'}
-          </Button>
-        </li>
-        <li>
-          In PowerShell on your laptop, start this first (it waits for step 1&apos;s copy, so click Copy proposal after it says Waiting), then type the <code>approve …</code> line it asks for. It puts the signature on your clipboard.
-          <pre className="mt-2 overflow-x-auto rounded-md border border-line bg-bg p-2 font-mono text-xs">{SIGN_CMD}</pre>
-        </li>
-        <li>
-          Paste the signature:
-          <input className={`${inputCls} mt-2 font-mono`} value={sig} onChange={(e) => setSig(e.target.value)} placeholder="128 hex characters" spellCheck={false} />
-        </li>
-      </ol>
-      <ErrorNote error={error} />
-      <Button disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
-        {busy ? 'Submitting…' : 'Authorize and send'}
-      </Button>
-      </>
+        <div className="mt-6 space-y-3 text-sm">
+          <p className="text-muted">Approve with the owner key on your laptop:</p>
+          <ol className="list-decimal space-y-3 pl-5">
+            <li>
+              In PowerShell, start:
+              <pre className="mt-1 overflow-x-auto rounded-lg bg-bg p-2 font-mono text-xs">{SIGN_CMD}</pre>
+            </li>
+            <li>
+              When it says Waiting,{' '}
+              <button
+                className="text-accent underline"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(JSON.stringify({ proposal_hash: result.proposal_hash, summary: s }));
+                  setCopied(true);
+                }}
+              >
+                {copied ? 'copied' : 'copy the payment'}
+              </button>
+              , then type <code>approve {code}</code> there.
+            </li>
+            <li>
+              Paste the signature:
+              <input className={`${inputCls} mt-2 font-mono`} value={sig} onChange={(e) => setSig(e.target.value)} placeholder="128 hex characters" spellCheck={false} />
+            </li>
+          </ol>
+          <ErrorNote error={error} />
+          <button className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:bg-accent/40" disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
+            {busy ? 'Sending…' : 'Confirm and pay'}
+          </button>
+        </div>
       )}
     </div>
   );

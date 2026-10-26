@@ -86,7 +86,7 @@ export default function CommercePage() {
 
   return (
     <>
-      <PageTitle title="Commerce" sub="Checkout links for orders, signed receipts the customer can verify, and owner-approved refunds. Payments arrive in the merchant wallet." />
+      <PageTitle title="Checkout" sub="Sell something: share a checkout link, your customer pays from their wallet and gets a receipt they can verify. You can refund too." />
       <Card title="New order" className="mb-6">
         <form
           className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end"

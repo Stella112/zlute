@@ -275,7 +275,7 @@ export default function AgentsPage() {
 
   return (
     <>
-      <PageTitle title="Agents" sub="An agent pays a metered API from its own wallet, only inside a budget you sign. LuteGuard checks every payment; the sidecar enforces the signed mandate." />
+      <PageTitle title="AI agents" sub="Give an AI agent a budget you sign once. It can pay for a service by itself, and anything over the budget is refused." />
       <Card title="Metered services" className="mb-6">
         {(services.data?.services ?? []).length > 0 && (
           <ul className="mb-4 divide-y divide-line text-sm">

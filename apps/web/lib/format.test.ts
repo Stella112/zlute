@@ -15,3 +15,20 @@ describe('web formatting', () => {
     expect(explorer('ab', 'main')).toContain('/ab');
   });
 });
+
+import { ago, zecShort } from './format';
+
+describe('consumer formatting', () => {
+  it('drops trailing zeros but stays exact', () => {
+    expect(zecShort(10000)).toBe('0.0001');
+    expect(zecShort(150000000)).toBe('1.5');
+    expect(zecShort(0)).toBe('0');
+    expect(zecShort(1)).toBe('0.00000001');
+  });
+  it('relative times', () => {
+    const now = 1_800_000_000_000;
+    expect(ago(1_800_000_000 - 30, now)).toBe('just now');
+    expect(ago(1_800_000_000 - 600, now)).toBe('10 min ago');
+    expect(ago(1_800_000_000 - 7200, now)).toBe('2 h ago');
+  });
+});

@@ -16,7 +16,7 @@ function LoginForm() {
 
   return (
     <form
-      className="w-full max-w-sm space-y-4 rounded-xl border border-line bg-surface p-6"
+      className="w-full max-w-sm space-y-4 rounded-3xl border border-line bg-surface p-6"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -37,7 +37,7 @@ function LoginForm() {
         <span className="grid h-8 w-8 place-items-center rounded-md bg-accent font-bold">L</span>
         <div>
           <p className="font-semibold">Lute</p>
-          <p className="text-xs text-muted">Private payments on Zcash</p>
+          <p className="text-xs text-muted">Welcome back</p>
         </div>
       </div>
       <Field label="Username">
@@ -50,22 +50,49 @@ function LoginForm() {
       <Button type="submit" disabled={busy} className="w-full">
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
-      <p className="text-center text-xs text-muted">
-        New here?{' '}
-        <Link href="/signup" className="text-accent hover:underline">
-          Create an account
-        </Link>
-      </p>
+      <div className="flex items-center gap-3 text-xs text-muted">
+        <span className="h-px flex-1 bg-line" /> New to Lute? <span className="h-px flex-1 bg-line" />
+      </div>
+      <Link href="/signup" className="block w-full rounded-xl border border-line py-2.5 text-center text-sm font-medium hover:border-accent hover:bg-raised">
+        Create a free account
+      </Link>
     </form>
   );
 }
 
+const POINTS: [string, string][] = [
+  ['Get paid privately', 'Share a link or QR. Your customer pays from Zodl or any Zcash wallet; nobody else can see who paid whom, or how much.'],
+  ['Sell, bill, split, stream', 'Checkout with receipts, monthly subscriptions, split bills, and pay-by-the-second streams.'],
+  ['Nothing leaves without you', 'Every payment is checked for privacy and approved with a key only you hold. Even AI agents only spend inside a budget you sign.'],
+];
+
 export default function LoginPage() {
   return (
-    <div className="grid min-h-screen place-items-center px-4">
-      <Suspense>
-        <LoginForm />
-      </Suspense>
+    <div className="mx-auto grid min-h-screen max-w-5xl items-center gap-10 px-4 py-10 md:grid-cols-[1.1fr_1fr]">
+      <section>
+        <div className="mb-6 flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-accent font-bold">L</span>
+          <span className="text-xl font-semibold tracking-tight">Lute</span>
+        </div>
+        <h1 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl">Private payments, as easy as a link.</h1>
+        <p className="mt-3 text-muted">Built on Zcash shielded payments. Live on mainnet.</p>
+        <ul className="mt-8 space-y-5">
+          {POINTS.map(([t, d]) => (
+            <li key={t} className="flex gap-3">
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
+              <span>
+                <span className="block font-medium">{t}</span>
+                <span className="block text-sm text-muted">{d}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <div className="grid place-items-center">
+        <Suspense>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

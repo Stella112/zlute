@@ -4,29 +4,51 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { ApiError, get, post, type Me } from '@/lib/api';
+import { Icon, type IconName } from './icons';
 
-const NAV: { href: string; label: string; off?: boolean }[] = [
-  { href: '/', label: 'Overview' },
-  { href: '/send', label: 'Send' },
-  { href: '/receive', label: 'Receive' },
-  { href: '/requests', label: 'Requests' },
-  { href: '/streams', label: 'Streams' },
-  { href: '/agents', label: 'Agents and Meter' },
-  { href: '/subscriptions', label: 'Subscriptions' },
-  { href: '/groups', label: 'Groups' },
-  { href: '/commerce', label: 'Commerce' },
-  { href: '/activity', label: 'Actions' },
-  { href: '/cross-chain', label: 'Cross-Chain' },
-  { href: '/privacy', label: 'Privacy Center' },
-  { href: '/settings', label: 'Settings' },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+  hint?: string;
+}
+
+export const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Money',
+    items: [
+      { href: '/', label: 'Home', icon: 'home' },
+      { href: '/send', label: 'Pay', icon: 'pay' },
+      { href: '/receive', label: 'Request', icon: 'request' },
+      { href: '/activity', label: 'Activity', icon: 'activity' },
+    ],
+  },
+  {
+    title: 'Business',
+    items: [
+      { href: '/commerce', label: 'Checkout', icon: 'store', hint: 'Sell with receipts and refunds' },
+      { href: '/subscriptions', label: 'Subscriptions', icon: 'repeat', hint: 'Bill every month' },
+      { href: '/groups', label: 'Split a bill', icon: 'users', hint: 'Everyone pays their share' },
+      { href: '/streams', label: 'Streams', icon: 'stream', hint: 'Pay by the second' },
+    ],
+  },
+  {
+    title: 'Advanced',
+    items: [
+      { href: '/agents', label: 'AI agents', icon: 'agent', hint: 'Let an agent pay within a budget' },
+      { href: '/privacy', label: 'Privacy', icon: 'shield', hint: 'What is proven, and what leaks' },
+      { href: '/cross-chain', label: 'Cross-chain', icon: 'globe', hint: 'Route classification' },
+      { href: '/settings', label: 'Settings', icon: 'settings', hint: 'Your key and backup' },
+    ],
+  },
 ];
 
-const MOBILE = [
-  { href: '/', label: 'Home' },
-  { href: '/send', label: 'Send' },
-  { href: '/receive', label: 'Receive' },
-  { href: '/activity', label: 'Activity' },
-  { href: '/more', label: 'More' },
+const MOBILE: NavItem[] = [
+  { href: '/', label: 'Home', icon: 'home' },
+  { href: '/send', label: 'Pay', icon: 'pay' },
+  { href: '/receive', label: 'Request', icon: 'request' },
+  { href: '/activity', label: 'Activity', icon: 'activity' },
+  { href: '/more', label: 'More', icon: 'more' },
 ];
 
 const MeCtx = createContext<Me | null>(null);
@@ -52,45 +74,54 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <MeCtx.Provider value={me}>
       <div className="flex min-h-screen">
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface/60 px-3 py-5 md:flex">
-          <div className="mb-6 flex items-center gap-2 px-2">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-accent text-sm font-bold">L</span>
-            <span className="font-semibold tracking-tight">Lute</span>
-            <span className={`ml-auto rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${me.network === 'main' ? 'border-accent/50 text-accent' : 'border-line text-muted'}`}>
-              {me.network === 'main' ? 'mainnet' : me.network}
-            </span>
-          </div>
-          <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
-            {NAV.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={`flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm ${active(n.href) ? 'bg-accent-soft text-text' : 'text-muted hover:bg-raised hover:text-text'}`}
-              >
-                {n.label}
-                {n.off && <span className="text-[10px] text-muted/70">off</span>}
-              </Link>
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-4 py-6 md:flex">
+          <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-bold">L</span>
+            <span className="text-lg font-semibold tracking-tight">Lute</span>
+          </Link>
+          <nav className="flex flex-1 flex-col gap-6 overflow-y-auto">
+            {NAV_GROUPS.map((g) => (
+              <div key={g.title}>
+                <p className="mb-1.5 px-2 text-[11px] font-medium uppercase tracking-wider text-muted/70">{g.title}</p>
+                <div className="flex flex-col gap-0.5">
+                  {g.items.map((n) => (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      className={`flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors ${active(n.href) ? 'bg-accent-soft text-text' : 'text-muted hover:bg-raised hover:text-text'}`}
+                    >
+                      <Icon name={n.icon} className="h-[18px] w-[18px]" />
+                      {n.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
-          <div className="mt-4 flex items-center justify-between border-t border-line px-2 pt-4 text-xs text-muted">
-            <span>{me.username}</span>
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-line px-3 py-2.5 text-sm">
+            <div className="min-w-0">
+              <p className="truncate">{me.username}</p>
+              <p className="text-[11px] text-muted">{me.network === 'main' ? 'Zcash mainnet' : me.network}</p>
+            </div>
             <button
-              className="hover:text-text"
+              title="Sign out"
+              className="text-muted hover:text-text"
               onClick={async () => {
                 await post('/v1/auth/logout').catch(() => undefined);
                 router.replace('/login');
               }}
             >
-              Sign out
+              <Icon name="logout" className="h-[18px] w-[18px]" />
             </button>
           </div>
         </aside>
-        <main className="min-w-0 flex-1 px-4 pb-24 pt-6 md:px-10 md:pb-10">
-          <div className="mx-auto max-w-5xl">{children}</div>
+        <main className="min-w-0 flex-1 px-4 pb-28 pt-6 md:px-10 md:pb-12 md:pt-10">
+          <div className="mx-auto max-w-3xl">{children}</div>
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-surface md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
           {MOBILE.map((n) => (
-            <Link key={n.href} href={n.href} className={`flex-1 py-3 text-center text-xs ${active(n.href) ? 'text-accent' : 'text-muted'}`}>
+            <Link key={n.href} href={n.href} className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] ${active(n.href) ? 'text-accent' : 'text-muted'}`}>
+              <Icon name={n.icon} className="h-[22px] w-[22px]" />
               {n.label}
             </Link>
           ))}
@@ -100,4 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const MORE_LINKS = NAV.filter((n) => !MOBILE.some((m) => m.href === n.href));
+export async function signOut(router: ReturnType<typeof useRouter>) {
+  await post('/v1/auth/logout').catch(() => undefined);
+  router.replace('/login');
+}

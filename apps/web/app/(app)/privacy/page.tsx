@@ -18,7 +18,7 @@ export default function PrivacyCenter() {
   const limited = p.evidence.filter((e) => e.limits);
   return (
     <>
-      <PageTitle title="Privacy Center" sub="Status is computed from the latest test run and on-chain evidence. Only PROVEN is presented as working." />
+      <PageTitle title="Privacy" sub="What Lute has proven, with real test runs and mainnet transactions, and what still leaks. Nothing here is hand-written." />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Card title="Last test run">

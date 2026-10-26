@@ -3,10 +3,10 @@ import { explorer, short } from '@/lib/format';
 
 export function Card({ title, action, children, className = '' }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-line bg-surface p-5 ${className}`}>
+    <section className={`rounded-3xl border border-line bg-surface p-5 md:p-6 ${className}`}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
-          {title && <h2 className="text-sm font-medium text-muted">{title}</h2>}
+          {title && <h2 className="text-[15px] font-medium">{title}</h2>}
           {action}
         </div>
       )}
@@ -18,7 +18,7 @@ export function Card({ title, action, children, className = '' }: { title?: stri
 export function PageTitle({ title, sub }: { title: string; sub?: string }) {
   return (
     <header className="mb-6">
-      <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
     </header>
   );
@@ -77,7 +77,7 @@ export function Button({ children, variant = 'primary', ...p }: React.ButtonHTML
         ? 'border border-bad/50 text-bad hover:bg-bad/10'
         : 'border border-line text-text hover:bg-raised';
   return (
-    <button {...p} className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed ${v} ${p.className ?? ''}`}>
+    <button {...p} className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${v} ${p.className ?? ''}`}>
       {children}
     </button>
   );
@@ -93,7 +93,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-export const inputCls = 'w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm outline-none placeholder:text-muted/60 focus:border-accent';
+export const inputCls = 'w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm outline-none placeholder:text-muted/60 focus:border-accent';
 
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="py-6 text-center text-sm text-muted">{children}</p>;
@@ -101,5 +101,5 @@ export function Empty({ children }: { children: React.ReactNode }) {
 
 export function ErrorNote({ error }: { error: string | null }) {
   if (!error) return null;
-  return <p className="rounded-lg border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>;
+  return <p className="rounded-xl border border-bad/40 bg-bad/10 px-3.5 py-2.5 text-sm text-bad">{error}</p>;
 }

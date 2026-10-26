@@ -64,7 +64,7 @@ function StreamsInner() {
   const list = useLoad(() => get<{ streams: Stream[] }>('/v1/streams'));
   return (
     <>
-      <PageTitle title="Streams" sub="Per-second accrual on the server clock. Earned is accounting; paid means confirmed on chain." />
+      <PageTitle title="Streams" sub="Pay someone by the second, like a salary. Earnings build up live; each payout is a private payment you approve." />
       {creating ? <NewStream onCancel={() => setCreating(false)} /> : <Button className="mb-6" onClick={() => setCreating(true)}>Start stream</Button>}
       <Card>
         {(list.data?.streams ?? []).length === 0 ? (
