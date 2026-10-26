@@ -1,0 +1,32 @@
+           id           |  agent_name  | wallet | network |            mandate_id            |                           mandate_hash                           | cap_per_tx_zat | cap_total_zat |        expires         | revoked_at 
+------------------------+--------------+--------+---------+----------------------------------+------------------------------------------------------------------+----------------+---------------+------------------------+------------
+ P5xDZ_dkDUVoN8k1z4cfjw | Claude agent | agent  | main    | f61005933036b6f6279ffac890a04e40 | f445b4022e1140653e9413b0a2102e4bd8e3a2d52115946bc06ac2adf31ac684 |          15000 |         20000 | 2026-10-27 12:58:55+00 |           
+(1 row)
+
+           id           |       type       |        state         | amount_zat |        reject_reason         |                               txid                               |        created         
+------------------------+------------------+----------------------+------------+------------------------------+------------------------------------------------------------------+------------------------
+ jyamC8liP9ztmKjXorbooA | METER_SETTLEMENT | PENDING_CONFIRMATION |      15000 |                              | d637d8f0fd5bd02d73ffc44bcbd28784ab6e19a11367e30f855cc6a2af01b752 | 2026-10-26 13:25:46+00
+ WZxv87FfuQ-pvOr55HzLxw | METER_SETTLEMENT | REJECTED             |      15000 | INSUFFICIENT_SPENDABLE_FUNDS |                                                                  | 2026-10-26 13:27:27+00
+ WMlz_XHGpCXaf3FBr5RzWw | METER_SETTLEMENT | REJECTED             |      15000 | OVER_GRANT_TOTAL             |                                                                  | 2026-10-26 13:35:22+00
+(3 rows)
+
+       action_id        |       from_state       |        to_state        |            actor             |         at_utc         
+------------------------+------------------------+------------------------+------------------------------+------------------------
+ jyamC8liP9ztmKjXorbooA | CREATED                | VALIDATING             | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:25:56+00
+ jyamC8liP9ztmKjXorbooA | VALIDATING             | AWAITING_AUTHORIZATION | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:25:56+00
+ jyamC8liP9ztmKjXorbooA | AWAITING_AUTHORIZATION | AUTHORIZED             | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:25:56+00
+ jyamC8liP9ztmKjXorbooA | AUTHORIZED             | PREPARING              | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:25:56+00
+ jyamC8liP9ztmKjXorbooA | PREPARING              | SUBMITTED              | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:26:15+00
+ WZxv87FfuQ-pvOr55HzLxw | CREATED                | VALIDATING             | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:27:36+00
+ WZxv87FfuQ-pvOr55HzLxw | VALIDATING             | REJECTED               | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:27:36+00
+ WMlz_XHGpCXaf3FBr5RzWw | CREATED                | VALIDATING             | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:35:31+00
+ WMlz_XHGpCXaf3FBr5RzWw | VALIDATING             | REJECTED               | agent:P5xDZ_dkDUVoN8k1z4cfjw | 2026-10-26 13:35:31+00
+ jyamC8liP9ztmKjXorbooA | SUBMITTED              | PENDING_CONFIRMATION   | system                       | 2026-10-26 13:36:23+00
+(10 rows)
+
+       action_id        | outcome | policy_version  |         at_utc         |                       non_pass                       | n_checks 
+------------------------+---------+-----------------+------------------------+------------------------------------------------------+----------
+ jyamC8liP9ztmKjXorbooA | ALLOW   | luteguard/1.0.0 | 2026-10-26 13:25:56+00 |                                                      |       25
+ WMlz_XHGpCXaf3FBr5RzWw | DENY    | luteguard/1.0.0 | 2026-10-26 13:35:31+00 | RECIPIENT_NOT_INSPECTED,NO_PROPOSAL,OVER_GRANT_TOTAL |       17
+(2 rows)
+
