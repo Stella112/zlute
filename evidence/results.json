@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-25T23:52:01.538Z",
- "commit": "af0701c724a986318df501b6bcde1d2dd2b78b1e",
+ "generated_at": "2026-10-26T13:42:14.689Z",
+ "commit": "ad91af59f00bf35f07edfdfd62a16d22590aa007",
  "dirty": false,
  "suites": [
   {
@@ -14,7 +14,7 @@
   {
    "name": "core",
    "source": "local",
-   "passed": 63,
+   "passed": 64,
    "failed": 0,
    "skipped": 0
   },
@@ -48,8 +48,8 @@
   },
   {
    "name": "lute-owner",
-   "source": "ci run 40243774820 @ 62ad249",
-   "passed": 4,
+   "source": "ci run 40321745278 @ 4779458",
+   "passed": 6,
    "failed": 0,
    "skipped": 0
   }
@@ -491,6 +491,12 @@
    "suite": "core",
    "file": "packages/core/test/execute.test.ts",
    "name": "executeAction for agents (§13.3, A1–A5) A2/A3/A5: over the per-tx cap, over the remaining budget, or to another recipient is DENY",
+   "status": "passed"
+  },
+  {
+   "suite": "core",
+   "file": "packages/core/test/execute.test.ts",
+   "name": "executeAction for agents (§13.3, A1–A5) an agent over its grant is denied before the wallet is asked to build anything",
    "status": "passed"
   },
   {
@@ -1432,13 +1438,25 @@
   {
    "suite": "lute-owner",
    "file": "tools/lute-owner::tests",
-   "name": "tests::zec_formatting",
+   "name": "tests::bom_prefixed_json_parses_like_plain_json",
    "status": "passed"
   },
   {
    "suite": "lute-owner",
    "file": "tools/lute-owner::tests",
    "name": "tests::canonical_hash_matches_sorted_compact_json",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::zec_formatting",
+   "status": "passed"
+  },
+  {
+   "suite": "lute-owner",
+   "file": "tools/lute-owner::tests",
+   "name": "tests::bom_prefixed_json_parses_like_plain_json",
    "status": "passed"
   },
   {
@@ -1531,6 +1549,15 @@
     "764e660f03671a129b58d2a34da0efd01e6c0dbc2a031e987e2877392c597e0f"
    ],
    "limits": "Regtest key signs unattended (regtest only). Revocation is enforced in the API (LuteGuard GRANT_REVOKED); the sidecar has no revoke and relies on mandate expiry (≤ 48 h). The metered service is an operator-run demo receiving into the `merchant` wallet."
+  },
+  {
+   "id": "E-011",
+   "env": "mainnet",
+   "claim": "Mainnet: an AI agent (Claude, through the Lute MCP server) pays a metered API from the `agent` wallet inside an owner-signed mandate, with no per-payment owner signature; past its budget it is denied by LuteGuard with a reason, before the wallet builds anything",
+   "txids": [
+    "d637d8f0fd5bd02d73ffc44bcbd28784ab6e19a11367e30f855cc6a2af01b752"
+   ],
+   "limits": "The agent here is Claude driving the MCP server from Claude Code (a Claude Desktop chat client was configured, but the app rewrote its config on quit). The metered API is an operator-run demo receiving into the `merchant` wallet. Agent tokens are bearer tokens: anyone holding one can spend inside the grant until it is revoked or expires."
   },
   {
    "id": "E-003",
