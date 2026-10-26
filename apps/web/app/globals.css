@@ -1,26 +1,88 @@
 @import 'tailwindcss';
 
-/* Mandate §19.10: near-black, accent violet #7835FF, dark neutral surfaces, subtle borders. */
-@theme {
-  --color-bg: #09090b;
-  --color-surface: #111114;
-  --color-raised: #17171c;
-  --color-line: #26262d;
-  --color-muted: #8b8b97;
-  --color-text: #ececf1;
-  --color-accent: #7835ff;
-  --color-accent-soft: #7835ff26;
-  --color-ok: #3ccf8e;
-  --color-warn: #e3b341;
-  --color-bad: #f2555a;
+/*
+ * Lute theme: silver and black. Every colour is a variable with a light and a dark value; the
+ * page follows the system setting unless the user picks one (html[data-theme]).
+ * Accent: black ink in light mode, silver in dark mode; `on-accent` is the text drawn on it.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-text: var(--text);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-silver: var(--silver);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
+:root {
+  color-scheme: light;
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --raised: #f1f1f3;
+  --line: #e2e2e6;
+  --muted: #6b6b74;
+  --text: #0b0b0d;
+  --accent: #111113;
+  --on-accent: #ffffff;
+  --accent-soft: rgb(17 17 19 / 0.07);
+  --silver: #8e8e96;
+  --ok: #138a5a;
+  --warn: #a8700a;
+  --bad: #c93c40;
+  --glow: rgb(0 0 0 / 0.05);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #08080a;
+  --surface: #111113;
+  --raised: #19191c;
+  --line: #27272b;
+  --muted: #9b9ba4;
+  --text: #f3f3f5;
+  --accent: #d9d9de;
+  --on-accent: #0b0b0d;
+  --accent-soft: rgb(217 217 222 / 0.1);
+  --silver: #c7c7cd;
+  --ok: #3ccf8e;
+  --warn: #e3b341;
+  --bad: #f2555a;
+  --glow: rgb(255 255 255 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #08080a;
+    --surface: #111113;
+    --raised: #19191c;
+    --line: #27272b;
+    --muted: #9b9ba4;
+    --text: #f3f3f5;
+    --accent: #d9d9de;
+    --on-accent: #0b0b0d;
+    --accent-soft: rgb(217 217 222 / 0.1);
+    --silver: #c7c7cd;
+    --ok: #3ccf8e;
+    --warn: #e3b341;
+    --bad: #f2555a;
+    --glow: rgb(255 255 255 / 0.06);
+  }
+}
+
 html,
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--bg);
+  color: var(--text);
 }
 
 body {
@@ -29,12 +91,40 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+/* Brushed-silver text for headline accents. */
+.text-silver-gradient {
+  background: linear-gradient(180deg, #ffffff 0%, #c9c9cf 45%, #8a8a92 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root:not([data-theme='dark']) .text-silver-gradient {
+  background: linear-gradient(180deg, #2b2b30 0%, #6d6d75 60%, #9a9aa2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .text-silver-gradient {
+    background: linear-gradient(180deg, #ffffff 0%, #c9c9cf 45%, #8a8a92 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+}
+
+/* Faint grid behind hero sections. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--glow) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--glow) 1px, transparent 1px);
+  background-size: 56px 56px;
 }
 
 @media (prefers-reduced-motion: reduce) {

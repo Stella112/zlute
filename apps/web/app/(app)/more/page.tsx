@@ -4,13 +4,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { NAV_GROUPS, signOut, useMe } from '@/components/AppShell';
 import { Icon } from '@/components/icons';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function More() {
   const me = useMe()!;
   const router = useRouter();
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">More</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">More</h1>
+        <ThemeToggle withLabel />
+      </div>
       {NAV_GROUPS.slice(1).map((g) => (
         <section key={g.title} className="mb-6">
           <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wider text-muted">{g.title}</p>

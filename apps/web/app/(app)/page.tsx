@@ -38,7 +38,7 @@ export default function Home() {
           {failed ? 'Your wallet is syncing. Refresh in a moment.' : arriving > 0n ? `+${zecShort(arriving)} ZEC arriving (confirming)` : ''}
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <Link href="/receive" className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 text-[15px] font-medium text-white hover:bg-accent/90">
+          <Link href="/receive" className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 text-[15px] font-medium text-on-accent hover:bg-accent/90">
             <Icon name="request" /> Request
           </Link>
           <Link href="/send" className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-raised py-3.5 text-[15px] font-medium hover:border-accent">

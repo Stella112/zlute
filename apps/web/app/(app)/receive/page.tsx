@@ -77,7 +77,7 @@ export default function RequestPage() {
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
-            className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-medium text-white"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-medium text-on-accent"
             onClick={async () => {
               if (navigator.share) await navigator.share({ title: 'Payment request', url: req.url }).catch(() => undefined);
               else {
@@ -151,7 +151,7 @@ export default function RequestPage() {
       <div className="mt-4">
         <ErrorNote error={error} />
       </div>
-      <button type="submit" disabled={busy || !amount} className="mt-6 w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:bg-accent/40">
+      <button type="submit" disabled={busy || !amount} className="mt-6 w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
         {busy ? 'Creating…' : 'Create request'}
       </button>
     </form>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { ApiError, get, post, type Me } from '@/lib/api';
 import { Icon, type IconName } from './icons';
+import { ThemeToggle } from './ThemeToggle';
 
 interface NavItem {
   href: string;
@@ -63,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     get<Me>('/v1/me')
       .then(setMe)
       .catch((e: unknown) => {
-        if (e instanceof ApiError && e.status === 401) router.replace(`/login?next=${encodeURIComponent(path)}`);
+        if (e instanceof ApiError && e.status === 401) router.replace(path === '/' ? '/welcome' : `/login?next=${encodeURIComponent(path)}`);
       });
   }, [path, router]);
 
@@ -76,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-4 py-6 md:flex">
           <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-bold">L</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-bold text-on-accent">L</span>
             <span className="text-lg font-semibold tracking-tight">Lute</span>
           </Link>
           <nav className="flex flex-1 flex-col gap-6 overflow-y-auto">
@@ -98,7 +99,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             ))}
           </nav>
-          <div className="mt-4 flex items-center justify-between rounded-lg border border-line px-3 py-2.5 text-sm">
+          <ThemeToggle withLabel className="mb-3 w-full justify-start rounded-lg" />
+          <div className="mt-1 flex items-center justify-between rounded-lg border border-line px-3 py-2.5 text-sm">
             <div className="min-w-0">
               <p className="truncate">{me.username}</p>
               <p className="text-[11px] text-muted">{me.network === 'main' ? 'Zcash mainnet' : me.network}</p>

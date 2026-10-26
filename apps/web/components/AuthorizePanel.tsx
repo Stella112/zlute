@@ -121,7 +121,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
           </label>
           <ErrorNote error={error} />
           <button
-            className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:bg-accent/40"
+            className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40"
             disabled={busy || typed.trim().toLowerCase() !== `approve ${code}`}
             onClick={async () => {
               setError(null);
@@ -165,7 +165,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
             </li>
           </ol>
           <ErrorNote error={error} />
-          <button className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:bg-accent/40" disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
+          <button className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40" disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
             {busy ? 'Sending…' : 'Confirm and pay'}
           </button>
         </div>

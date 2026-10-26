@@ -99,7 +99,7 @@ export default function PayPage() {
           <p>{error}</p>
         </div>
       )}
-      <button type="submit" disabled={busy || !amount || !to.trim()} className="mt-6 w-full rounded-2xl bg-accent py-4 text-base font-medium text-white disabled:bg-accent/40">
+      <button type="submit" disabled={busy || !amount || !to.trim()} className="mt-6 w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
         {busy ? 'Checking privacy…' : 'Review'}
       </button>
       <p className="mt-4 text-center text-xs text-muted">Every payment is checked by LuteGuard and must be shielded. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.</p>

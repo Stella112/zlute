@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ApiError, post } from '@/lib/api';
 import { Button, ErrorNote, Field, inputCls } from '@/components/ui';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 function LoginForm() {
   const router = useRouter();
@@ -16,7 +17,7 @@ function LoginForm() {
 
   return (
     <form
-      className="w-full max-w-sm space-y-4 rounded-3xl border border-line bg-surface p-6"
+      className="w-full max-w-sm space-y-4 rounded-3xl border border-line bg-surface p-6 shadow-xl shadow-black/5"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -34,10 +35,9 @@ function LoginForm() {
       }}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className="grid h-8 w-8 place-items-center rounded-md bg-accent font-bold">L</span>
         <div>
-          <p className="font-semibold">Lute</p>
-          <p className="text-xs text-muted">Welcome back</p>
+          <p className="text-2xl font-semibold tracking-tight">Welcome back</p>
+          <p className="mt-1 text-sm text-muted">Sign in to your Lute account</p>
         </div>
       </div>
       <Field label="Username">
@@ -60,35 +60,17 @@ function LoginForm() {
   );
 }
 
-const POINTS: [string, string][] = [
-  ['Get paid privately', 'Share a link or QR. Your customer pays from Zodl or any Zcash wallet; nobody else can see who paid whom, or how much.'],
-  ['Sell, bill, split, stream', 'Checkout with receipts, monthly subscriptions, split bills, and pay-by-the-second streams.'],
-  ['Nothing leaves without you', 'Every payment is checked for privacy and approved with a key only you hold. Even AI agents only spend inside a budget you sign.'],
-];
-
 export default function LoginPage() {
   return (
-    <div className="mx-auto grid min-h-screen max-w-5xl items-center gap-10 px-4 py-10 md:grid-cols-[1.1fr_1fr]">
-      <section>
-        <div className="mb-6 flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-accent font-bold">L</span>
-          <span className="text-xl font-semibold tracking-tight">Lute</span>
-        </div>
-        <h1 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl">Private payments, as easy as a link.</h1>
-        <p className="mt-3 text-muted">Built on Zcash shielded payments. Live on mainnet.</p>
-        <ul className="mt-8 space-y-5">
-          {POINTS.map(([t, d]) => (
-            <li key={t} className="flex gap-3">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
-              <span>
-                <span className="block font-medium">{t}</span>
-                <span className="block text-sm text-muted">{d}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <div className="grid place-items-center">
+    <div className="bg-grid flex min-h-screen flex-col">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
+        <Link href="/welcome" className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-bold text-on-accent">L</span>
+          <span className="text-lg font-semibold tracking-tight">Lute</span>
+        </Link>
+        <ThemeToggle />
+      </header>
+      <div className="grid flex-1 place-items-center px-4 pb-16">
         <Suspense>
           <LoginForm />
         </Suspense>

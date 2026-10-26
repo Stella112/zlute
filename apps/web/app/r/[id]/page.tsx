@@ -51,7 +51,7 @@ export default function PayPage() {
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8">
       <div className="mb-6 flex items-center gap-2 text-sm text-muted">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-xs font-bold text-white">L</span>
+        <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-xs font-bold text-on-accent">L</span>
         Private payment via Lute
       </div>
       <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 text-center">
@@ -81,7 +81,7 @@ export default function PayPage() {
               <>
                 <Qr value={req.zip321_uri} className="mt-6" />
                 <p className="mt-4 text-sm text-muted">Scan with Zodl or any Zcash wallet.</p>
-                <a href={req.zip321_uri} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-medium text-white">
+                <a href={req.zip321_uri} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-medium text-on-accent">
                   Open in my wallet
                 </a>
                 <button

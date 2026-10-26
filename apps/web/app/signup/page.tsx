@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ApiError, post } from '@/lib/api';
 import { createKey, exportBackup, keySupported } from '@/lib/ownerKey';
 import { Button, ErrorNote, Field, inputCls } from '@/components/ui';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const ERRORS: Record<string, string> = {
   USERNAME_TAKEN: 'That username is taken.',
@@ -59,9 +60,17 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center px-4 py-10">
+    <div className="bg-grid flex min-h-screen flex-col">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
+        <Link href="/welcome" className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-bold text-on-accent">L</span>
+          <span className="text-lg font-semibold tracking-tight">Lute</span>
+        </Link>
+        <ThemeToggle />
+      </header>
+      <div className="grid flex-1 place-items-center px-4 pb-16">
       <form
-        className="w-full max-w-sm space-y-4 rounded-xl border border-line bg-surface p-6"
+        className="w-full max-w-sm space-y-4 rounded-3xl border border-line bg-surface p-6 shadow-xl shadow-black/5"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -83,12 +92,9 @@ export default function SignupPage() {
           }
         }}
       >
-        <div className="mb-2 flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-md bg-accent font-bold">L</span>
-          <div>
-            <p className="font-semibold">Create a Lute account</p>
-            <p className="text-xs text-muted">Private payments on Zcash mainnet</p>
-          </div>
+        <div>
+          <p className="text-2xl font-semibold tracking-tight">Create your account</p>
+          <p className="mt-1 text-sm text-muted">Private payments on Zcash mainnet</p>
         </div>
         <Field label="Username" hint="3 to 32 lowercase letters, digits or _">
           <input className={inputCls} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
@@ -113,6 +119,7 @@ export default function SignupPage() {
           </Link>
         </p>
       </form>
+      </div>
     </div>
   );
 }

@@ -72,7 +72,7 @@ export function Txid({ txid, network }: { txid: string; network: string }) {
 export function Button({ children, variant = 'primary', ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' }) {
   const v =
     variant === 'primary'
-      ? 'bg-accent text-white hover:bg-accent/90 disabled:bg-accent/40'
+      ? 'bg-accent text-on-accent hover:bg-accent/90 disabled:bg-accent/40'
       : variant === 'danger'
         ? 'border border-bad/50 text-bad hover:bg-bad/10'
         : 'border border-line text-text hover:bg-raised';

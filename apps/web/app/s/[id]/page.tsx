@@ -46,7 +46,7 @@ export default function SubscriberPage() {
               Period {s.period_no + 1} ends {when(s.period_end)}
             </p>
             {s.pay_path && (
-              <a href={s.pay_path} className="mt-5 inline-block rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white">
+              <a href={s.pay_path} className="mt-5 inline-block rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-on-accent">
                 Pay this period
               </a>
             )}
