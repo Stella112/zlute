@@ -85,6 +85,27 @@ pub struct Verification {
     pub received: Vec<ReceivedOutput>,
 }
 
+/// What a transaction reveals by its structure (any transaction, not only this wallet's).
+#[derive(Debug, Serialize)]
+pub struct OnChainPrivacy {
+    pub txid: String,
+    pub mined_height: Option<u32>,
+    pub confirmations: u32,
+    pub transparent_inputs: usize,
+    pub transparent_outputs: usize,
+    pub sprout_joinsplits: usize,
+    pub sapling_spends: usize,
+    pub sapling_outputs: usize,
+    pub orchard_actions: usize,
+    pub ironwood_actions: usize,
+    /// Pools with at least one spend/output/action.
+    pub shielded_pools: Vec<&'static str>,
+    /// Net value leaving the shielded pools (zatoshi). With no transparent part this is the fee.
+    pub net_out_of_shielded_zat: i64,
+    /// "SHIELDED_SINGLE_POOL", or the reasons it is not.
+    pub verdict: Vec<&'static str>,
+}
+
 fn pool_name(p: ShieldedPool) -> &'static str {
     match p {
         ShieldedPool::Sapling => "sapling",
@@ -264,6 +285,106 @@ impl Wallet {
             fee_zat,
             broadcast,
             detail,
+        })
+    }
+
+    /// Fetches any transaction by txid and reports what its structure reveals: transparent parts,
+    /// which shielded pools it touches, and the net value leaving the shielded pools. Uses
+    /// `GetTransaction` (the light server learns this txid is of interest; docs/PRIVACY.md).
+    pub async fn inspect_onchain(&self, txid_hex: &str) -> anyhow::Result<OnChainPrivacy> {
+        let txid = TxId::from_hex(txid_hex).ok_or_else(|| anyhow!("invalid txid"))?;
+        let params = self.params();
+        let mut client = connect(&self.config.server).await?;
+        let tip: u32 = client
+            .get_latest_block(service::ChainSpec::default())
+            .await?
+            .into_inner()
+            .height
+            .try_into()?;
+        let raw = client
+            .get_transaction(service::TxFilter {
+                hash: txid.as_ref().to_vec(),
+                ..Default::default()
+            })
+            .await?
+            .into_inner();
+        let mined = match raw.height {
+            0 | u64::MAX => None,
+            h => Some(BlockHeight::from_u32(u32::try_from(h)?)),
+        };
+        let branch = BranchId::for_height(
+            &params,
+            mined.unwrap_or(BlockHeight::from_u32(tip.saturating_add(1))),
+        );
+        let tx = Transaction::read(&raw.data[..], branch)?;
+        if tx.txid() != txid {
+            bail!("server returned a different transaction");
+        }
+        let (t_in, t_out) = tx
+            .transparent_bundle()
+            .map(|b| (b.vin.len(), b.vout.len()))
+            .unwrap_or((0, 0));
+        let sprout = tx.sprout_bundle().map(|b| b.joinsplits.len()).unwrap_or(0);
+        let (s_spends, s_outputs, s_vb) = tx
+            .sapling_bundle()
+            .map(|b| {
+                (
+                    b.shielded_spends().len(),
+                    b.shielded_outputs().len(),
+                    i64::from(*b.value_balance()),
+                )
+            })
+            .unwrap_or((0, 0, 0));
+        let (o_actions, o_vb) = tx
+            .orchard_bundle()
+            .map(|b| (b.actions().len(), i64::from(*b.value_balance())))
+            .unwrap_or((0, 0));
+        let (i_actions, i_vb) = tx
+            .ironwood_bundle()
+            .map(|b| (b.actions().len(), i64::from(*b.value_balance())))
+            .unwrap_or((0, 0));
+        let mut pools = vec![];
+        if s_spends + s_outputs > 0 {
+            pools.push("sapling");
+        }
+        if o_actions > 0 {
+            pools.push("orchard");
+        }
+        if i_actions > 0 {
+            pools.push("ironwood");
+        }
+        let mut verdict = vec![];
+        if t_in + t_out > 0 {
+            verdict.push("TRANSPARENT_PRESENT");
+        }
+        if sprout > 0 {
+            verdict.push("SPROUT_PRESENT");
+        }
+        if pools.len() > 1 {
+            verdict.push("CROSS_POOL");
+        }
+        if pools.is_empty() {
+            verdict.push("NOT_SHIELDED");
+        }
+        if verdict.is_empty() {
+            verdict.push("SHIELDED_SINGLE_POOL");
+        }
+        Ok(OnChainPrivacy {
+            txid: txid.to_string(),
+            mined_height: mined.map(u32::from),
+            confirmations: mined
+                .map(|h| tip.saturating_sub(u32::from(h)) + 1)
+                .unwrap_or(0),
+            transparent_inputs: t_in,
+            transparent_outputs: t_out,
+            sprout_joinsplits: sprout,
+            sapling_spends: s_spends,
+            sapling_outputs: s_outputs,
+            orchard_actions: o_actions,
+            ironwood_actions: i_actions,
+            shielded_pools: pools,
+            net_out_of_shielded_zat: s_vb + o_vb + i_vb,
+            verdict,
         })
     }
 

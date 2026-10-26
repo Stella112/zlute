@@ -180,6 +180,11 @@ enum WalletCmd {
         #[arg(long, default_value = "/opt/zlute/owner.pub")]
         owner_pub: PathBuf,
     },
+    /// Report what any transaction reveals by its structure (transparent parts, pools, value).
+    InspectTx {
+        #[arg(long)]
+        txid: String,
+    },
     /// Show a loaded mandate's budget (committed and remaining).
     MandateStatus {
         #[arg(long)]
@@ -391,6 +396,10 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     let json = std::fs::read_to_string(&mandate)?;
                     let v =
                         Wallet::open(&dir)?.load_mandate(json.trim(), &signature, &owner_pub)?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
+                WalletCmd::InspectTx { txid } => {
+                    let v = Wallet::open(&dir)?.inspect_onchain(&txid).await?;
                     println!("{}", serde_json::to_string(&v)?);
                 }
                 WalletCmd::MandateStatus { mandate_id } => {
