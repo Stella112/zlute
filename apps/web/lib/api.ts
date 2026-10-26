@@ -32,6 +32,9 @@ export interface Me {
   username: string;
   role: 'owner' | 'merchant' | 'user';
   network: 'main' | 'test' | 'regtest';
+  /** Self-serve accounts approve with a key held in their browser. */
+  owner_pub: string | null;
+  self_serve: boolean;
 }
 
 export interface PoolBalance {

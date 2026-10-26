@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ApiError, post } from '@/lib/api';
@@ -49,6 +50,12 @@ function LoginForm() {
       <Button type="submit" disabled={busy} className="w-full">
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
+      <p className="text-center text-xs text-muted">
+        New here?{' '}
+        <Link href="/signup" className="text-accent hover:underline">
+          Create an account
+        </Link>
+      </p>
     </form>
   );
 }

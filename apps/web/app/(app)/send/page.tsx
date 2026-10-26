@@ -26,6 +26,7 @@ export default function SendPage() {
   const me = useMe()!;
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
+  const [wallet, setWallet] = useState<'payout' | 'merchant'>('payout');
   const [key] = useState(() => idemKey('web-send'));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export default function SendPage() {
     setBusy(true);
     setError(null);
     try {
-      setRes(await post<ActionResponse>('/v1/actions/send', { wallet: 'payout', to: to.trim(), amount_zec: amount.trim() }, { 'idempotency-key': key }));
+      setRes(await post<ActionResponse>('/v1/actions/send', { wallet, to: to.trim(), amount_zec: amount.trim() }, { 'idempotency-key': key }));
     } catch (err) {
       setError(err instanceof ApiError ? err.code : 'Request failed');
     } finally {
@@ -55,6 +56,12 @@ export default function SendPage() {
           <form onSubmit={submit} className="space-y-4">
             <Field label="Recipient (shielded or unified address)">
               <textarea className={`${inputCls} h-24 font-mono text-xs`} value={to} onChange={(e) => setTo(e.target.value)} spellCheck={false} required disabled={!!res} />
+            </Field>
+            <Field label="From wallet" hint="Payments you receive land in merchant; payout is for payouts you fund.">
+              <select className={inputCls} value={wallet} onChange={(e) => setWallet(e.target.value as 'payout' | 'merchant')} disabled={!!res}>
+                <option value="payout">payout</option>
+                <option value="merchant">merchant</option>
+              </select>
             </Field>
             <Field label="Amount (ZEC)" hint={`Network: ${me.network}. Caps: 0.02 ZEC per transaction, 0.05 ZEC per day.`}>
               <input className={`${inputCls} num`} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.0002" required disabled={!!res} />

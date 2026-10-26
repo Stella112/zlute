@@ -3,15 +3,20 @@
 import { useState } from 'react';
 import { ApiError, post, type ActionResponse, type ExecuteResult, type ProposalSummary } from '@/lib/api';
 import { zec, zat, when, short } from '@/lib/format';
+import { canonical, sha256Hex, signText } from '@/lib/ownerKey';
+import { useMe } from './AppShell';
 import { Button, ErrorNote, Txid, inputCls } from './ui';
 
 const SIGN_CMD =
   'powershell -ExecutionPolicy Bypass -File C:\\zecathon\\tools\\lute-sign.ps1';
 
 /**
- * Owner approval of the sidecar's exact proposal (D-009). The browser never holds the owner key:
- * the proposal is copied to the owner's own machine, signed there by lute-owner after a typed
- * confirmation, and only the signature comes back.
+ * Owner approval of the sidecar's exact proposal (D-009).
+ * - Install owner: the proposal is copied to the owner's machine, signed there by lute-owner
+ *   after a typed confirmation, and only the signature comes back.
+ * - Self-serve accounts: the key lives in this browser. The browser recomputes the proposal hash
+ *   from the details shown (it never signs a hash supplied by the server) and signs after the
+ *   same typed confirmation.
  */
 export function AuthorizePanel({ actionId, result, network, onDone }: { actionId: string; result: Extract<ExecuteResult, { state: 'AWAITING_AUTHORIZATION' }>; network: string; onDone?: (r: ExecuteResult) => void }) {
   const s: ProposalSummary = result.summary;
@@ -21,12 +26,14 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [final, setFinal] = useState<ExecuteResult | null>(null);
+  const [typed, setTyped] = useState('');
+  const me = useMe();
 
-  async function authorize() {
+  async function authorize(signature: string) {
     setBusy(true);
     setError(null);
     try {
-      const r = await post<ActionResponse>(`/v1/actions/${actionId}/authorize`, { signature: sig.trim() });
+      const r = await post<ActionResponse>(`/v1/actions/${actionId}/authorize`, { signature });
       setFinal(r.result);
       onDone?.(r.result);
     } catch (e) {
@@ -69,7 +76,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
     <div className="space-y-4 rounded-lg border border-warn/40 bg-warn/5 p-4">
       <div>
         <p className="text-sm font-medium text-warn">LuteGuard: ALLOW. Awaiting your signature.</p>
-        <p className="mt-1 text-xs text-muted">LuteGuard evaluated this exact proposal. Nothing is signed or sent until you approve it on your own machine.</p>
+        <p className="mt-1 text-xs text-muted">LuteGuard evaluated this exact proposal. Nothing is signed or sent until you approve it with your own key.</p>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
         {rows.map(([k, v]) => (
@@ -79,6 +86,32 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
           </div>
         ))}
       </dl>
+      {me?.self_serve ? (
+        <div className="space-y-3 text-sm">
+          <p>
+            Type <code>approve {result.proposal_hash.slice(0, 8)}</code> to sign with the key held in this browser:
+          </p>
+          <input className={`${inputCls} font-mono`} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={`approve ${result.proposal_hash.slice(0, 8)}`} spellCheck={false} />
+          <ErrorNote error={error} />
+          <Button
+            disabled={busy || typed.trim() !== `approve ${result.proposal_hash.slice(0, 8)}`}
+            onClick={async () => {
+              setError(null);
+              try {
+                // Recompute the hash from what is shown; never sign a server-supplied hash.
+                const h = await sha256Hex(canonical(s));
+                if (h !== result.proposal_hash) throw new Error('HASH_MISMATCH: the details do not match the proposal hash; not signing');
+                await authorize(await signText(me.username, `lute-approve-v1|${s.network}|${h}`));
+              } catch (e) {
+                setError(e instanceof Error ? (e.message === 'NO_KEY_IN_THIS_BROWSER' ? 'This browser does not hold your key. Restore your key backup in Settings.' : e.message) : 'Signing failed');
+              }
+            }}
+          >
+            {busy ? 'Submitting…' : 'Sign in this browser and send'}
+          </Button>
+        </div>
+      ) : (
+      <>
       <ol className="list-decimal space-y-3 pl-5 text-sm">
         <li>
           <Button
@@ -101,9 +134,11 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
         </li>
       </ol>
       <ErrorNote error={error} />
-      <Button disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={authorize}>
+      <Button disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
         {busy ? 'Submitting…' : 'Authorize and send'}
       </Button>
+      </>
+      )}
     </div>
   );
 }

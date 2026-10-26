@@ -18,6 +18,7 @@ const NAV: { href: string; label: string; off?: boolean }[] = [
   { href: '/activity', label: 'Actions' },
   { href: '/cross-chain', label: 'Cross-Chain' },
   { href: '/privacy', label: 'Privacy Center' },
+  { href: '/settings', label: 'Settings' },
 ];
 
 const MOBILE = [

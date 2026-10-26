@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ApiError, get, post } from '@/lib/api';
 import { useLoad } from '@/lib/useLoad';
 import { useMe } from '@/components/AppShell';
+import { canonical, sha256Hex, signText } from '@/lib/ownerKey';
 import { zec, zat, when } from '@/lib/format';
 import { Button, Card, Empty, ErrorNote, Field, PageTitle, StatusBadge, inputCls } from '@/components/ui';
 
@@ -40,6 +41,42 @@ interface Mandate {
 
 const SIGN_MANDATE_CMD =
   'powershell -ExecutionPolicy Bypass -File C:\\zecathon\\tools\\lute-sign.ps1 -Mandate';
+
+/** Self-serve accounts sign the mandate with the key held in this browser (hash recomputed here). */
+function BrowserMandateSign({ username, mandate, onSigned }: { username: string; mandate: Mandate; onSigned: (sig: string) => void }) {
+  const [hash, setHash] = useState<string | null>(null);
+  const [typed, setTyped] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    void sha256Hex(canonical(mandate)).then(setHash);
+  }, [mandate]);
+  if (!hash) return null;
+  const expected = `approve mandate ${hash.slice(0, 8)}`;
+  return (
+    <div className="space-y-2">
+      <p>
+        Type <code>{expected}</code> to sign this mandate with the key held in this browser:
+      </p>
+      <input className={`${inputCls} font-mono`} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={expected} spellCheck={false} />
+      <ErrorNote error={error} />
+      <Button
+        variant="ghost"
+        disabled={done || typed.trim() !== expected}
+        onClick={async () => {
+          try {
+            onSigned(await signText(username, `lute-mandate-v1|${mandate.network}|${hash}`));
+            setDone(true);
+          } catch (e) {
+            setError(e instanceof Error && e.message === 'NO_KEY_IN_THIS_BROWSER' ? 'This browser does not hold your key. Restore your key backup in Settings.' : 'Signing failed');
+          }
+        }}
+      >
+        {done ? 'Signed' : 'Sign mandate'}
+      </Button>
+    </div>
+  );
+}
 
 function NewService({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('Chain tip API');
@@ -177,6 +214,9 @@ function NewGrant({ services, onDone }: { services: Service[]; onDone: () => voi
             <dd>{when(mandate.expires_at)}</dd>
           </dl>
           <p className="text-xs text-muted">Payments inside these bounds will not ask you again. Anything outside them is refused by LuteGuard and by the sidecar.</p>
+          {me.self_serve ? (
+            <BrowserMandateSign username={me.username} mandate={mandate} onSigned={setSig} />
+          ) : (
           <ol className="list-decimal space-y-3 pl-5">
             <li>
               <Button
@@ -198,6 +238,7 @@ function NewGrant({ services, onDone }: { services: Service[]; onDone: () => voi
               <input className={`${inputCls} mt-2 font-mono`} value={sig} onChange={(e) => setSig(e.target.value)} placeholder="128 hex characters" spellCheck={false} />
             </li>
           </ol>
+          )}
           <div className="flex gap-2">
             <Button
               disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())}

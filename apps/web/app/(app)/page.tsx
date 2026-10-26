@@ -10,6 +10,7 @@ import { Card, Empty, PageTitle, State, StatusBadge, Txid } from '@/components/u
 export default function Overview() {
   const me = useMe()!;
   const bal = useLoad(() => get<Balance>('/v1/wallets/payout/balance'));
+  const mbal = useLoad(() => get<Balance>('/v1/wallets/merchant/balance'));
   const acts = useLoad(() => get<{ actions: ActionRow[] }>('/v1/actions'));
   const streams = useLoad(() => get<{ streams: Stream[] }>('/v1/streams'));
   const reqs = useLoad(() => get<{ requests: RequestRow[] }>('/v1/requests'));
@@ -43,6 +44,11 @@ export default function Overview() {
                 <p className="num mt-1 text-sm text-muted">
                   {zec(shielded - spendable)} ZEC pending confirmation · transparent {zec(b.transparent_total_zat)}
                 </p>
+                {mbal.data && (
+                  <p className="num mt-1 text-sm text-muted">
+                    Merchant wallet (payments received): {zec(mbal.data.ironwood.total_zat + mbal.data.sapling.total_zat + mbal.data.orchard.total_zat)} ZEC
+                  </p>
+                )}
               </>
             ) : (
               <p className="mt-2 text-sm text-muted">{bal.error ? `Wallet unavailable (${bal.error})` : 'Loading…'}</p>
