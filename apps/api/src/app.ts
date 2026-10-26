@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionRecord, type SidecarClient } from '@lute/core';
+import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionRecord, type SidecarClient, type SidecarResult } from '@lute/core';
 import type { Network, Principal } from '@lute/luteguard';
 import { createUser, login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, WALLET_ROLES, walletOf, type SessionUser } from './auth.js';
 import { randomBytes } from 'node:crypto';
@@ -14,7 +14,7 @@ import { registerSubscriptionRoutes } from './subscriptions.js';
 import { registerDashboardRoutes } from './dashboard.js';
 import { registerRequestRoutes } from './requests.js';
 import { registerStreamRoutes } from './streams.js';
-import type { MandateSidecar, RequestSidecar, WalletAdmin } from './sidecar.js';
+import type { MandateSidecar, PcztView, RequestSidecar, WalletAdmin } from './sidecar.js';
 import { PgActionStore, type Db } from './db/store.js';
 import { clientIp, LIMITS, RateLimiter } from './ratelimit.js';
 
@@ -38,6 +38,8 @@ export interface AppDeps {
   mandates?: MandateSidecar;
   /** Self-serve sign-up (own wallets per user). Without it, sign-up does not exist. */
   walletAdmin?: WalletAdmin;
+  /** Browser-signed wallets: builds the unsigned transaction the browser signs. */
+  pczt?: { preparePczt(wallet: string, proposalId: string): Promise<SidecarResult<PcztView>> };
   /** Most accounts the install accepts through sign-up. */
   maxUsers?: number;
 }
@@ -77,7 +79,13 @@ const SendBody = z.object({
   memo_ref: z.string().regex(OPAQUE_REF).optional(),
 }).strict();
 
-const AuthorizeBody = z.object({ signature: z.string().regex(/^[0-9a-f]{128}$/) }).strict();
+const AuthorizeBody = z
+  .object({
+    signature: z.string().regex(/^[0-9a-f]{128}$/),
+    /** Browser-signed wallets: spend-authorization signatures over the prepared transaction. */
+    spend_auth_sigs: z.array(z.object({ index: z.number().int().min(0).max(1000), sig: z.string().regex(/^[0-9a-f]{128}$/) }).strict()).min(1).max(50).optional(),
+  })
+  .strict();
 const LoginBody = z.object({ username: z.string().min(1).max(64), password: z.string().min(1).max(256) }).strict();
 const SignupBody = z
   .object({
@@ -85,6 +93,11 @@ const SignupBody = z
     password: z.string().min(12).max(256),
     /** Ed25519 public key generated in the user's browser; it approves this user's spends. */
     owner_pub: z.string().regex(/^[0-9a-f]{64}$/),
+    /**
+     * Non-custodial sign-up: viewing keys derived from a seed that stays in the browser. The
+     * merchant and payout wallets are then created without any seed on the server.
+     */
+    ufvks: z.object({ merchant: z.string().min(20).max(1024), payout: z.string().min(20).max(1024) }).strict().optional(),
   })
   .strict();
 
@@ -170,11 +183,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply.code(409).send({ error: 'USERNAME_TAKEN' });
     }
     const prefix = `u${randomBytes(5).toString('hex')}`;
+    const ufvks = body.data.ufvks;
     for (const role of WALLET_ROLES) {
-      const r = await deps.walletAdmin.createWallet(walletOf({ wallet_prefix: prefix }, role), body.data.owner_pub);
-      if (!r.ok) return reply.code(503).send({ error: 'WALLET_CREATION_FAILED' });
+      // The agent wallet stays Lute-held: an agent pays unattended, inside a signed budget.
+      const ufvk = ufvks && role !== 'agent' ? ufvks[role] : undefined;
+      const r = await deps.walletAdmin.createWallet(walletOf({ wallet_prefix: prefix }, role), body.data.owner_pub, ufvk);
+      if (!r.ok) return reply.code(r.code === 'BAD_VIEWING_KEY' ? 400 : 503).send({ error: r.code === 'BAD_VIEWING_KEY' ? 'BAD_VIEWING_KEY' : 'WALLET_CREATION_FAILED' });
     }
-    await createUser(deps.db, body.data.username, body.data.password, 'owner', deps.now(), { wallet_prefix: prefix, owner_pub: body.data.owner_pub });
+    await createUser(deps.db, body.data.username, body.data.password, 'owner', deps.now(), { wallet_prefix: prefix, owner_pub: body.data.owner_pub, browser_signed: !!ufvks });
     // Start the new wallets' first sync in the background so the dashboard has balances to show.
     for (const role of WALLET_ROLES) void deps.requestSidecar.sync(walletOf({ wallet_prefix: prefix }, role)).catch(() => undefined);
     const r = await login(deps.db, body.data.username, body.data.password, deps.now());
@@ -256,6 +272,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           caller: 'api',
           idempotencyKey: a.idempotency_key,
           ownerSignature: body.data.signature,
+          ...(body.data.spend_auth_sigs ? { spendAuthSigs: body.data.spend_auth_sigs } : {}),
         },
       );
       return { action_id: a.id, result };
@@ -263,6 +280,24 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       if (e instanceof IdempotencyMismatch) return reply.code(409).send({ error: 'IDEMPOTENCY_MISMATCH' });
       throw e;
     }
+  });
+
+  /**
+   * Browser-signed wallets: the proved, unsigned transaction for an action awaiting approval. The
+   * browser checks it pays exactly what the summary says, then signs it (services/lute-signer).
+   */
+  app.post<{ Params: { id: string } }>('/v1/actions/:id/pczt', async (req, reply) => {
+    const u = await user(req);
+    if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
+    const a = await deps.store.getForUser(req.params.id, u.id);
+    if (!a || u.role !== 'owner') return notFound(reply);
+    if (a.state !== 'AWAITING_AUTHORIZATION' || !a.wallet || !a.proposal_id) return reply.code(409).send({ error: 'NOT_AWAITING_AUTHORIZATION' });
+    if (!deps.pczt) return reply.code(404).send({ error: 'BROWSER_SIGNING_UNAVAILABLE' });
+    const r = await deps.pczt.preparePczt(a.wallet, a.proposal_id);
+    if (!r.ok) return reply.code(r.code === 'NOT_BROWSER_SIGNED' ? 409 : 403).send({ error: r.code });
+    // The transaction must be the one LuteGuard checked and the owner is approving.
+    if (r.value.proposal_hash !== a.proposal_hash) return reply.code(409).send({ error: 'PROPOSAL_HASH_MISMATCH' });
+    return r.value;
   });
 
   app.get<{ Params: { id: string } }>('/v1/actions/:id', async (req, reply) => {

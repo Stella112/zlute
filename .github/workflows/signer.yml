@@ -39,7 +39,8 @@ jobs:
           RUSTFLAGS: --cfg getrandom_backend="wasm_js"
         run: |
           cargo build --release --target wasm32-unknown-unknown --features wasm --lib
-          V=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name=="wasm-bindgen") | .version' | head -1)
+          V=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | grep '^version' | cut -d'"' -f2)
+          echo "wasm-bindgen $V"
           cargo install wasm-bindgen-cli --version "$V" --locked
           wasm-bindgen --target web --out-dir pkg target/wasm32-unknown-unknown/release/lute_signer.wasm
           ls -la pkg

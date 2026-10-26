@@ -38,6 +38,7 @@ class FakeSidecar implements SidecarClient {
       change_pools: ['ironwood'], policy: 'LUTE_STRICT/D-002', memo_hash: '', created_at: NOW, expires_at: NOW + 300,
     };
     const h = canonicalHash(s);
+    this.lastHash = h;
     return { ok: true, value: { proposal_hash: h, sign_message: `lute-approve-v1|regtest|${h}`, summary: s } };
   }
   async approve(): Promise<SidecarResult<true>> {
@@ -50,6 +51,19 @@ class FakeSidecar implements SidecarClient {
   async execute(): Promise<SidecarResult<ExecuteOutcome>> {
     this.calls.push('execute');
     return { ok: true, value: { proposal_hash: 'h', status: 'submitted', txid: 'abcd', broadcast: 'accepted' } };
+  }
+  signedWith: { wallet: string; sigs: { index: number; sig: string }[] }[] = [];
+  async executeSigned(wallet: string, _p: string, sigs: { index: number; sig: string }[]): Promise<SidecarResult<ExecuteOutcome>> {
+    this.calls.push('executeSigned');
+    this.signedWith.push({ wallet, sigs });
+    return { ok: true, value: { proposal_hash: 'h', status: 'submitted', txid: 'beef', broadcast: 'accepted' } };
+  }
+  pcztFor: string[] = [];
+  lastHash = '';
+  async preparePczt(wallet: string) {
+    this.pcztFor.push(wallet);
+    if (!wallet.endsWith('-payout') && !wallet.endsWith('-merchant')) return { ok: false as const, code: 'NOT_BROWSER_SIGNED' };
+    return { ok: true as const, value: { proposal_hash: this.lastHash, pczt_hex: '50435a54', summary: {} as SidecarProposalSummary } };
   }
 }
 
@@ -83,14 +97,14 @@ async function setup(opts: { signup?: boolean; maxUsers?: number } = {}) {
   await createUser(db, 'mallory', PW, 'owner', NOW);
   await createUser(db, 'carol', PW, 'user', NOW);
   const reqSidecar = new FakeRequestSidecar();
-  const created: { name: string; ownerPub: string }[] = [];
+  const created: { name: string; ownerPub: string; ufvk?: string }[] = [];
   const walletAdmin = {
-    createWallet: async (name: string, ownerPub: string) => {
-      created.push({ name, ownerPub });
+    createWallet: async (name: string, ownerPub: string, ufvk?: string) => {
+      created.push({ name, ownerPub, ...(ufvk ? { ufvk } : {}) });
       return { ok: true as const, value: { name } };
     },
   };
-  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: `${ORIGIN}, http://127.0.0.1:48300`, resultsFile: RESULTS_FILE, ...(opts.signup ? { walletAdmin, maxUsers: opts.maxUsers ?? 500 } : {}) });
+  const app = await buildApp({ db, store, sidecar, requestSidecar: reqSidecar, cipher: FieldCipher.fromHex('11'.repeat(32)), network: 'regtest', now: () => NOW, secureCookies: true, appOrigin: `${ORIGIN}, http://127.0.0.1:48300`, resultsFile: RESULTS_FILE, ...(opts.signup ? { walletAdmin, maxUsers: opts.maxUsers ?? 500 } : {}), pczt: sidecar });
   const loginAs = async (username: string) => {
     const r = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username, password: PW }, headers: { origin: ORIGIN } });
     expect(r.statusCode).toBe(200);
@@ -286,6 +300,34 @@ describe('self-serve sign-up (public deployment)', () => {
     // Another install-wallet name cannot be smuggled in: wallet is a role, not a name.
     const r = await t.app.inject({ method: 'POST', url: '/v1/actions/send', payload: { wallet: 'u0000000000-payout', to: RECIPIENT, amount_zec: '0.001' }, headers: { cookie, origin: ORIGIN, 'idempotency-key': 'smuggle-1' } });
     expect(r.statusCode).toBe(400);
+  });
+
+  it('non-custodial sign-up: merchant and payout get only viewing keys; payouts are signed in the browser', async () => {
+    const t = await setup({ signup: true });
+    const ufvks = { merchant: `uviewregtest1${'m'.repeat(40)}`, payout: `uviewregtest1${'p'.repeat(40)}` };
+    const r = await signup(t.app, 'grace_hopper', { ufvks });
+    expect(r.statusCode).toBe(200);
+    const prefix = t.created[0]!.name.split('-')[0]!;
+    expect(t.created).toEqual([
+      { name: `${prefix}-merchant`, ownerPub: KEY, ufvk: ufvks.merchant },
+      { name: `${prefix}-payout`, ownerPub: KEY, ufvk: ufvks.payout },
+      { name: `${prefix}-agent`, ownerPub: KEY }, // the agent wallet stays Lute-held
+    ]);
+    const cookie = String(r.headers['set-cookie']).split(';')[0]!;
+    expect((await t.app.inject({ method: 'GET', url: '/v1/me', headers: { cookie } })).json()).toMatchObject({ browser_signed: true });
+    const send = (await t.app.inject({ method: 'POST', url: '/v1/actions/send', payload: { wallet: 'payout', to: RECIPIENT, amount_zec: '0.001' }, headers: { cookie, origin: ORIGIN, 'idempotency-key': 'nc-send-01' } })).json();
+    expect(send.result.state).toBe('AWAITING_AUTHORIZATION');
+    // The browser fetches the unsigned transaction, bound to the hash LuteGuard checked.
+    const pz = (await t.app.inject({ method: 'POST', url: `/v1/actions/${send.action_id}/pczt`, headers: { cookie, origin: ORIGIN } })).json();
+    expect(pz).toMatchObject({ pczt_hex: '50435a54', proposal_hash: send.result.proposal_hash });
+    // Approval plus the browser's spend signatures: executed through execute-signed, never execute.
+    const sigs = [{ index: 0, sig: 'cd'.repeat(64) }];
+    const a = (await t.app.inject({ method: 'POST', url: `/v1/actions/${send.action_id}/authorize`, payload: { signature: 'a'.repeat(128), spend_auth_sigs: sigs }, headers: { cookie, origin: ORIGIN } })).json();
+    expect(a.result).toMatchObject({ state: 'SUBMITTED', txid: 'beef' });
+    expect(t.sidecar.signedWith).toEqual([{ wallet: `${prefix}-payout`, sigs }]);
+    expect(t.sidecar.calls).not.toContain('execute');
+    // Malformed signatures are refused before anything reaches the wallet.
+    expect((await t.app.inject({ method: 'POST', url: `/v1/actions/${send.action_id}/authorize`, payload: { signature: 'a'.repeat(128), spend_auth_sigs: [{ index: 0, sig: 'zz' }] }, headers: { cookie, origin: ORIGIN } })).statusCode).toBe(400);
   });
 
   it('is absent when sign-up is not enabled; the second configured origin is accepted', async () => {

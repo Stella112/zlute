@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS users (
 -- Accounts created before self-serve have no prefix and use the install's wallets and owner key.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_prefix TEXT UNIQUE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS owner_pub TEXT;
+-- Non-custodial accounts: their merchant and payout wallets hold only viewing keys; the seed is
+-- in the user's browser, which signs each payout (services/lute-signer). The agent wallet stays
+-- Lute-held (an agent pays unattended).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_signed BOOLEAN NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,              -- SHA-256 of the cookie token; the token itself is never stored

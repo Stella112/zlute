@@ -7,6 +7,7 @@ export const users = pgTable('users', {
   password_hash: text('password_hash').notNull(),
   wallet_prefix: text('wallet_prefix'),
   owner_pub: text('owner_pub'),
+  browser_signed: boolean('browser_signed').notNull().default(false),
   role: text('role').notNull(),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });

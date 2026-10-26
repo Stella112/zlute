@@ -3,8 +3,8 @@
  * Signing string: METHOD\nPATH\nhex(sha256(body))\nTS\nNONCE, HMAC-SHA256 with the shared secret.
  */
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import type { ExecuteOutcome, ProposalView, SidecarClient, SidecarResult } from '@lute/core';
-import type { RecipientInspection } from '@lute/luteguard';
+import type { ExecuteOutcome, ProposalView, SidecarClient, SidecarResult, SpendAuthSig } from '@lute/core';
+import type { RecipientInspection, SidecarProposalSummary } from '@lute/luteguard';
 
 export function signingString(method: string, path: string, body: string, ts: string, nonce: string): string {
   const bodyHash = createHash('sha256').update(body, 'utf8').digest('hex');
@@ -63,7 +63,15 @@ export interface MandateStatus {
 
 /** Creates a user's wallet bound to their approval key (self-serve sign-up). */
 export interface WalletAdmin {
-  createWallet(name: string, ownerPub: string): Promise<SidecarResult<{ name: string }>>;
+  /** With `ufvk`, a browser-signed wallet: the server gets only the viewing key, never a seed. */
+  createWallet(name: string, ownerPub: string, ufvk?: string): Promise<SidecarResult<{ name: string }>>;
+}
+
+/** The proved, unsigned transaction a browser-signed wallet's owner signs in the browser. */
+export interface PcztView {
+  proposal_hash: string;
+  pczt_hex: string;
+  summary: SidecarProposalSummary;
 }
 
 /** Sidecar calls for loading and inspecting agent mandates. */
@@ -156,8 +164,18 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar, Mandate
     return this.result(await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/mandates/${encodeURIComponent(mandateId)}`));
   }
 
-  async createWallet(name: string, ownerPub: string): Promise<SidecarResult<{ name: string }>> {
-    return this.result(await this.call('POST', '/v1/wallets', { name, owner_pub: ownerPub }));
+  async createWallet(name: string, ownerPub: string, ufvk?: string): Promise<SidecarResult<{ name: string }>> {
+    return this.result(await this.call('POST', '/v1/wallets', { name, owner_pub: ownerPub, ...(ufvk ? { ufvk } : {}) }));
+  }
+
+  async preparePczt(wallet: string, proposalId: string): Promise<SidecarResult<PcztView>> {
+    return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/pczt`));
+  }
+
+  async executeSigned(wallet: string, proposalId: string, sigs: SpendAuthSig[]): Promise<SidecarResult<ExecuteOutcome>> {
+    return this.result(
+      await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/execute-signed`, { spend_auth_sigs: sigs }),
+    );
   }
 
   async newAddress(wallet: string): Promise<string> {

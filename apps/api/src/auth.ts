@@ -17,6 +17,8 @@ export interface SessionUser {
   wallet_prefix: string | null;
   /** Self-serve accounts: their approval public key (hex). Null: the install's owner key. */
   owner_pub: string | null;
+  /** Merchant and payout wallets are signed in the browser (Lute holds viewing keys only). */
+  browser_signed: boolean;
 }
 
 export type WalletRole = 'merchant' | 'payout' | 'agent';
@@ -39,16 +41,16 @@ export async function createUser(
   password: string,
   role: Role,
   now: number,
-  opts: { wallet_prefix?: string; owner_pub?: string } = {},
+  opts: { wallet_prefix?: string; owner_pub?: string; browser_signed?: boolean } = {},
 ): Promise<string> {
   if (password.length < 12) throw new Error('password must be at least 12 characters');
   const id = opaqueId();
   // argon2id (the @node-rs/argon2 default algorithm).
-  await db.insert(users).values({ id, username, password_hash: await hash(password), role, created_at: now, wallet_prefix: opts.wallet_prefix ?? null, owner_pub: opts.owner_pub ?? null });
+  await db.insert(users).values({ id, username, password_hash: await hash(password), role, created_at: now, wallet_prefix: opts.wallet_prefix ?? null, owner_pub: opts.owner_pub ?? null, browser_signed: opts.browser_signed ?? false });
   return id;
 }
 
-const toSessionUser = (u: typeof users.$inferSelect): SessionUser => ({ id: u.id, username: u.username, role: u.role as Role, wallet_prefix: u.wallet_prefix, owner_pub: u.owner_pub });
+const toSessionUser = (u: typeof users.$inferSelect): SessionUser => ({ id: u.id, username: u.username, role: u.role as Role, wallet_prefix: u.wallet_prefix, owner_pub: u.owner_pub, browser_signed: u.browser_signed });
 
 /** Returns a session token on success. Same failure for unknown user and wrong password. */
 export async function login(db: Db, username: string, password: string, now: number): Promise<{ token: string; user: SessionUser } | null> {

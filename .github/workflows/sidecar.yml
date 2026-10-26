@@ -2,9 +2,9 @@ name: wallet-sidecar
 
 on:
   push:
-    paths: ["services/wallet-sidecar/**", ".github/workflows/sidecar.yml"]
+    paths: ["services/wallet-sidecar/**", "services/lute-signer/**", ".github/workflows/sidecar.yml"]
   pull_request:
-    paths: ["services/wallet-sidecar/**", ".github/workflows/sidecar.yml"]
+    paths: ["services/wallet-sidecar/**", "services/lute-signer/**", ".github/workflows/sidecar.yml"]
   workflow_dispatch:
 
 permissions:

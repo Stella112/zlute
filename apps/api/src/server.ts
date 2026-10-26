@@ -58,6 +58,7 @@ async function main(): Promise<void> {
     requestSidecar: sidecar,
     mandates: sidecar,
     ...(env('LUTE_SIGNUP', 'false') === 'true' ? { walletAdmin: sidecar, maxUsers: Number(env('LUTE_MAX_USERS', '500')) } : {}),
+    pczt: sidecar,
     cipher,
     minPayoutZat: BigInt(env('LUTE_MIN_PAYOUT_ZAT', '100000')),
     network,

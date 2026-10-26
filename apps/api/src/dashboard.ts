@@ -59,7 +59,7 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
   app.get('/v1/me', async (req, reply) => {
     const u = await d.user(req);
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
-    return { username: u.username, role: u.role, network: d.network, owner_pub: u.owner_pub, self_serve: u.wallet_prefix !== null };
+    return { username: u.username, role: u.role, network: d.network, owner_pub: u.owner_pub, self_serve: u.wallet_prefix !== null, browser_signed: u.browser_signed };
   });
 
   app.get('/v1/actions', async (req, reply) => {

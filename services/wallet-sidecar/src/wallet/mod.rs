@@ -244,8 +244,37 @@ impl Wallet {
 
         let mut db = WalletDb::for_path(dir.join(DB_FILE), params, SystemClock, OsRng)?;
         init_wallet_db(&mut db, None).map_err(|e| anyhow!("init wallet db: {e:?}"))?;
-        // zcash_client_backend@0.24.0 `WalletWrite::create_account`
-        let (account, _usk) = db.create_account(name, &seed, &birthday, None)?;
+        // Equivalent to `WalletWrite::create_account` (zcash_client_backend@0.24.0), but the stored
+        // viewing key has only Sapling and Orchard parts: with transparent-inputs compiled in (for
+        // PCZT support), a transparent part would make sync query the light server about
+        // transparent addresses. Spending still derives the key from the seed (`spending_key`).
+        let usk = zcash_keys::keys::UnifiedSpendingKey::from_seed(
+            &params,
+            seed.expose_secret(),
+            zip32::AccountId::ZERO,
+        )
+        .map_err(|e| anyhow!("deriving keys: {e:?}"))?;
+        let full = usk.to_unified_full_viewing_key();
+        let ufvk = zcash_keys::keys::UnifiedFullViewingKey::new(
+            None,
+            full.sapling().cloned(),
+            full.orchard().cloned(),
+        )
+        .map_err(|e| anyhow!("viewing key: {e:?}"))?;
+        let fingerprint = zip32::fingerprint::SeedFingerprint::from_seed(seed.expose_secret())
+            .ok_or_else(|| anyhow!("seed fingerprint"))?;
+        let account = db.import_account_ufvk(
+            name,
+            &ufvk,
+            &birthday,
+            zcash_client_backend::data_api::AccountPurpose::Spending {
+                derivation: Some(zcash_client_backend::data_api::Zip32Derivation::new(
+                    fingerprint,
+                    zip32::AccountId::ZERO,
+                )),
+            },
+            None,
+        )?;
         // The wallet DB cannot expose an address until it knows the chain tip (observed on
         // regtest: "Chain height unknown; please call `update_chain_tip`").
         db.update_chain_tip(BlockHeight::from_u32(tip))?;
@@ -254,7 +283,7 @@ impl Wallet {
             name: name.to_string(),
             network,
             server: server.to_string(),
-            account: account.expose_uuid(),
+            account: zcash_client_backend::data_api::Account::id(&account).expose_uuid(),
             birthday_height: u32::from(birthday.height()),
             kek_path: kek_path.map(Path::to_path_buf),
             browser_signed: false,

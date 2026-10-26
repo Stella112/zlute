@@ -61,6 +61,17 @@ export interface SidecarClient {
   execute(wallet: string, proposalId: string): Promise<SidecarResult<ExecuteOutcome>>;
   /** Execute under a loaded owner-signed mandate; the sidecar re-checks its bounds atomically. */
   executeMandate(wallet: string, proposalId: string, mandateId: string): Promise<SidecarResult<ExecuteOutcome>>;
+  /**
+   * Browser-signed (non-custodial) wallets: the sidecar applies the browser's spend-authorization
+   * signatures to the transaction it built, after the same approval and caps checks as `execute`.
+   */
+  executeSigned?(wallet: string, proposalId: string, sigs: SpendAuthSig[]): Promise<SidecarResult<ExecuteOutcome>>;
+}
+
+/** A spend-authorization signature made in the user's browser for one Ironwood action. */
+export interface SpendAuthSig {
+  index: number;
+  sig: string;
 }
 
 export interface EngineDeps {
@@ -78,6 +89,8 @@ export interface ExecuteRequest {
   idempotencyKey: string;
   /** Owner Ed25519 signature over the proposal's sign_message (from tools/lute-owner). */
   ownerSignature?: string;
+  /** Browser-signed wallets: the spend-authorization signatures for the prepared transaction. */
+  spendAuthSigs?: SpendAuthSig[];
 }
 
 export type ExecuteResult =
@@ -214,19 +227,19 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
     if (!req.ownerSignature) {
       return { state: 'AWAITING_AUTHORIZATION', proposal_hash: proposal.proposal_hash, sign_message: proposal.sign_message, summary: proposal.summary };
     }
-    return authorizeAndExecute(deps, a, req.ownerSignature, actor);
+    return authorizeAndExecute(deps, a, req.ownerSignature, actor, req.spendAuthSigs);
   }
 
   if (action.state === 'AWAITING_AUTHORIZATION') {
     if (!req.ownerSignature) return { state: action.state, unchanged: true };
-    return authorizeAndExecute(deps, action, req.ownerSignature, actor);
+    return authorizeAndExecute(deps, action, req.ownerSignature, actor, req.spendAuthSigs);
   }
 
   // Idempotent replay of an action already past authorization (or terminal): no side effects.
   return { state: action.state, unchanged: true };
 }
 
-async function authorizeAndExecute(deps: EngineDeps, a: ActionRecord, signature: string, actor: Actor): Promise<ExecuteResult> {
+async function authorizeAndExecute(deps: EngineDeps, a: ActionRecord, signature: string, actor: Actor, sigs?: SpendAuthSig[]): Promise<ExecuteResult> {
   const { store, sidecar } = deps;
   if (!a.wallet || !a.proposal_id) throw new Error('awaiting action without proposal');
   if (deps.now() >= a.expires_at) {
@@ -240,7 +253,12 @@ async function authorizeAndExecute(deps: EngineDeps, a: ActionRecord, signature:
   }
   await store.transition(a.id, 'AWAITING_AUTHORIZATION', 'AUTHORIZED', actor);
   await store.transition(a.id, 'AUTHORIZED', 'PREPARING', actor);
-  return recordExecution(deps, a, await sidecar.execute(a.wallet, a.proposal_id), actor);
+  const ex = sigs
+    ? sidecar.executeSigned
+      ? await sidecar.executeSigned(a.wallet, a.proposal_id, sigs)
+      : ({ ok: false, code: 'BROWSER_SIGNING_UNSUPPORTED' } as const)
+    : await sidecar.execute(a.wallet, a.proposal_id);
+  return recordExecution(deps, a, ex, actor);
 }
 
 async function executeUnderMandate(deps: EngineDeps, a: ActionRecord, mandateId: string, actor: Actor): Promise<ExecuteResult> {
