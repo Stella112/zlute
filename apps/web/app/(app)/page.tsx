@@ -93,7 +93,7 @@ export default function Overview() {
         <Card title="Agent budgets">
           <p className="num text-2xl font-semibold">{activeGrants.length} active</p>
           <p className="num mt-1 text-xs text-muted">
-            {zec(agentSpent)} ZEC spent by agents inside signed mandates · subscriptions not in this build
+            {zec(agentSpent)} ZEC spent by agents inside signed mandates
           </p>
         </Card>
       </div>
