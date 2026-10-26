@@ -199,8 +199,10 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
     if (!o) return notFound(reply);
     const s = await sync(o);
-    // Refund payouts move to CONFIRMED like any other payout.
-    for (const rf of await refunds(o.id)) {
+    // Refund payouts move to CONFIRMED like any other payout (the wallet must see the new blocks).
+    const open = (await refunds(o.id)).filter((rf) => rf.txid && (rf.state === 'SUBMITTED' || rf.state === 'PENDING_CONFIRMATION'));
+    if (open.length > 0) await d.requestSidecar.sync(WALLET);
+    for (const rf of open) {
       if (!rf.txid || (rf.state !== 'SUBMITTED' && rf.state !== 'PENDING_CONFIRMATION')) continue;
       const st = await d.requestSidecar.txStatus(WALLET, rf.txid);
       let state = rf.state;
