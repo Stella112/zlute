@@ -45,7 +45,7 @@ export default function ReceiptPage() {
         {error && <p className="mt-4 text-sm text-bad">{error}</p>}
         {data && (
           <>
-            <p className="num mt-1 text-3xl font-semibold">{zec(data.receipt.paid_zat)} ZEC</p>
+            <p className="font-display num mt-1 text-4xl">{zec(data.receipt.paid_zat)} ZEC</p>
             <p className={`mt-2 text-sm font-medium ${valid ? 'text-ok' : valid === false ? 'text-bad' : 'text-muted'}`}>
               {valid === null ? 'Checking signature…' : valid ? 'Signature valid: issued by this merchant.' : 'Signature INVALID: do not trust this receipt.'}
             </p>

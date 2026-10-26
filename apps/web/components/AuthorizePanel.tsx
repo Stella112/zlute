@@ -46,12 +46,12 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
     const ok = final.state === 'SUBMITTED' && 'txid' in final && final.txid;
     const link = ok ? explorer(final.txid as string, network) : null;
     return (
-      <div className="rounded-3xl border border-line bg-surface p-6 text-center">
+      <div className="rounded-2xl border border-line bg-surface p-6 text-center">
         <div className={`mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full ${ok ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad'}`}>
           <Icon name={ok ? 'check' : 'shield'} className="h-10 w-10" />
         </div>
-        <p className="text-xl font-semibold">{ok ? 'Sent' : 'Not sent'}</p>
-        <p className="num mt-1 text-3xl font-semibold">{zecShort(s.amount_zat)} ZEC</p>
+        <p className="font-display text-2xl">{ok ? 'Sent' : 'Not sent'}</p>
+        <p className="font-display num mt-1 text-4xl">{zecShort(s.amount_zat)} ZEC</p>
         {ok ? (
           <p className="mt-2 text-sm text-muted">Confirming on the Zcash network (about 5 minutes).</p>
         ) : (
@@ -67,9 +67,9 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
   }
 
   return (
-    <div className="rounded-3xl border border-line bg-surface p-6">
+    <div className="rounded-2xl border border-line bg-surface p-6">
       <p className="text-center text-sm text-muted">Confirm payment</p>
-      <p className="num mt-1 text-center text-5xl font-semibold tracking-tight">
+      <p className="font-display num mt-1 text-center text-6xl">
         {zecShort(s.amount_zat)} <span className="text-2xl font-normal text-muted">ZEC</span>
       </p>
       <dl className="mt-6 divide-y divide-line rounded-2xl bg-raised px-4 text-sm">
@@ -121,7 +121,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
           </label>
           <ErrorNote error={error} />
           <button
-            className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40"
+            className="w-full rounded-xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40"
             disabled={busy || typed.trim().toLowerCase() !== `approve ${code}`}
             onClick={async () => {
               setError(null);
@@ -165,7 +165,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
             </li>
           </ol>
           <ErrorNote error={error} />
-          <button className="w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40" disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
+          <button className="w-full rounded-xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40" disabled={busy || !/^[0-9a-f]{128}$/.test(sig.trim())} onClick={() => authorize(sig.trim())}>
             {busy ? 'Sending…' : 'Confirm and pay'}
           </button>
         </div>

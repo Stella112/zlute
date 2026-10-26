@@ -27,18 +27,18 @@ export default function Home() {
   return (
     <>
       <p className="mb-1 text-sm text-muted">Hi, {me.username}</p>
-      <section className="mb-6 rounded-3xl border border-line bg-gradient-to-br from-accent/25 via-surface to-surface p-6 md:p-8">
+      <section className="mb-6 rounded-2xl border border-line bg-gradient-to-br from-accent/25 via-surface to-surface p-6 md:p-8">
         <p className="flex items-center gap-1.5 text-sm text-muted">
           <Icon name="shield" className="h-4 w-4 text-accent" /> Private balance
         </p>
-        <p className="num mt-2 text-5xl font-semibold tracking-tight md:text-6xl">
+        <p className="font-display num mt-2 text-6xl md:text-7xl">
           {loading ? '…' : failed ? '—' : zecShort(avail)} <span className="text-2xl font-normal text-muted">ZEC</span>
         </p>
         <p className="mt-2 h-5 text-sm text-muted">
           {failed ? 'Your wallet is syncing. Refresh in a moment.' : arriving > 0n ? `+${zecShort(arriving)} ZEC arriving (confirming)` : ''}
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <Link href="/receive" className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 text-[15px] font-medium text-on-accent hover:bg-accent/90">
+          <Link href="/receive" className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-medium text-on-accent hover:bg-accent/90">
             <Icon name="request" /> Request
           </Link>
           <Link href="/send" className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-raised py-3.5 text-[15px] font-medium hover:border-accent">
@@ -63,7 +63,7 @@ export default function Home() {
         ))}
       </section>
 
-      <section className="rounded-3xl border border-line bg-surface px-5 py-2">
+      <section className="rounded-2xl border border-line bg-surface px-5 py-2">
         <div className="flex items-center justify-between pt-3">
           <h2 className="text-[15px] font-medium">Recent activity</h2>
           <Link href="/activity" className="text-sm text-accent">

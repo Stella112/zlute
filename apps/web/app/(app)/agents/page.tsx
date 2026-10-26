@@ -268,6 +268,53 @@ function NewGrant({ services, onDone }: { services: Service[]; onDone: () => voi
   );
 }
 
+/** Funds the agent wallet: a payment link into it, paid from Zodl or from Pay. */
+function FundAgent() {
+  const [amount, setAmount] = useState('0.0004');
+  const [link, setLink] = useState<string | null>(null);
+  const [balance, setBalance] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void get<{ ironwood: { spendable_zat: number; total_zat: number } }>('/v1/wallets/agent/balance')
+      .then((b) => setBalance(zec(b.ironwood.total_zat)))
+      .catch(() => setBalance(null));
+  }, [link]);
+  return (
+    <Card title="Agent wallet" className="mb-6" action={balance !== null ? <span className="num text-sm text-muted">{balance} ZEC</span> : undefined}>
+      <p className="mb-3 text-sm text-muted">Agent payments come from this wallet only. Fund it with a payment link, paid from Zodl or from Pay.</p>
+      {link ? (
+        <p className="break-all rounded-xl bg-raised p-3 text-sm">
+          <a href={link} target="_blank" rel="noreferrer" className="underline">
+            {link}
+          </a>
+        </p>
+      ) : (
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError(null);
+            try {
+              const r = await post<{ share_path: string }>('/v1/requests', { wallet: 'agent', amount_zec: amount.trim() });
+              setLink(`${window.location.origin}${r.share_path}`);
+            } catch (err) {
+              setError(err instanceof ApiError ? err.code : 'Request failed');
+            }
+          }}
+        >
+          <Field label="Amount (ZEC)">
+            <input className={`${inputCls} num w-40`} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          </Field>
+          <Button type="submit">Create funding link</Button>
+        </form>
+      )}
+      <div className="mt-3">
+        <ErrorNote error={error} />
+      </div>
+    </Card>
+  );
+}
+
 export default function AgentsPage() {
   const services = useLoad(() => get<{ services: Service[] }>('/v1/meter/services'));
   const grants = useLoad(() => get<{ grants: Grant[] }>('/v1/agent/grants'));
@@ -276,6 +323,7 @@ export default function AgentsPage() {
   return (
     <>
       <PageTitle title="AI agents" sub="Give an AI agent a budget you sign once. It can pay for a service by itself, and anything over the budget is refused." />
+      <FundAgent />
       <Card title="Metered services" className="mb-6">
         {(services.data?.services ?? []).length > 0 && (
           <ul className="mb-4 divide-y divide-line text-sm">

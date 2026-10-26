@@ -3,7 +3,7 @@ import { explorer, short } from '@/lib/format';
 
 export function Card({ title, action, children, className = '' }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-3xl border border-line bg-surface p-5 md:p-6 ${className}`}>
+    <section className={`rounded-2xl border border-line bg-surface p-5 md:p-6 ${className}`}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           {title && <h2 className="text-[15px] font-medium">{title}</h2>}
@@ -18,7 +18,7 @@ export function Card({ title, action, children, className = '' }: { title?: stri
 export function PageTitle({ title, sub }: { title: string; sub?: string }) {
   return (
     <header className="mb-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="font-display text-[2rem] leading-tight">{title}</h1>
       {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
     </header>
   );

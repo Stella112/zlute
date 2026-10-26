@@ -51,16 +51,16 @@ export default function PayPage() {
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8">
       <div className="mb-6 flex items-center gap-2 text-sm text-muted">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-xs font-bold text-on-accent">L</span>
+        <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-xs font-display text-[1.05em] text-on-accent">L</span>
         Private payment via Lute
       </div>
-      <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 text-center">
+      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-6 text-center">
         {error && <p className="py-10 text-sm text-bad">{error}</p>}
         {!req && !error && <p className="py-10 text-sm text-muted">Loading…</p>}
         {req && (
           <>
             <p className="text-sm text-muted">{paid ? 'Paid' : 'Amount to pay'}</p>
-            <p className="num mt-1 text-5xl font-semibold tracking-tight">
+            <p className="font-display num mt-1 text-6xl">
               {zecShort(req.amount_zat)} <span className="text-2xl font-normal text-muted">ZEC</span>
             </p>
             {note && <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-raised px-4 py-3 text-left text-sm">{note}</p>}
@@ -81,7 +81,7 @@ export default function PayPage() {
               <>
                 <Qr value={req.zip321_uri} className="mt-6" />
                 <p className="mt-4 text-sm text-muted">Scan with Zodl or any Zcash wallet.</p>
-                <a href={req.zip321_uri} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-medium text-on-accent">
+                <a href={req.zip321_uri} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 font-medium text-on-accent">
                   Open in my wallet
                 </a>
                 <button

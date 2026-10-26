@@ -12,7 +12,7 @@ export default function More() {
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">More</h1>
+        <h1 className="font-display text-[2rem] leading-tight">More</h1>
         <ThemeToggle withLabel />
       </div>
       {NAV_GROUPS.slice(1).map((g) => (

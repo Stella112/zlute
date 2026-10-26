@@ -63,14 +63,14 @@ export default function SignupPage() {
     <div className="bg-grid flex min-h-screen flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
         <Link href="/welcome" className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-bold text-on-accent">L</span>
-          <span className="text-lg font-semibold tracking-tight">Lute</span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-display text-[1.05em] text-on-accent">L</span>
+          <span className="font-display text-xl">Lute</span>
         </Link>
         <ThemeToggle />
       </header>
       <div className="grid flex-1 place-items-center px-4 pb-16">
       <form
-        className="w-full max-w-sm space-y-4 rounded-3xl border border-line bg-surface p-6 shadow-xl shadow-black/5"
+        className="w-full max-w-sm space-y-4 rounded-2xl border border-line bg-surface p-6 shadow-xl shadow-black/5"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -93,7 +93,7 @@ export default function SignupPage() {
         }}
       >
         <div>
-          <p className="text-2xl font-semibold tracking-tight">Create your account</p>
+          <p className="font-display text-[2rem] leading-tight">Create your account</p>
           <p className="mt-1 text-sm text-muted">Private payments on Zcash mainnet</p>
         </div>
         <Field label="Username" hint="3 to 32 lowercase letters, digits or _">

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '@fontsource-variable/inter';
+import '@fontsource-variable/cormorant-garamond';
 import './globals.css';
 
 // U11: link previews carry no request details, and nothing is indexed.
@@ -11,8 +12,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f4f4f5' },
-    { media: '(prefers-color-scheme: dark)', color: '#08080a' },
+    { media: '(prefers-color-scheme: light)', color: '#f6f5f1' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0b' },
   ],
 };
 

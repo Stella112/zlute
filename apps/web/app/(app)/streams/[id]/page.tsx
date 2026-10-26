@@ -72,7 +72,7 @@ export default function StreamDetail() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs text-muted">Earned so far · {s.labels.accrued.toLowerCase()}</p>
-            <p className="num mt-1 text-3xl font-semibold">
+            <p className="font-display num mt-1 text-4xl">
               {zec(live)} <span className="text-base font-normal text-muted">/ {zec(s.contracted_zat)} ZEC</span>
             </p>
             <p className="num mt-1 text-xs text-muted">

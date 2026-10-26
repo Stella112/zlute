@@ -20,21 +20,22 @@
   --color-warn: var(--warn);
   --color-bad: var(--bad);
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Cormorant Garamond Variable', 'Cormorant Garamond', Georgia, serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 :root {
   color-scheme: light;
-  --bg: #f4f4f5;
-  --surface: #ffffff;
-  --raised: #f1f1f3;
-  --line: #e2e2e6;
-  --muted: #6b6b74;
-  --text: #0b0b0d;
-  --accent: #111113;
-  --on-accent: #ffffff;
-  --accent-soft: rgb(17 17 19 / 0.07);
-  --silver: #8e8e96;
+  --bg: #f6f5f1;
+  --surface: #fdfcf9;
+  --raised: #f0eee8;
+  --line: #e3e0d8;
+  --muted: #6e6b64;
+  --text: #121212;
+  --accent: #141414;
+  --on-accent: #f6f5f1;
+  --accent-soft: rgb(20 20 20 / 0.06);
+  --silver: #8f8b82;
   --ok: #138a5a;
   --warn: #a8700a;
   --bad: #c93c40;
@@ -43,16 +44,16 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #08080a;
-  --surface: #111113;
-  --raised: #19191c;
-  --line: #27272b;
-  --muted: #9b9ba4;
-  --text: #f3f3f5;
-  --accent: #d9d9de;
-  --on-accent: #0b0b0d;
-  --accent-soft: rgb(217 217 222 / 0.1);
-  --silver: #c7c7cd;
+  --bg: #0a0a0b;
+  --surface: #111112;
+  --raised: #18181a;
+  --line: #242426;
+  --muted: #9a978f;
+  --text: #f1efe9;
+  --accent: #d8d4cb;
+  --on-accent: #0b0b0c;
+  --accent-soft: rgb(216 212 203 / 0.09);
+  --silver: #c9c5bc;
   --ok: #3ccf8e;
   --warn: #e3b341;
   --bad: #f2555a;
@@ -62,16 +63,16 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #08080a;
-    --surface: #111113;
-    --raised: #19191c;
-    --line: #27272b;
-    --muted: #9b9ba4;
-    --text: #f3f3f5;
-    --accent: #d9d9de;
-    --on-accent: #0b0b0d;
-    --accent-soft: rgb(217 217 222 / 0.1);
-    --silver: #c7c7cd;
+    --bg: #0a0a0b;
+    --surface: #111112;
+    --raised: #18181a;
+    --line: #242426;
+    --muted: #9a978f;
+    --text: #f1efe9;
+    --accent: #d8d4cb;
+    --on-accent: #0b0b0c;
+    --accent-soft: rgb(216 212 203 / 0.09);
+    --silver: #c9c5bc;
     --ok: #3ccf8e;
     --warn: #e3b341;
     --bad: #f2555a;
@@ -101,19 +102,19 @@ body {
 
 /* Brushed-silver text for headline accents. */
 .text-silver-gradient {
-  background: linear-gradient(180deg, #ffffff 0%, #c9c9cf 45%, #8a8a92 100%);
+  background: linear-gradient(180deg, #fbfaf6 0%, #d3cfc5 45%, #8f8a80 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 :root:not([data-theme='dark']) .text-silver-gradient {
-  background: linear-gradient(180deg, #2b2b30 0%, #6d6d75 60%, #9a9aa2 100%);
+  background: linear-gradient(180deg, #1c1c1c 0%, #5f5b54 60%, #9a958b 100%);
   -webkit-background-clip: text;
   background-clip: text;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .text-silver-gradient {
-    background: linear-gradient(180deg, #ffffff 0%, #c9c9cf 45%, #8a8a92 100%);
+    background: linear-gradient(180deg, #fbfaf6 0%, #d3cfc5 45%, #8f8a80 100%);
     -webkit-background-clip: text;
     background-clip: text;
   }
@@ -132,4 +133,119 @@ body {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Display serif (headlines and balances): private-banking typography. */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Small spaced capitals for section labels. */
+.label-caps {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Documentation pages rendered from markdown. */
+.doc {
+  font-size: 15px;
+  line-height: 1.7;
+}
+.doc h1 {
+  font-family: var(--font-display);
+  font-size: 2.75rem;
+  line-height: 1.1;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+.doc h2 {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 500;
+  margin: 3rem 0 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 5rem;
+}
+.doc h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 2rem 0 0.6rem;
+  scroll-margin-top: 5rem;
+}
+.doc p,
+.doc ul,
+.doc ol,
+.doc table,
+.doc pre,
+.doc blockquote {
+  margin: 0.8rem 0;
+}
+.doc ul {
+  list-style: disc;
+  padding-left: 1.3rem;
+}
+.doc ol {
+  list-style: decimal;
+  padding-left: 1.3rem;
+}
+.doc li {
+  margin: 0.3rem 0;
+}
+.doc a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.doc code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.1em 0.35em;
+}
+.doc pre {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+.doc pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+.doc th,
+.doc td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0.75rem 0.6rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+.doc th {
+  font-weight: 600;
+  color: var(--muted);
+}
+.doc blockquote {
+  border-left: 2px solid var(--silver);
+  padding-left: 1rem;
+  color: var(--muted);
+}
+.doc hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 2.5rem 0;
 }

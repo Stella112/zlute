@@ -70,10 +70,10 @@ export default function PayPage() {
 
   return (
     <form onSubmit={review} className="mx-auto max-w-md">
-      <h1 className="text-center text-2xl font-semibold tracking-tight">Pay</h1>
+      <h1 className="text-center font-display text-[2rem] leading-tight">Pay</h1>
       <p className="mt-1 text-center text-sm text-muted">{payout.loading ? 'Checking your balance…' : `${zecShort(total)} ZEC available`}</p>
       <input
-        className="num mt-10 w-full bg-transparent text-center text-6xl font-semibold tracking-tight outline-none placeholder:text-muted/40"
+        className="font-display num mt-10 w-full bg-transparent text-center text-7xl outline-none placeholder:text-muted/40"
         value={amount}
         onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
         inputMode="decimal"
@@ -99,7 +99,7 @@ export default function PayPage() {
           <p>{error}</p>
         </div>
       )}
-      <button type="submit" disabled={busy || !amount || !to.trim()} className="mt-6 w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
+      <button type="submit" disabled={busy || !amount || !to.trim()} className="mt-6 w-full rounded-xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
         {busy ? 'Checking privacy…' : 'Review'}
       </button>
       <p className="mt-4 text-center text-xs text-muted">Every payment is checked by LuteGuard and must be shielded. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.</p>

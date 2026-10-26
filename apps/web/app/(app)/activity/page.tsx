@@ -13,9 +13,9 @@ export default function ActivityPage() {
   const items = buildActivity(acts.data?.actions ?? [], reqs.data?.requests ?? []);
   return (
     <>
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Activity</h1>
+      <h1 className="mb-1 font-display text-[2rem] leading-tight">Activity</h1>
       <p className="mb-6 text-sm text-muted">Payments in and out. Tap a payment to see it on the Zcash explorer.</p>
-      <section className="rounded-3xl border border-line bg-surface px-5">
+      <section className="rounded-2xl border border-line bg-surface px-5">
         <ActivityList
           items={items}
           network={me.network}

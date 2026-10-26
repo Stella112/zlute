@@ -39,7 +39,7 @@ export default function SubscriberPage() {
         {error && <p className="mt-4 text-sm text-bad">{error}</p>}
         {s && (
           <>
-            <p className="mt-1 text-xl font-semibold">{s.plan.name}</p>
+            <p className="mt-1 font-display text-2xl">{s.plan.name}</p>
             <p className="num text-sm text-muted">{zec(s.plan.amount_zat)} ZEC per period</p>
             <p className={`mt-4 text-sm font-medium ${s.status === 'ACTIVE' ? 'text-ok' : s.status === 'DUE' ? 'text-warn' : 'text-bad'}`}>{TEXT[s.status]}</p>
             <p className="mt-1 text-xs text-muted">

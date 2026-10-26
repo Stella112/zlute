@@ -58,8 +58,8 @@ export default function RequestPage() {
     const paid = status === 'PAID';
     return (
       <div className="mx-auto max-w-md text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{paid ? 'Paid' : 'Request created'}</h1>
-        <p className="num mt-2 text-4xl font-semibold">
+        <h1 className="font-display text-[2rem] leading-tight">{paid ? 'Paid' : 'Request created'}</h1>
+        <p className="font-display num mt-2 text-5xl">
           {req.amount} <span className="text-xl font-normal text-muted">ZEC</span>
         </p>
         {paid ? (
@@ -77,7 +77,7 @@ export default function RequestPage() {
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
-            className="flex items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 font-medium text-on-accent"
+            className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 font-medium text-on-accent"
             onClick={async () => {
               if (navigator.share) await navigator.share({ title: 'Payment request', url: req.url }).catch(() => undefined);
               else {
@@ -119,11 +119,11 @@ export default function RequestPage() {
 
   return (
     <form onSubmit={create} className="mx-auto max-w-md">
-      <h1 className="text-center text-2xl font-semibold tracking-tight">Request a payment</h1>
+      <h1 className="text-center font-display text-[2rem] leading-tight">Request a payment</h1>
       <p className="mt-1 text-center text-sm text-muted">Get paid privately. The payer needs only a Zcash wallet.</p>
       <div className="mt-10 flex items-baseline justify-center gap-2">
         <input
-          className="num w-full bg-transparent text-center text-6xl font-semibold tracking-tight outline-none placeholder:text-muted/40"
+          className="font-display num w-full bg-transparent text-center text-7xl outline-none placeholder:text-muted/40"
           value={amount}
           onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
           inputMode="decimal"
@@ -151,7 +151,7 @@ export default function RequestPage() {
       <div className="mt-4">
         <ErrorNote error={error} />
       </div>
-      <button type="submit" disabled={busy || !amount} className="mt-6 w-full rounded-2xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
+      <button type="submit" disabled={busy || !amount} className="mt-6 w-full rounded-xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
         {busy ? 'Creating…' : 'Create request'}
       </button>
     </form>
