@@ -78,6 +78,17 @@ export async function createRequest(
   return { id, share_path: `/r/${id}`, expires_at };
 }
 
+/**
+ * What the payer and owner see: PARTIAL when less than the amount has arrived (even unconfirmed),
+ * CONFIRMING when the full amount is seen but not yet confirmed.
+ */
+export type RequestProgress = 'OPEN' | 'PARTIAL' | 'CONFIRMING' | 'PAID' | 'EXPIRED';
+export function requestProgress(r: { status: string; amount_zat: bigint; seen_zat: bigint }): RequestProgress {
+  if (r.status === 'PAID') return 'PAID';
+  if (r.status === 'PENDING') return r.seen_zat < r.amount_zat ? 'PARTIAL' : 'CONFIRMING';
+  return r.status === 'EXPIRED' ? 'EXPIRED' : 'OPEN';
+}
+
 /** Re-checks an unpaid request with the sidecar (sync + check) and stores the result. */
 export async function refreshRequest(d: Pick<RequestDeps, 'db' | 'cipher' | 'sidecar' | 'network' | 'now'>, id: string) {
   const r = (await d.db.select().from(paymentRequests).where(eq(paymentRequests.id, id)).limit(1))[0];
@@ -94,7 +105,7 @@ export async function refreshRequest(d: Pick<RequestDeps, 'db' | 'cipher' | 'sid
     const status = c.status === 'UNPAID' && d.now() >= r.expires_at ? 'EXPIRED' : c.status;
     await d.db
       .update(paymentRequests)
-      .set({ status, received_zat: BigInt(c.received_confirmed_zat), matched_by: c.matched_by, txids: c.txids, updated_at: d.now() })
+      .set({ status, received_zat: BigInt(c.received_confirmed_zat), seen_zat: BigInt(c.received_confirmed_zat) + BigInt(c.received_pending_zat), matched_by: c.matched_by, txids: c.txids, updated_at: d.now() })
       .where(eq(paymentRequests.id, r.id));
   }
   return (await d.db.select().from(paymentRequests).where(eq(paymentRequests.id, r.id)).limit(1))[0]!;
@@ -142,6 +153,8 @@ export function registerRequestRoutes(app: FastifyInstance, d: RequestDeps): voi
       status: fresh.status,
       amount_zat: fresh.amount_zat.toString(),
       received_zat: fresh.received_zat.toString(),
+      seen_zat: fresh.seen_zat.toString(),
+      progress: requestProgress(fresh),
       matched_by: fresh.matched_by,
       txids: fresh.txids,
       min_confirmations: minConf(d.network),

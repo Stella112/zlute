@@ -11,6 +11,7 @@ import { POLICY_VERSION, type Network } from '@lute/luteguard';
 import { WALLET_ROLES, walletOf, type SessionUser, type WalletRole } from './auth.js';
 import { actions, paymentRequests, privacyDecisions } from './db/schema.js';
 import type { Db } from './db/store.js';
+import { requestProgress } from './requests.js';
 import type { RequestSidecar } from './sidecar.js';
 import type { PgActionStore } from './db/store.js';
 import type { ActionState } from '@lute/core';
@@ -113,6 +114,8 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
         status: r.status,
         amount_zat: r.amount_zat.toString(),
         received_zat: r.received_zat.toString(),
+        seen_zat: r.seen_zat.toString(),
+        progress: requestProgress(r),
         matched_by: r.matched_by,
         txids: r.txids,
         expires_at: r.expires_at,

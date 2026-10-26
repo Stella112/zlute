@@ -87,7 +87,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
         </div>
       </dl>
       <p className="mt-3 flex items-center gap-2 text-xs text-ok">
-        <Icon name="shield" className="h-4 w-4" /> Checked by LuteGuard: fully shielded, nothing public.
+        <Icon name="shield" className="h-4 w-4" /> Checked by LuteGuard: one shielded pool, no transparent parts.
       </p>
       <details className="mt-3 text-xs text-muted">
         <summary className="cursor-pointer select-none">Details</summary>

@@ -355,10 +355,15 @@ describe('payment requests (§19.2)', () => {
     const { id } = (await t.app.inject(create(cookie))).json();
     t.reqSidecar.check = { status: 'PENDING', matched_by: 'address_and_memo', requested_zat: 500000, received_confirmed_zat: 0, received_pending_zat: 500000, overpaid_zat: 0, txids: ['aa'] };
     const r = (await t.app.inject({ method: 'POST', url: `/v1/requests/${id}/refresh`, headers: { cookie, origin: ORIGIN } })).json();
-    expect(r.status).toBe('PENDING');
+    expect(r).toMatchObject({ status: 'PENDING', progress: 'CONFIRMING', seen_zat: '500000', received_zat: '0' });
+    // Less than the amount arrived (confirmed or not): partially paid, not "confirming".
+    t.reqSidecar.check = { ...t.reqSidecar.check, received_confirmed_zat: 100000, received_pending_zat: 200000 };
+    const part = (await t.app.inject({ method: 'POST', url: `/v1/requests/${id}/refresh`, headers: { cookie, origin: ORIGIN } })).json();
+    expect(part).toMatchObject({ status: 'PENDING', progress: 'PARTIAL', received_zat: '100000', seen_zat: '300000' });
+    expect((await t.app.inject({ method: 'POST', url: `/v1/public/requests/${id}/check` })).json()).toMatchObject({ progress: 'PARTIAL', amount_zat: '500000', seen_zat: '300000' });
     t.reqSidecar.check = { ...t.reqSidecar.check, status: 'PAID', received_confirmed_zat: 500000, received_pending_zat: 0 };
     const p = (await t.app.inject({ method: 'POST', url: `/v1/requests/${id}/refresh`, headers: { cookie, origin: ORIGIN } })).json();
-    expect(p).toMatchObject({ status: 'PAID', received_zat: '500000', matched_by: 'address_and_memo', txids: ['aa'] });
+    expect(p).toMatchObject({ status: 'PAID', progress: 'PAID', received_zat: '500000', matched_by: 'address_and_memo', txids: ['aa'] });
     // Once paid, the public page stops showing payment instructions.
     expect((await t.app.inject({ method: 'GET', url: `/v1/public/requests/${id}` })).json()).toMatchObject({ status: 'PAID', zip321_uri: null });
   });

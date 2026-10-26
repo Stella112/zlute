@@ -119,6 +119,8 @@ export interface RequestRow {
   status: 'UNPAID' | 'PENDING' | 'PAID' | 'EXPIRED';
   amount_zat: string;
   received_zat: string;
+  seen_zat: string;
+  progress: 'OPEN' | 'PARTIAL' | 'CONFIRMING' | 'PAID' | 'EXPIRED';
   matched_by: string | null;
   txids: string[];
   expires_at: number;

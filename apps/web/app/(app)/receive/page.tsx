@@ -7,6 +7,9 @@ import { encryptDetails } from '@/lib/fragment';
 import { Qr } from '@/components/Qr';
 import { Icon } from '@/components/icons';
 import { ErrorNote } from '@/components/ui';
+import { PaymentProgress, type ProgressInfo } from '@/components/progress';
+import { BackupGate } from '@/components/BackupGate';
+import { useMe } from '@/components/AppShell';
 
 interface Created {
   id: string;
@@ -16,21 +19,31 @@ interface Created {
 }
 
 export default function RequestPage() {
+  const me = useMe()!;
+  return (
+    <BackupGate me={me}>
+      <RequestForm />
+    </BackupGate>
+  );
+}
+
+function RequestForm() {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [req, setReq] = useState<Created | null>(null);
-  const [status, setStatus] = useState<string>('UNPAID');
+  const [info, setInfo] = useState<ProgressInfo | null>(null);
+  const status = info?.progress ?? 'OPEN';
   const [copied, setCopied] = useState(false);
 
   // Live status: re-check every 20 s until paid (PAID needs 3 confirmations on mainnet).
   useEffect(() => {
     if (!req || status === 'PAID') return;
     const t = setInterval(() => {
-      void post<{ status: string }>(`/v1/requests/${req.id}/refresh`)
-        .then((r) => setStatus(r.status))
+      void post<ProgressInfo>(`/v1/requests/${req.id}/refresh`)
+        .then(setInfo)
         .catch(() => undefined);
     }, 20000);
     return () => clearInterval(t);
@@ -46,7 +59,7 @@ export default function RequestPage() {
       const r = await post<{ id: string; share_path: string }>('/v1/requests', { wallet: 'merchant', amount_zec: amount.trim(), ...(enc ? { details_ciphertext: enc.ciphertext } : {}) });
       const pub = await get<{ zip321_uri: string }>(`/v1/public/requests/${r.id}`);
       setReq({ id: r.id, url: `${window.location.origin}${r.share_path}${enc ? `#k=${enc.key}` : ''}`, uri: pub.zip321_uri, amount: amount.trim() });
-      setStatus('UNPAID');
+      setInfo(null);
     } catch (err) {
       setError(err instanceof ApiError ? (err.code === 'BAD_AMOUNT' || err.code === 'BAD_REQUEST' ? 'Enter an amount like 0.001' : err.code) : 'Could not create the request.');
     } finally {
@@ -68,13 +81,11 @@ export default function RequestPage() {
           </div>
         ) : (
           <>
-            <p className="mt-2 text-sm text-muted">Show this code, or share the link. The payer scans it with Zodl or any Zcash wallet.</p>
+            <p className="mt-2 text-sm text-muted">Show this code, or share the link. The payer scans it with Zodl or another compatible shielded Zcash wallet.</p>
             <Qr value={req.uri} className="mt-6" />
           </>
         )}
-        <p className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm ${paid ? 'bg-ok/15 text-ok' : status === 'PENDING' ? 'bg-warn/15 text-warn' : 'bg-raised text-muted'}`}>
-          {paid ? 'Received and confirmed' : status === 'PENDING' ? 'Payment seen, confirming…' : 'Waiting for payment…'}
-        </p>
+        <PaymentProgress info={info} />
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
             className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 font-medium text-on-accent"

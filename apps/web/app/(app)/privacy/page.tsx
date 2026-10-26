@@ -66,7 +66,10 @@ export default function PrivacyCenter() {
                   <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                     {m.evidence.map((e) => (
                       <span key={e.id}>
-                        {e.id} <span className="uppercase">{e.env}</span>
+                        <a href={`/docs/evidence#${e.id.toLowerCase()}`} className="text-accent hover:underline">
+                          {e.id}
+                        </a>{' '}
+                        <span className="uppercase">{e.env}</span>
                         {e.txids.slice(0, 1).map((t) => (
                           <span key={t} className="ml-1">
                             <Txid txid={t} network={e.env === 'mainnet' ? 'main' : 'regtest'} />
@@ -134,11 +137,25 @@ export default function PrivacyCenter() {
         </ul>
       </Card>
 
-      <Card title="Evidence">
+      <Card
+        title="Evidence"
+        action={
+          <span className="flex gap-3 text-xs">
+            <a href="/docs/evidence" className="text-accent hover:underline">
+              Full register
+            </a>
+            <a href="https://github.com/Stella112/zlute" className="text-accent hover:underline">
+              Source code
+            </a>
+          </span>
+        }
+      >
         <ul className="divide-y divide-line text-sm">
           {p.evidence.map((e) => (
             <li key={e.id} className="grid gap-1 py-2 sm:grid-cols-[4rem_5rem_1fr]">
-              <span className="font-mono text-xs">{e.id}</span>
+              <a href={`/docs/evidence#${e.id.toLowerCase()}`} className="font-mono text-xs text-accent hover:underline">
+                {e.id}
+              </a>
               <span className="text-xs uppercase text-muted">{e.env}</span>
               <span>
                 {e.claim}

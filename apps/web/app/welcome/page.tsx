@@ -3,31 +3,31 @@ import { Icon, type IconName } from '@/components/icons';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 const FEATURES: { icon: IconName; title: string; body: string }[] = [
-  { icon: 'request', title: 'Payment links', body: 'Share a link or a QR code. Your payer uses Zodl or any Zcash wallet, with no account and no app to install.' },
+  { icon: 'request', title: 'Payment links', body: 'Share a link or a QR code. Your payer uses Zodl or another compatible shielded Zcash wallet, with no account and no app to install.' },
   { icon: 'store', title: 'Checkout and receipts', body: 'Sell anything with a checkout link. Customers get a signed receipt they can verify, and you can refund in two taps.' },
   { icon: 'repeat', title: 'Subscriptions', body: 'Bill every month without auto-debit. Subscribers get a private link with the invoice for each period.' },
-  { icon: 'users', title: 'Split a bill', body: 'Everyone gets their own link for their share. Nobody sees what anyone else paid; you see who is done.' },
-  { icon: 'stream', title: 'Streams', body: 'Pay a salary or a creator by the second. Earnings build up live, and each payout is a private payment you approve.' },
+  { icon: 'users', title: 'Split a bill', body: 'Everyone gets their own link for their share. Participants don’t see each other’s payments; you see who is done.' },
+  { icon: 'stream', title: 'Streams', body: 'Pay a salary or a creator by the second. Earnings accrue live; money moves only in the payouts you approve, each a shielded payment.' },
   { icon: 'agent', title: 'AI agents with a budget', body: 'Let an AI agent pay for a service on its own, inside a budget you sign once. Anything over it is refused.' },
 ];
 
 const PILLARS: { icon: IconName; title: string; body: string }[] = [
-  { icon: 'shield', title: 'Shielded by default', body: 'Every payment stays inside Zcash’s shielded pool. Lute refuses transparent addresses and anything that would expose an amount.' },
-  { icon: 'check', title: 'Nothing moves without you', body: 'Each payment is checked by LuteGuard, then approved with a key that only you hold. Even the server cannot spend on its own.' },
+  { icon: 'shield', title: 'Shielded by default', body: 'Payment details stay off the public blockchain. Lute refuses transparent addresses and any payment that would cross shielded pools.' },
+  { icon: 'check', title: 'You approve the payouts', body: 'Approve payouts individually, or authorise an agent within a fixed budget. Lute’s software refuses any payout without your browser key. Lute is custodial: the operator holds the wallets.' },
   { icon: 'activity', title: 'Proven, not promised', body: 'Every feature’s status comes from real test runs and real mainnet transactions, with the limits written down next to it.' },
 ];
 
 const STEPS: [string, string][] = [
   ['Create your account', 'Your browser makes a private approval key. Lute creates your own shielded wallets bound to it.'],
   ['Share a link', 'Request an amount, sell with a checkout, start a subscription or split a bill.'],
-  ['Get paid privately', 'Your payer pays from their own wallet. The page turns to Paid once the network confirms it.'],
-  ['Pay out when you choose', 'Send, refund or stream. You confirm every payment with your key.'],
+  ['Get paid privately', 'Your payer pays from their own wallet. The page shows Confirming, then Paid once the network confirms it.'],
+  ['Pay out when you choose', 'Send, refund or stream. Approve each payout with your key, or give an agent a fixed budget.'],
 ];
 
 const FAQ: [string, string][] = [
-  ['What does my payer need?', 'Only a Zcash wallet that supports shielded payments, such as Zodl. No account, no sign-up, no app from us.'],
-  ['Who can see my payments?', 'On the blockchain, nobody can see the sender, the recipient or the amount. Lute’s server knows your own wallets’ activity; details like recipients and notes are stored encrypted.'],
-  ['Who holds the money?', 'Your wallets are held by Lute, each with its own sealed key, and Lute’s software moves nothing without your approval key. Payments are limited to 0.02 ZEC each and 0.05 ZEC a day. Businesses that prefer full self-custody can run Lute on their own server.'],
+  ['What does my payer need?', 'Only a compatible shielded Zcash wallet, such as Zodl. No account, no sign-up, no app from us.'],
+  ['Who can see my payments?', 'Shielded payments protect your transaction details from public blockchain observers. Hosted Lute can see payment activity needed to operate the service (amounts, timing, your wallets’ history); recipients and notes are stored encrypted. Your payer’s wallet and the light-wallet server see what they always see.'],
+  ['Who holds the money?', 'Lute does (custodial). Each wallet’s key is sealed on Lute’s server, and Lute’s software releases a payout only with your approval key, but whoever operates the server could bypass that, and you cannot yet restore the wallet elsewhere. Keep only working balances here: payouts are limited to 0.02 ZEC each and 0.05 ZEC a day. For full self-custody, run Lute on your own server.'],
   ['What does it cost?', 'Lute adds no fee. The Zcash network fee for a payment is about 0.0001 ZEC.'],
   ['What still leaks?', 'The light-wallet server Lute syncs from sees network-level information such as IP address and timing, but never keys, amounts or memos. The Privacy page lists every known limit.'],
 ];
@@ -82,17 +82,17 @@ export default function Welcome() {
               <span className="text-silver-gradient">Privately.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-muted">
-              Lute turns shielded Zcash into everyday payments: links, checkout, subscriptions, split bills and streams. Only you and your payer know who paid whom, and how much.
+              Receive payments, collect subscriptions and pay for services with shielded Zcash. Payment details stay off the public blockchain.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/signup" className="rounded-lg bg-accent px-6 py-3 font-medium text-on-accent hover:opacity-90">
                 Create a free account
               </Link>
-              <a href="#how" className="rounded-lg border border-line bg-surface px-6 py-3 font-medium hover:border-silver">
-                See how it works
-              </a>
+              <Link href="/preview" className="rounded-lg border border-line bg-surface px-6 py-3 font-medium hover:border-silver">
+                See what your payer sees
+              </Link>
             </div>
-            <p className="mt-6 text-xs text-muted">Held by Lute. Released only with your key.</p>
+            <p className="mt-6 text-xs text-muted">Custodial: wallets are held by Lute. Payouts need your approval key or a budget you signed.</p>
           </div>
 
           <div className="relative">
@@ -109,7 +109,7 @@ export default function Welcome() {
                 {[
                   ['request', 'You create a request', 'Amount and an optional private note'],
                   ['share', 'Your payer opens the link', 'Scans the QR with their Zcash wallet'],
-                  ['shield', 'LuteGuard checks it', 'Single shielded pool, nothing public'],
+                  ['shield', 'LuteGuard checks it', 'Single shielded pool, no transparent parts'],
                   ['check', 'Paid', 'Confirmed on the network, receipt issued'],
                 ].map(([icon, title, sub], i) => (
                   <li key={title} className="flex items-center gap-3 rounded-2xl bg-raised px-4 py-3">
@@ -130,7 +130,7 @@ export default function Welcome() {
 
       <section className="border-y border-line bg-surface">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-5 py-8 text-center text-sm text-muted md:grid-cols-4">
-          {['Shielded by default', 'Zero transparent', 'You approve every payment', 'Open source'].map((t) => (
+          {['Shielded by default', 'No transparent addresses', 'Approved payouts or fixed budgets', 'Open source'].map((t) => (
             <p key={t} className="flex items-center justify-center gap-2">
               <Icon name="check" className="h-4 w-4 text-silver" /> {t}
             </p>
@@ -209,7 +209,7 @@ export default function Welcome() {
           <h2 className="font-display text-5xl leading-[1.08]">
             Start getting paid <span className="text-silver-gradient">privately</span>.
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-muted">Create an account in under a minute. Your payers need nothing but a Zcash wallet.</p>
+          <p className="mx-auto mt-4 max-w-lg text-muted">Create an account in under a minute. Your payers need only a compatible shielded Zcash wallet.</p>
           <Link href="/signup" className="mt-8 inline-block rounded-lg bg-accent px-7 py-3 font-medium text-on-accent hover:opacity-90">
             Get started
           </Link>
@@ -257,6 +257,21 @@ export default function Welcome() {
                 <Link href="/docs/private-apis" className="hover:text-text">
                   Private paid APIs
                 </Link>
+              </li>
+              <li>
+                <Link href="/docs/custody" className="hover:text-text">
+                  Custody
+                </Link>
+              </li>
+              <li>
+                <Link href="/docs/evidence" className="hover:text-text">
+                  Evidence
+                </Link>
+              </li>
+              <li>
+                <a href="https://github.com/Stella112/zlute" className="hover:text-text">
+                  Source code
+                </a>
               </li>
             </ul>
           </div>

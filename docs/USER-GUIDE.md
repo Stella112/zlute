@@ -7,7 +7,12 @@ you sign. Every payment is shielded: on the blockchain nobody can see who paid w
 - **App:** https://uselute.xyz (Zcash mainnet)
 - **Who needs an account:** only you, the person getting paid or paying out. Your payers need
   nothing but a Zcash wallet that supports shielded payments, such as Zodl.
-- **Custody:** your Lute wallets are held by Lute; nothing leaves them without your approval key.
+- **Custody:** Lute is custodial. Your Lute wallets are held on Lute's server; Lute's software pays
+  out only with your approval key or a budget you signed, but the operator of the server could bypass
+  that, and the approval-key backup does not restore the wallet. Keep working balances only. Details:
+  [Custody](https://github.com/Stella112/zlute/blob/main/docs/CUSTODY.md).
+- **What Lute sees:** hosted Lute can see payment activity needed to operate the service. Shielded
+  payments protect your transaction details from public blockchain observers.
 
 ---
 
@@ -204,7 +209,7 @@ where noted. Amounts are strings in ZEC on input (`"0.0001"`) and strings in zat
 | `POST /v1/auth/signup` | `{username, password, owner_pub}`: creates your wallets |
 | `POST /v1/auth/login`, `POST /v1/auth/logout` | Session |
 | `GET /v1/me` | Username, network, whether you sign in the browser |
-| `GET /v1/wallets/{merchant|payout|agent}/balance` | Balance (spendable and total) |
+| `GET /v1/wallets/{wallet}/balance` | Balance (spendable and total); `{wallet}` is `merchant`, `payout` or `agent` |
 
 ### Getting paid
 | Method and path | Purpose |
@@ -222,9 +227,15 @@ where noted. Amounts are strings in ZEC on input (`"0.0001"`) and strings in zat
 | Method and path | Purpose |
 |---|---|
 | `POST /v1/actions/send` | `{wallet, to, amount_zec}` + Idempotency-Key → `AWAITING_AUTHORIZATION` with the proposal |
-| `POST /v1/actions/{id}/authorize` | `{signature}` over `lute-approve-v1|<network>|<proposal hash>` |
+| `POST /v1/actions/{id}/authorize` | `{signature}`: Ed25519 over `lute-approve-v1`, the network and the proposal hash, joined by a vertical bar (see below) |
 | `POST /v1/streams`, `GET /v1/streams/{id}` | Streams |
 | `POST /v1/streams/{id}/settle` (+ Idempotency-Key), `/refresh`, `/pause`, `/resume`, `/cancel` | Payouts and control |
+
+The approval message is the UTF-8 string below; sign it with your Ed25519 approval key:
+
+```
+lute-approve-v1|<network>|<proposal hash>
+```
 
 ### Agents
 | Method and path | Purpose |

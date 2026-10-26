@@ -77,7 +77,7 @@ agent (MCP client) ──stdio──> lute MCP server ──HTTPS, bearer token�
 | AI provider (agent conversation) | That the agent used a metered API, how many calls, amounts and budget. No addresses, no linking ids, no keys. |
 | The paid service | The calls (it serves them) and that they were paid. |
 | Lute operator | Everything about the grant: calls, timing, amounts, budget. This is the honest centre of trust in the hosted version. |
-| Anyone else | Nothing. |
+| Other parties (other Lute users, network observers without the above access) | Nothing from Lute's outputs that we have found; the residual network metadata in §3 still applies. |
 
 ## 5. Verdict
 

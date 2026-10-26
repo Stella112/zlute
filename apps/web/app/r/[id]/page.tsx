@@ -7,6 +7,7 @@ import { decryptDetails } from '@/lib/fragment';
 import { zecShort, when } from '@/lib/format';
 import { Qr } from '@/components/Qr';
 import { Icon } from '@/components/icons';
+import { PaymentProgress, type ProgressInfo } from '@/components/progress';
 
 interface PublicRequest {
   status: 'OPEN' | 'PAID' | 'CLOSED';
@@ -16,7 +17,7 @@ interface PublicRequest {
   expires_at: number;
 }
 
-type Check = { status: string; receipt_id: string | null };
+type Check = ProgressInfo & { status: string; receipt_id: string | null };
 
 /** Public pay page. Reads the note key from the #fragment only; nothing about the owner is shown. */
 export default function PayPage() {
@@ -40,6 +41,10 @@ export default function PayPage() {
         // While open, check every 20 s so the page turns to "Paid" by itself.
         if (r.status === 'OPEN') timer = setInterval(() => void recheck(), 20000);
         const key = new URLSearchParams(window.location.hash.slice(1)).get('k');
+        // The note key never reaches a server (fragments are not sent) and the CSP allows only this
+        // site's own scripts and connections. Drop it from the address bar once read, so it does not
+        // linger in history or get copied along with the page URL.
+        if (key) window.history.replaceState(null, '', window.location.pathname);
         if (r.details_ciphertext && key) setNote(await decryptDetails(r.details_ciphertext, key).catch(() => null));
       })
       .catch((e: unknown) => setError(e instanceof ApiError && e.status === 404 ? 'This payment link does not exist.' : 'This page is unavailable right now.'));
@@ -80,7 +85,7 @@ export default function PayPage() {
             ) : req.status === 'OPEN' && req.zip321_uri ? (
               <>
                 <Qr value={req.zip321_uri} className="mt-6" />
-                <p className="mt-4 text-sm text-muted">Scan with Zodl or any Zcash wallet.</p>
+                <p className="mt-4 text-sm text-muted">Scan with Zodl or another compatible shielded Zcash wallet.</p>
                 <a href={req.zip321_uri} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 font-medium text-on-accent">
                   Open in my wallet
                 </a>
@@ -93,10 +98,7 @@ export default function PayPage() {
                 >
                   <Icon name="copy" className="h-4 w-4" /> {copied ? 'Copied' : 'Copy payment details'}
                 </button>
-                <p className={`mt-5 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${check?.status === 'PENDING' ? 'bg-warn/15 text-warn' : 'bg-raised text-muted'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${check?.status === 'PENDING' ? 'bg-warn' : 'animate-pulse bg-muted'}`} />
-                  {check?.status === 'PENDING' ? 'Payment seen, confirming (about 4 min)…' : 'Waiting for your payment…'}
-                </p>
+                <PaymentProgress info={check} payer />
                 <p className="mt-3 text-[11px] text-muted">Keep the memo your wallet fills in: it is how this payment is recognized. Link expires {when(req.expires_at).slice(0, 16)} UTC.</p>
               </>
             ) : (
@@ -105,7 +107,7 @@ export default function PayPage() {
           </>
         )}
       </div>
-      <p className="mt-6 max-w-sm text-center text-[11px] text-muted">Shielded Zcash payment: the amount, sender and recipient are not visible on the blockchain.</p>
+      <p className="mt-6 max-w-sm text-center text-[11px] text-muted">Shielded Zcash payment: payment details stay off the public blockchain. Lute, which hosts this page, sees the amount and when it was paid.</p>
     </div>
   );
 }

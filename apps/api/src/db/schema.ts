@@ -74,6 +74,7 @@ export const paymentRequests = pgTable('payment_requests', {
   details_ciphertext: text('details_ciphertext'),
   status: text('status').notNull(),
   received_zat: bigint('received_zat', { mode: 'bigint' }).notNull().default(0n),
+  seen_zat: bigint('seen_zat', { mode: 'bigint' }).notNull().default(0n),
   matched_by: text('matched_by'),
   txids: jsonb('txids').notNull().default([]),
   expires_at: bigint('expires_at', { mode: 'number' }).notNull(),

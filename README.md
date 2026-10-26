@@ -72,7 +72,7 @@ flowchart LR
 | Lute server (operator) | Its own wallets' activity. Recipients and memos are stored encrypted at rest (AES-256-GCM); request notes are encrypted in the browser with a key that stays in the link's `#fragment`. |
 | Light server (zec.rocks) | The wallet's IP and timing, its birthday height, and, when Lute checks a specific transaction, that this txid interests the wallet. Never keys, amounts or memos. See `docs/PRIVACY.md`. |
 
-**Custody disclosure.** The `merchant` and `payout` wallets are **operator-custodied hot wallets** on the server (each in its own wallet database and sealed key file, kept at or below 0.1 ZEC; the sidecar warns above that). Customers pay from their own wallets (e.g. Zodl); Lute never touches payer keys. Spends from Lute wallets need the owner's signature.
+**Custody disclosure.** The `merchant` and `payout` wallets are **operator-custodied hot wallets** on the server (each in its own wallet database and sealed key file, kept at or below 0.1 ZEC; the sidecar warns above that). Customers pay from their own wallets (e.g. Zodl); Lute never touches payer keys. Lute's software releases a spend from a Lute wallet only with the owner's signature (or a signed agent mandate); this is enforced by software, not by the chain, so the operator can bypass it. There is no independent recovery yet. See [docs/CUSTODY.md](docs/CUSTODY.md).
 
 ## Repository
 

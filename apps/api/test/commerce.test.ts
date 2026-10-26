@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { canonicalHash, type RecipientInspection, type SidecarProposalSummary } from '@lute/luteguard';
 import type { ExecuteOutcome, ProposalView, SidecarClient, SidecarResult } from '@lute/core';
 import { buildApp } from '../src/app.js';
+import { itemCommitment } from '../src/commerce.js';
 import { createUser } from '../src/auth.js';
 import { FieldCipher } from '../src/crypto.js';
 import { schemaSql } from '../src/db/migrate.js';
@@ -115,9 +117,15 @@ describe('commerce: checkout, signed receipts, refunds (§19.3, U10)', () => {
     expect(check.status).toBe('PAID');
     const pub = await t.app.inject({ method: 'GET', url: `/v1/public/receipts/${check.receipt_id}` });
     const { receipt, signature } = pub.json();
-    expect(receipt).toMatchObject({ version: 'lute-receipt-v1', order_id: o.id, amount_zat: '200000', paid_zat: '200000', txids: ['aa'.repeat(32)] });
+    expect(receipt).toMatchObject({ version: 'lute-receipt-v2', order_id: o.id, amount_zat: '200000', paid_zat: '200000', txids: ['aa'.repeat(32)] });
     expect(pub.body).not.toContain(REQ_ADDR);
     expect(pub.body).not.toContain(ITEM);
+    // The item hash is salted: guessing the item text does not match it; the merchant's salt does.
+    expect(receipt.item_hash).not.toBe(createHash('sha256').update(ITEM).digest('hex'));
+    const salt = (await as('POST', `/v1/commerce/orders/${o.id}/refresh`)).json().item_salt;
+    expect(salt).toMatch(/^[0-9a-f]{32}$/);
+    expect(itemCommitment(salt, ITEM)).toBe(receipt.item_hash);
+    expect(pub.body).not.toContain(salt);
     const ok = await t.app.inject({ method: 'POST', url: '/v1/public/receipts/verify', payload: { receipt, signature } });
     expect(ok.json().valid).toBe(true);
     const forged = await t.app.inject({ method: 'POST', url: '/v1/public/receipts/verify', payload: { receipt: { ...receipt, paid_zat: '2000000' }, signature } });

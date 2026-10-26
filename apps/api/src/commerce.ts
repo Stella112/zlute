@@ -19,7 +19,7 @@ import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { actions, orderRefunds, orders, paymentRequests, signingKeys } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
-import { createRequest, refreshRequest } from './requests.js';
+import { createRequest, refreshRequest, requestProgress } from './requests.js';
 import type { RequestSidecar } from './sidecar.js';
 
 export interface CommerceDeps {
@@ -34,11 +34,19 @@ export interface CommerceDeps {
 }
 
 const ID = /^[A-Za-z0-9_-]{22}$/;
+/** For the payer's page: how much has arrived (confirmed, and seen in total) against the amount. */
+const progressOf = (r: typeof paymentRequests.$inferSelect) => ({
+  progress: requestProgress(r),
+  amount_zat: r.amount_zat.toString(),
+  received_zat: r.received_zat.toString(),
+  seen_zat: r.seen_zat.toString(),
+});
 const NOT_REFUNDED: ActionState[] = ['REJECTED', 'FAILED', 'EXPIRED', 'CANCELLED'];
 const SPKI_ED25519_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 
 export interface Receipt {
-  version: 'lute-receipt-v1';
+  /** v1: item_hash = SHA-256(item), guessable for short items. v2: a salted commitment (itemCommitment). */
+  version: 'lute-receipt-v1' | 'lute-receipt-v2';
   receipt_id: string;
   order_id: string;
   network: Network;
@@ -61,6 +69,12 @@ export function canonical(v: unknown): string {
   }
   return JSON.stringify(v);
 }
+
+/**
+ * v2 item hash: SHA-256 over a secret salt and the item text, so nobody can test guesses against a
+ * receipt. The merchant can reveal the salt (shown on its order view) to prove what was bought.
+ */
+export const itemCommitment = (saltHex: string, item: string) => createHash('sha256').update(`lute-item-v2|${saltHex}|${item}`, 'utf8').digest('hex');
 
 const receiptMessage = (r: Receipt) => Buffer.from(`lute-receipt-v1|${createHash('sha256').update(canonical(r)).digest('hex')}`, 'utf8');
 
@@ -102,20 +116,23 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
     return { id: k.id, publicHex: k.public_key, sign: (m) => sign(null, m, priv).toString('hex') };
   }
 
+  /** Per-order salt: derived from a deterministic Ed25519 signature, so it is secret and needs no storage. */
+  const itemSalt = async (orderId: string) => createHash('sha256').update((await receiptKey()).sign(Buffer.from(`lute-item-salt|${orderId}`, 'utf8'))).digest('hex').slice(0, 32);
+
   /** Refreshes the order's request; issues the receipt the first time it is PAID. */
   async function sync(o: typeof orders.$inferSelect) {
     const r = await refreshRequest(reqDeps, o.request_id);
     if (r && r.status === 'PAID' && !o.receipt_json) {
       const key = await receiptKey();
       const receipt: Receipt = {
-        version: 'lute-receipt-v1',
+        version: 'lute-receipt-v2',
         receipt_id: opaqueId(),
         order_id: o.id,
         network: d.network,
         amount_zat: o.amount_zat.toString(),
         paid_zat: r.received_zat.toString(),
         txids: (r.txids as string[]) ?? [],
-        item_hash: createHash('sha256').update(d.cipher.decrypt(o.item_enc, itemAad(o.id))).digest('hex'),
+        item_hash: itemCommitment(await itemSalt(o.id), d.cipher.decrypt(o.item_enc, itemAad(o.id))),
         paid_at: d.now(),
         key_id: key.id,
       };
@@ -151,6 +168,8 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
       share_path: `/r/${req.id}`,
       expires_at: req.expires_at,
       receipt_id: receipt?.receipt_id ?? null,
+      // Reveal this to a customer only to prove the item: SHA-256("lute-item-v2|<salt>|<item>") = item_hash.
+      item_salt: receipt?.version === 'lute-receipt-v2' ? await itemSalt(o.id) : null,
       refunded_zat: refunded.toString(),
       refundable_zat: (req.status === 'PAID' ? req.received_zat - refunded : 0n).toString(),
       refunds: rf,
@@ -276,11 +295,11 @@ export function registerCommerceRoutes(app: FastifyInstance, d: CommerceDeps): v
     reply.header('cache-control', 'no-store');
     if (!o) {
       const r = await refreshRequest(reqDeps, req.params.id);
-      return r ? { status: r.status === 'PAID' ? 'PAID' : r.status === 'UNPAID' ? 'OPEN' : r.status, receipt_id: null } : notFound(reply);
+      return r ? { status: r.status === 'PAID' ? 'PAID' : r.status === 'UNPAID' ? 'OPEN' : r.status, ...progressOf(r), receipt_id: null } : notFound(reply);
     }
     const s = await sync(o);
     const receipt = s.o.receipt_json ? (JSON.parse(s.o.receipt_json) as Receipt) : null;
-    return { status: s.r?.status === 'PAID' ? 'PAID' : s.r?.status === 'UNPAID' ? 'OPEN' : s.r?.status, receipt_id: receipt?.receipt_id ?? null };
+    return { status: s.r?.status === 'PAID' ? 'PAID' : s.r?.status === 'UNPAID' ? 'OPEN' : s.r?.status, ...(s.r ? progressOf(s.r) : {}), receipt_id: receipt?.receipt_id ?? null };
   });
 
   app.get<{ Params: { id: string } }>('/v1/public/receipts/:id', async (req, reply) => {

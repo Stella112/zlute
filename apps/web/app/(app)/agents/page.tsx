@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, get, post } from '@/lib/api';
 import { useLoad } from '@/lib/useLoad';
 import { useMe } from '@/components/AppShell';
+import { BackupGate } from '@/components/BackupGate';
 import { canonical, sha256Hex, signText } from '@/lib/ownerKey';
 import { zec, zat, when } from '@/lib/format';
 import { Button, Card, Empty, ErrorNote, Field, PageTitle, StatusBadge, inputCls } from '@/components/ui';
@@ -316,6 +317,7 @@ function FundAgent() {
 }
 
 export default function AgentsPage() {
+  const me = useMe()!;
   const services = useLoad(() => get<{ services: Service[] }>('/v1/meter/services'));
   const grants = useLoad(() => get<{ grants: Grant[] }>('/v1/agent/grants'));
   const [error, setError] = useState<string | null>(null);
@@ -323,7 +325,9 @@ export default function AgentsPage() {
   return (
     <>
       <PageTitle title="AI agents" sub="Give an AI agent a budget you sign once. It can pay for a service by itself, and anything over the budget is refused." />
-      <FundAgent />
+      <BackupGate me={me}>
+        <FundAgent />
+      </BackupGate>
       <Card title="Metered services" className="mb-6">
         {(services.data?.services ?? []).length > 0 && (
           <ul className="mb-4 divide-y divide-line text-sm">

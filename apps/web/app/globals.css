@@ -1,9 +1,10 @@
 @import 'tailwindcss';
 
 /*
- * Lute theme: silver and black. Every colour is a variable with a light and a dark value; the
- * page follows the system setting unless the user picks one (html[data-theme]).
- * Accent: black ink in light mode, silver in dark mode; `on-accent` is the text drawn on it.
+ * Lute theme: warm white and charcoal with a deep teal accent (#146B60). Every colour is a variable
+ * with a light and a dark value; the page follows the system setting unless the user picks one
+ * (html[data-theme]). `on-accent` is the text drawn on the accent. Muted text keeps at least 6:1
+ * contrast on the page background in both themes.
  */
 @theme inline {
   --color-bg: var(--bg);
@@ -30,11 +31,11 @@
   --surface: #fdfcf9;
   --raised: #f0eee8;
   --line: #e3e0d8;
-  --muted: #6e6b64;
+  --muted: #4f4c46;
   --text: #121212;
-  --accent: #141414;
-  --on-accent: #f6f5f1;
-  --accent-soft: rgb(20 20 20 / 0.06);
+  --accent: #146b60;
+  --on-accent: #fbfaf6;
+  --accent-soft: rgb(20 107 96 / 0.09);
   --silver: #8f8b82;
   --ok: #138a5a;
   --warn: #a8700a;
@@ -48,11 +49,11 @@
   --surface: #111112;
   --raised: #18181a;
   --line: #242426;
-  --muted: #9a978f;
+  --muted: #b5b2aa;
   --text: #f1efe9;
-  --accent: #d8d4cb;
-  --on-accent: #0b0b0c;
-  --accent-soft: rgb(216 212 203 / 0.09);
+  --accent: #4fb3a3;
+  --on-accent: #08110f;
+  --accent-soft: rgb(79 179 163 / 0.12);
   --silver: #c9c5bc;
   --ok: #3ccf8e;
   --warn: #e3b341;
@@ -67,11 +68,11 @@
     --surface: #111112;
     --raised: #18181a;
     --line: #242426;
-    --muted: #9a978f;
+    --muted: #b5b2aa;
     --text: #f1efe9;
-    --accent: #d8d4cb;
-    --on-accent: #0b0b0c;
-    --accent-soft: rgb(216 212 203 / 0.09);
+    --accent: #4fb3a3;
+    --on-accent: #08110f;
+    --accent-soft: rgb(79 179 163 / 0.12);
     --silver: #c9c5bc;
     --ok: #3ccf8e;
     --warn: #e3b341;
@@ -135,7 +136,7 @@ body {
   }
 }
 
-/* Display serif (headlines and balances): private-banking typography. */
+/* Display serif for the brand and headlines. */
 .font-display {
   font-family: var(--font-display);
   font-weight: 500;
@@ -143,7 +144,11 @@ body {
   /* Lining figures: old-style numerals make a 1 look like an I, which is unacceptable for money. */
   font-variant-numeric: lining-nums;
 }
+/* Amounts are set in the sans: unambiguous figures for money, serif only for words. */
 .font-display.num {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.03em;
   font-variant-numeric: lining-nums tabular-nums;
 }
 
@@ -253,4 +258,70 @@ body {
   border: 0;
   border-top: 1px solid var(--line);
   margin: 2.5rem 0;
+}
+
+/* Evidence register cards (docs/evidence). */
+.doc .evidence-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  padding: 1.25rem 1.4rem;
+  margin: 1.25rem 0;
+  scroll-margin-top: 5rem;
+}
+.doc .evidence-card:target {
+  border-color: var(--accent);
+}
+.doc .evidence-meta {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.doc .evidence-meta a {
+  text-decoration: none;
+  color: var(--accent);
+}
+.doc .evidence-meta .env,
+.doc .evidence-meta .env-main {
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+  font-weight: 500;
+  font-size: 12px;
+  background: var(--raised);
+  color: var(--muted);
+}
+.doc .evidence-meta .env-main {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.doc .evidence-card h3 {
+  margin: 0.5rem 0 0.8rem;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.doc .evidence-card dl {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 13.5px;
+  margin: 0;
+}
+.doc .evidence-card dt {
+  color: var(--muted);
+}
+.doc .evidence-card dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .doc .evidence-card dl {
+    grid-template-columns: 1fr;
+  }
+  .doc .evidence-card dd {
+    margin-bottom: 0.5rem;
+  }
 }

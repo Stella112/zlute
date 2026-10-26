@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useMe } from '@/components/AppShell';
-import { exportBackup, importBackup, publicKey } from '@/lib/ownerKey';
+import { importBackup, publicKey } from '@/lib/ownerKey';
+import { downloadBackup } from '@/components/BackupGate';
 import { Button, Card, ErrorNote, PageTitle } from '@/components/ui';
 import { short } from '@/lib/format';
 
@@ -35,15 +36,7 @@ export default function SettingsPage() {
               {local === me.owner_pub && (
                 <Button
                   variant="ghost"
-                  onClick={async () => {
-                    const json = await exportBackup(me.username);
-                    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `lute-key-${me.username}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
+                  onClick={() => void downloadBackup(me.username, me.owner_pub!)}
                 >
                   Download key backup
                 </Button>
@@ -71,14 +64,15 @@ export default function SettingsPage() {
             </div>
             <ErrorNote error={error} />
             {note && <p className="text-ok">{note}</p>}
-            <p className="text-xs text-muted">The backup file can approve payments from your wallets. Keep it private. Lute never receives it.</p>
+            <p className="text-xs text-muted">The backup file can approve payouts from your wallets. Keep it private; Lute never receives it. It is not a wallet recovery phrase: it restores approvals on Lute, not the funds.</p>
           </div>
         )}
       </Card>
       <Card title="Custody">
         <p className="text-sm text-muted">
-          Your Lute wallets (merchant, payout, agent) are hot wallets on the operator&apos;s server, each with its own sealed seed. Payments out of them need your approval key, or an agent
-          mandate you signed. Payers always pay from their own wallets.
+          Lute is custodial. Your Lute wallets (merchant, payout, agent) are hot wallets on the operator&apos;s server, each with its own sealed seed. Lute&apos;s software pays out only with
+          your approval key or an agent budget you signed; whoever operates the server could bypass that, and there is no wallet recovery phrase yet. Keep working balances only. Payers always pay
+          from their own wallets.
         </p>
       </Card>
     </>

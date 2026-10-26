@@ -64,7 +64,7 @@ function StreamsInner() {
   const list = useLoad(() => get<{ streams: Stream[] }>('/v1/streams'));
   return (
     <>
-      <PageTitle title="Streams" sub="Pay someone by the second, like a salary. Earnings build up live; each payout is a private payment you approve." />
+      <PageTitle title="Streams" sub="Pay someone by the second, like a salary. Earnings accrue live as a figure; money moves only in the payouts you approve, each a shielded payment." />
       {creating ? <NewStream onCancel={() => setCreating(false)} /> : <Button className="mb-6" onClick={() => setCreating(true)}>Start stream</Button>}
       <Card>
         {(list.data?.streams ?? []).length === 0 ? (
@@ -76,10 +76,10 @@ function StreamsInner() {
                 <tr>
                   <th className="pb-2 font-medium">Stream</th>
                   <th className="pb-2 font-medium">Status</th>
-                  <th className="pb-2 text-right font-medium">Earned</th>
-                  <th className="pb-2 text-right font-medium">Pending</th>
-                  <th className="pb-2 text-right font-medium">Paid (confirmed)</th>
-                  <th className="pb-2 text-right font-medium">Outstanding</th>
+                  <th className="pb-2 text-right font-medium">Accrued</th>
+                  <th className="pb-2 text-right font-medium">Payout confirming</th>
+                  <th className="pb-2 text-right font-medium">Paid out</th>
+                  <th className="pb-2 text-right font-medium">Owed (needs a payout)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">

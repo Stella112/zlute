@@ -63,7 +63,10 @@ export default function ReceiptPage() {
               <dt className="text-muted">Receipt key</dt>
               <dd className="break-all font-mono text-xs">{short(data.public_key, 10)}</dd>
             </dl>
-            <p className="mt-4 text-xs text-muted">The receipt contains no addresses and no item description. The payment itself was a shielded Zcash transaction.</p>
+            <p className="mt-4 text-xs text-muted">
+              Anyone with this link sees the amount, the date and the transaction id. The receipt contains no addresses and no item description, but the item hash can be matched by someone who can guess the
+              item text. The transaction id identifies the shielded transaction on chain, not its contents.
+            </p>
           </>
         )}
       </div>

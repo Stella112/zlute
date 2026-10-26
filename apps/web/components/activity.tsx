@@ -33,11 +33,13 @@ function actionStatus(s: string, expiresAt: number): ActivityItem['status'] {
   return { label: s === 'EXPIRED' ? 'Expired' : 'Failed', tone: 'muted' };
 }
 
-function requestStatus(s: RequestRow['status']): ActivityItem['status'] {
-  if (s === 'PAID') return { label: 'Received', tone: 'ok' };
-  if (s === 'PENDING') return { label: 'Confirming', tone: 'wait' };
-  if (s === 'UNPAID') return { label: 'Waiting', tone: 'muted' };
-  return { label: 'Expired', tone: 'muted' };
+function requestStatus(r: RequestRow): ActivityItem['status'] {
+  const p = r.progress ?? (r.status === 'PAID' ? 'PAID' : r.status === 'PENDING' ? 'CONFIRMING' : r.status === 'UNPAID' ? 'OPEN' : 'EXPIRED');
+  if (p === 'PAID') return { label: 'Paid', tone: 'ok' };
+  if (p === 'PARTIAL') return { label: 'Partially paid', tone: 'bad' };
+  if (p === 'CONFIRMING') return { label: 'Confirming', tone: 'wait' };
+  if (p === 'OPEN') return { label: 'Waiting', tone: 'muted' };
+  return { label: r.seen_zat && r.seen_zat !== '0' ? 'Expired, part paid' : 'Expired', tone: 'muted' };
 }
 
 export function buildActivity(actions: ActionRow[], requests: RequestRow[]): ActivityItem[] {
@@ -55,8 +57,9 @@ export function buildActivity(actions: ActionRow[], requests: RequestRow[]): Act
     direction: 'in',
     title: r.status === 'PAID' ? 'Payment received' : 'Payment request',
     at: r.created_at,
-    amount_zat: r.status === 'PAID' ? r.received_zat : r.amount_zat,
-    status: requestStatus(r.status),
+    // Paid shows what arrived; partially paid shows what arrived so far; otherwise the amount asked.
+    amount_zat: r.status === 'PAID' ? r.received_zat : r.progress === 'PARTIAL' ? r.seen_zat : r.amount_zat,
+    status: requestStatus(r),
     txid: r.txids[0] ?? null,
     href: `/r/${r.id}`,
   }));
@@ -71,7 +74,7 @@ const TONE: Record<ActivityItem['status']['tone'], string> = {
 };
 
 /** Money that never moved (blocked, failed, expired) is shown struck through, without a sign. */
-const dead = (i: ActivityItem) => i.status.tone === 'bad' || i.status.label === 'Expired' || i.status.label === 'Failed';
+const dead = (i: ActivityItem) => i.status.label === 'Blocked' || i.status.label === 'Expired' || i.status.label === 'Failed';
 /** Only completed or confirming movements carry +/−; a request still waiting has no sign yet. */
 const sign = (i: ActivityItem) => (dead(i) || i.status.label === 'Waiting' ? '' : i.direction === 'in' ? '+' : '−');
 

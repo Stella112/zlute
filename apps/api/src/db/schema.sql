@@ -161,6 +161,9 @@ CREATE TABLE IF NOT EXISTS meter_settlements (
   PRIMARY KEY (session_id, seq)
 );
 
+-- Everything seen for a request, confirmed or not: separates "partially paid" from "confirming".
+ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS seen_zat BIGINT NOT NULL DEFAULT 0;
+
 -- Spends made by an agent carry its grant (budget accounting).
 ALTER TABLE actions ADD COLUMN IF NOT EXISTS grant_id TEXT;
 

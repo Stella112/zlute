@@ -36,7 +36,8 @@ export default function SignupPage() {
           <p className="text-lg font-semibold">Your account is ready.</p>
           <p>
             Your approval key was created <b>in this browser</b>. Every payment out of your wallets needs it. Download a backup now: if you clear this browser&apos;s data or use another device,
-            you restore it in Settings. Anyone with this file can approve payments from your wallets, so keep it private.
+            you restore it in Settings. Anyone with this file can approve payments from your wallets, so keep it private. It is not a wallet recovery phrase: your wallets are held by Lute, and
+            this file restores approvals, not funds. You will be asked to confirm the backup before adding money.
           </p>
           <Button
             onClick={() => {
@@ -106,7 +107,7 @@ export default function SignupPage() {
           {busy ? 'Creating your wallets…' : 'Create account'}
         </Button>
         <p className="text-xs leading-relaxed text-muted">
-          Your shielded wallets are held by Lute; nothing leaves them without the approval key created in this browser. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
+          Lute is custodial: your shielded wallets are held on Lute’s server, and Lute’s software pays out only with the approval key created in this browser. Hosted Lute can see the payment activity it needs to operate. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
         </p>
         <p className="text-center text-xs text-muted">
           Already have an account?{' '}
