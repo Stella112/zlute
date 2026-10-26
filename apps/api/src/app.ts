@@ -287,6 +287,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     };
   });
 
+  // Nothing the API returns may be kept by a browser, proxy or CDN cache (balances, payment state).
+  app.addHook('onSend', async (_req, reply, payload) => {
+    if (!reply.hasHeader('cache-control')) reply.header('cache-control', 'no-store');
+    return payload;
+  });
+
   app.setErrorHandler((err: { statusCode?: number; code?: string; name?: string; stack?: string }, req, reply) => {
     // Never echo internal details (they may contain addresses) (U4). Client errors raised by
     // Fastify itself (415, 400, 413) keep their status and expose only their code.

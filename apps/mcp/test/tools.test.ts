@@ -49,6 +49,25 @@ describe('Lute MCP tools (A6, A8, A9)', () => {
     expect(settle.headers['idempotency-key']).toBe(`mcp-${SID}-3`);
   });
 
+  it('tool output keeps what the next step needs and withholds linking identifiers', () => {
+    const body = {
+      grant_id: 'G'.repeat(22),
+      spent_zat: '15000',
+      remaining_zat: '5000',
+      service: { id: 'V'.repeat(22), name: 'Chain tip API', price_per_call_zat: '1000' },
+      mandate: { id: 'm'.repeat(32), hash: 'h'.repeat(64) },
+      action_id: 'A'.repeat(22),
+      result: { state: 'SUBMITTED', txid: 'ab'.repeat(32) },
+      id: SID,
+      settlements: [{ seq: 1, amount_zat: '15000', state: 'CONFIRMED', txid: 'cd'.repeat(32) }],
+    };
+    const out = render({ status: 200, body }, false);
+    for (const leaked of ['G'.repeat(22), 'V'.repeat(22), 'm'.repeat(32), 'h'.repeat(64), 'A'.repeat(22), 'ab'.repeat(32), 'cd'.repeat(32)]) expect(out).not.toContain(leaked);
+    const j = JSON.parse(out);
+    expect(j).toMatchObject({ spent_zat: '15000', remaining_zat: '5000', id: SID, service: { name: 'Chain tip API' }, result: { state: 'SUBMITTED', broadcast: true } });
+    expect(j.settlements[0]).toEqual({ seq: 1, amount_zat: '15000', state: 'CONFIRMED', broadcast: true });
+  });
+
   it('A9: tool output never contains the token', () => {
     expect(render({ status: 200, body: { ok: true } })).not.toContain(TOKEN);
     expect(() => new LuteAgentClient({ baseUrl: 'http://x', token: 'nope' })).toThrow();

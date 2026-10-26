@@ -71,7 +71,35 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
-/** Tool output: status plus the API's JSON body (which never contains keys or addresses). */
-export function render(r: { status: number; body: unknown }): string {
-  return JSON.stringify({ http_status: r.status, ...(typeof r.body === 'object' && r.body ? r.body : { body: r.body }) }, null, 1);
+/**
+ * Fields the agent never needs to decide its next step. Tool output is copied into the agent's
+ * conversation, which the AI provider stores, so it carries only what the next call needs: status,
+ * amounts, budget, the session id and the action state. Identifiers that link this agent to its
+ * grant, mandate, service or on-chain transactions stay out (docs/PRIVATE-PAID-APIS.md).
+ */
+const WITHHELD = new Set(['grant_id', 'mandate', 'mandate_id', 'mandate_hash', 'txid', 'txids', 'action_id', 'decision_id', 'proposal_hash', 'id_service', 'key_id']);
+
+function minimize(v: unknown, parent = ''): unknown {
+  if (Array.isArray(v)) return v.map((x) => minimize(x, parent));
+  if (v && typeof v === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (WITHHELD.has(k)) {
+        // Keep the fact that a payment was broadcast, not its identifier.
+        if (k === 'txid' && x) out.broadcast = true;
+        continue;
+      }
+      // The service object's id is internal; its name and prices are what the agent needs.
+      if (parent === 'service' && k === 'id') continue;
+      out[k] = minimize(x, k);
+    }
+    return out;
+  }
+  return v;
+}
+
+/** Tool output: status plus the minimized API body (never keys, addresses or linking ids). */
+export function render(r: { status: number; body: unknown }, verbose = process.env.LUTE_MCP_VERBOSE === '1'): string {
+  const body = typeof r.body === 'object' && r.body ? r.body : { body: r.body };
+  return JSON.stringify({ http_status: r.status, ...((verbose ? body : minimize(body)) as object) }, null, 1);
 }
