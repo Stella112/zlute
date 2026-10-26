@@ -20,7 +20,9 @@ class FakeSidecar implements SidecarClient {
   proposedTo: string[] = [];
   calls: string[] = [];
   mandateResult: SidecarResult<ExecuteOutcome> | null = null;
+  delayMs = 0;
   async inspect() {
+    if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
     return this.inspection;
   }
   async propose(_w: string, r: { to: string; amount_zat: bigint }): Promise<SidecarResult<ProposalView>> {
@@ -70,7 +72,11 @@ class FakeReq implements RequestSidecar, MandateSidecar {
   async buildZip321() {
     return 'zcash:x';
   }
-  async sync() {}
+  /** Simulated wallet latency, so concurrent settlements overlap inside executeAction (R1). */
+  delayMs = 0;
+  async sync() {
+    if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
+  }
   async checkRequest(): Promise<RequestCheck> {
     throw new Error('unused');
   }
@@ -199,5 +205,98 @@ describe('agents and metered billing (A group, §19.6/§19.8)', () => {
     const v = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/refresh`)).json();
     expect(v).toMatchObject({ usage_zat: '6000', paid_zat: '6000', due_zat: '0' });
     expect(v.settlements[0].state).toBe('CONFIRMED');
+  });
+
+  // ---- R: payment restrictions (docs/PRIVACY-EVIDENCE.md E-015) ----
+
+  const executes = () => t.sidecar.calls.filter((c) => c.startsWith('execute')).length;
+
+  it('R1: simultaneous settlements of one session pay the usage once', async () => {
+    const { g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 4; i++) await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/call`);
+    t.req.delayMs = t.sidecar.delayMs = 30;
+    const rs = await Promise.all(['race-aaaa1', 'race-bbbb2', 'race-cccc3'].map((k) => asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': k })));
+    expect(rs.filter((r) => r.statusCode === 200)).toHaveLength(1);
+    expect(rs.filter((r) => r.statusCode === 409).map((r) => r.json().error)).toEqual(['NOTHING_DUE', 'NOTHING_DUE']);
+    expect(executes()).toBe(1);
+    expect((await asAgent(g.token, 'GET', '/v1/agent/me')).json()).toMatchObject({ spent_zat: '6000' });
+  });
+
+  it('R1: simultaneous settlements of two sessions cannot together exceed the budget', async () => {
+    const { g } = await grant(); // 15,000 per payment, 25,000 total
+    const a = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    const b = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 10; i++) {
+      await asAgent(g.token, 'POST', `/v1/meter/sessions/${a.id}/call`);
+      await asAgent(g.token, 'POST', `/v1/meter/sessions/${b.id}/call`);
+    }
+    t.req.delayMs = t.sidecar.delayMs = 30;
+    const [ra, rb] = await Promise.all([a, b].map((x, i) => asAgent(g.token, 'POST', `/v1/meter/sessions/${x.id}/settle`, {}, { 'idempotency-key': `two-sess-${i}` })));
+    const states = [ra!.json().result.state, rb!.json().result.state].sort();
+    expect(states).toEqual(['REJECTED', 'SUBMITTED']);
+    expect([ra!.json(), rb!.json()].find((r) => r.result.state === 'REJECTED').result.reasons).toContain('OVER_GRANT_TOTAL');
+    expect(executes()).toBe(1);
+    expect((await asAgent(g.token, 'GET', '/v1/agent/me')).json()).toMatchObject({ spent_zat: '15000', remaining_zat: '10000' });
+  });
+
+  it('R2: a retried settlement cannot charge twice, with the same or a new idempotency key', async () => {
+    const { g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 4; i++) await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/call`);
+    const first = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': 'retry-0001' })).json();
+    const same = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': 'retry-0001' })).json();
+    const fresh = await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': 'retry-0002' });
+    expect(same.action_id).toBe(first.action_id);
+    expect(fresh.statusCode).toBe(409);
+    expect(fresh.json()).toEqual({ error: 'NOTHING_DUE' });
+    expect(executes()).toBe(1);
+  });
+
+  it('R3: a changed recipient is rejected (agent-supplied address ignored; mandate for another address refused)', async () => {
+    const { svc, draft, g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 2; i++) await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/call`);
+    await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, { to: 'uregtest1attacker', recipient: 'uregtest1attacker' }, { 'idempotency-key': 'recip-0001' });
+    expect(t.sidecar.proposedTo).toEqual([SERVICE_ADDR]);
+    const swapped = await owner('POST', '/v1/agent/grants', { agent_name: 'x', service_id: svc.id, mandate: { ...draft.mandate, mandate_id: 'e'.repeat(32), allowed_recipients: ['uregtest1attacker'] }, signature: 'a'.repeat(128) });
+    expect(swapped.json()).toEqual({ error: 'MANDATE_DOES_NOT_MATCH_SERVICE' });
+  });
+
+  it('R4: an expired or a revoked grant pays nothing', async () => {
+    const { g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 2; i++) await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/call`);
+    clock = T0 + 25 * 3600; // the grant (24 h) has expired
+    const r = await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': 'expired-01' });
+    expect(r.statusCode === 401 || r.json().result.reasons.includes('GRANT_EXPIRED')).toBe(true);
+    clock = T0;
+    const { g: g2 } = await grant();
+    const s2 = (await asAgent(g2.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 2; i++) await asAgent(g2.token, 'POST', `/v1/meter/sessions/${s2.id}/call`);
+    await owner('POST', `/v1/agent/grants/${g2.grant_id}/revoke`);
+    const r2 = await asAgent(g2.token, 'POST', `/v1/meter/sessions/${s2.id}/settle`, {}, { 'idempotency-key': 'revoked-01' });
+    expect(r2.statusCode === 401 || r2.json().result.reasons.includes('GRANT_REVOKED')).toBe(true);
+    expect(executes()).toBe(0);
+  });
+
+  it('R5: an owner payout without an approval never executes', async () => {
+    const r = await t.app.inject({ method: 'POST', url: '/v1/actions/send', headers: { cookie: t.cookie, 'idempotency-key': 'noapproval-01' }, payload: { wallet: 'payout', to: SERVICE_ADDR, amount_zec: '0.0001' } });
+    expect(r.json().result.state).toBe('AWAITING_AUTHORIZATION');
+    const bad = await t.app.inject({ method: 'POST', url: `/v1/actions/${r.json().action_id}/authorize`, headers: { cookie: t.cookie }, payload: {} });
+    expect(bad.statusCode).toBe(400);
+    expect(t.sidecar.calls).not.toContain('approve');
+    expect(t.sidecar.calls).not.toContain('execute');
+  });
+
+  it('R6: a transparent destination is rejected before any proposal', async () => {
+    const { g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    for (let i = 0; i < 2; i++) await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/call`);
+    t.sidecar.inspection = { ...t.sidecar.inspection, verdict: 'DENIED_TRANSPARENT', has_transparent: true, payable_pools: [] };
+    const r = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': 'transp-001' })).json();
+    expect(r.result.state).toBe('REJECTED');
+    expect(t.sidecar.proposedTo).toEqual([]);
+    expect(executes()).toBe(0);
   });
 });

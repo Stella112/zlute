@@ -76,6 +76,20 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'NOT_FOUND' });
   const svcAad = (id: string) => `lute-meter-service|${id}|address`;
   let lastServiceSync = 0;
+  // Settlements for one grant run one at a time: "what is due" and "what is left of the budget"
+  // are read and acted on without another settlement interleaving (R1). The sidecar's mandate
+  // reservation is atomic as well, so a second API process could not overspend either.
+  const settling = new Map<string, Promise<unknown>>();
+  function serialized<T>(key: string, f: () => Promise<T>): Promise<T> {
+    const prev = settling.get(key) ?? Promise.resolve();
+    const run = prev.then(f, f);
+    const tail = run.catch(() => undefined);
+    settling.set(key, tail);
+    void tail.then(() => {
+      if (settling.get(key) === tail) settling.delete(key);
+    });
+    return run;
+  }
 
   async function owner(req: FastifyRequest) {
     const u = await d.user(req);
@@ -326,7 +340,13 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const idem = req.headers['idempotency-key'];
     if (typeof idem !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(idem)) return reply.code(400).send({ error: 'IDEMPOTENCY_KEY_REQUIRED' });
     const caller: Caller = req.headers['x-lute-caller'] === 'mcp' ? 'mcp' : 'sdk';
+    return serialized(g.id, () => settle(g, s, idem, caller, reply));
+  });
 
+  async function settle(g: typeof agentGrants.$inferSelect, s: typeof meterSessions.$inferSelect, idem: string, caller: Caller, reply: FastifyReply) {
+    // Re-read the grant inside the lock: a revocation that landed while waiting applies.
+    g = (await d.db.select().from(agentGrants).where(eq(agentGrants.id, g.id)).limit(1))[0]!;
+    s = (await d.db.select().from(meterSessions).where(eq(meterSessions.id, s.id)).limit(1))[0]!;
     let action = await d.store.findByIdempotency(g.owner_user_id, `agent:${g.id}:${idem}`);
     if (!action) {
       const v = await sessionView(s);
@@ -377,7 +397,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
       { actionId: action.id, principal, caller, idempotencyKey: action.idempotency_key },
     );
     return { action_id: action.id, result };
-  });
+  }
 
   /** Moves submitted settlements to CONFIRMED once mined with enough confirmations. */
   app.post<{ Params: { id: string } }>('/v1/meter/sessions/:id/refresh', async (req, reply) => {

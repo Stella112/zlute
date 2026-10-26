@@ -72,6 +72,9 @@ impl ControlDb {
     }
 
     fn init(conn: Connection) -> rusqlite::Result<Self> {
+        // Concurrent writers (other connections or processes) wait for BEGIN IMMEDIATE instead of
+        // failing at once; budget checks then run one at a time.
+        conn.busy_timeout(std::time::Duration::from_secs(10))?;
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
              CREATE TABLE IF NOT EXISTS proposals (
@@ -814,6 +817,119 @@ mod tests {
             rm(&mut db, &[s], 0, "uregtest1x", MID, NOW + 10),
             Err(Denial::MandateExpired)
         );
+    }
+
+    fn temp_db_path(tag: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "lute-control-{tag}-{}-{nanos}.db",
+            std::process::id()
+        ))
+    }
+
+    /// R1: settlements racing from separate connections (as separate requests or processes would)
+    /// cannot together exceed a mandate's budget. 8 × 10,000 zat against a 30,000 budget, two
+    /// writers at once: exactly three reserve.
+    #[test]
+    fn r1_concurrent_mandate_spends_cannot_exceed_budget() {
+        let path = temp_db_path("r1");
+        let ps = {
+            let db = ControlDb::open(&path).unwrap();
+            let (m, sig) = mandate(30_000, 20_000);
+            db.record_mandate(&m, &sig, NOW).unwrap();
+            (0..8)
+                .map(|i| {
+                    let s = summary(&format!("m{i}"), 10_000);
+                    db.insert_proposal(&s, b"x").unwrap();
+                    s
+                })
+                .collect::<Vec<_>>()
+        };
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let handles: Vec<_> = (0..2)
+            .map(|t| {
+                let (path, ps, barrier) = (path.clone(), ps.clone(), barrier.clone());
+                std::thread::spawn(move || {
+                    let mut db = ControlDb::open(&path).unwrap();
+                    barrier.wait();
+                    (0..4)
+                        .map(|k| {
+                            let i = t * 4 + k;
+                            rm(&mut db, &ps, i, "uregtest1x", MID, NOW + 1)
+                        })
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        let results: Vec<_> = handles
+            .into_iter()
+            .flat_map(|h| h.join().unwrap())
+            .collect();
+        let ok = results.iter().filter(|r| r.is_ok()).count();
+        assert_eq!(ok, 3, "{results:?}");
+        assert!(results
+            .iter()
+            .filter(|r| r.is_err())
+            .all(|r| *r == Err(Denial::OverMandateTotal)));
+        assert_eq!(
+            ControlDb::open(&path)
+                .unwrap()
+                .mandate_usage(MID)
+                .unwrap()
+                .1,
+            30_000
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// R2: the same approved payout submitted twice at once (a retry racing the original) is
+    /// reserved, and so charged, once.
+    #[test]
+    fn r2_concurrent_retry_of_one_payout_charges_once() {
+        let path = temp_db_path("r2");
+        let s = {
+            let db = ControlDb::open(&path).unwrap();
+            let s = summary("p", 1_000_000);
+            db.insert_proposal(&s, b"x").unwrap();
+            db.record_approval(
+                &owner().verifying_key(),
+                "regtest",
+                &s.hash(),
+                &sign(&s.hash()),
+                NOW,
+            )
+            .unwrap();
+            s
+        };
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+        let results: Vec<_> = (0..4)
+            .map(|_| {
+                let (path, hash, barrier) = (path.clone(), s.hash(), barrier.clone());
+                std::thread::spawn(move || {
+                    let mut db = ControlDb::open(&path).unwrap();
+                    barrier.wait();
+                    db.reserve(&owner().verifying_key(), "regtest", "p", &hash, NOW + 1)
+                })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .collect();
+        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1, "{results:?}");
+        assert!(results
+            .iter()
+            .filter(|r| r.is_err())
+            .all(|r| *r == Err(Denial::ApprovalAlreadyUsed)));
+        let spends: i64 = ControlDb::open(&path)
+            .unwrap()
+            .conn
+            .query_row("SELECT COUNT(*) FROM spends", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(spends, 1);
+        let _ = std::fs::remove_file(&path);
     }
 
     /// W14/W15: the daily cap counts reserved, submitted and ambiguous spends; released frees it.
