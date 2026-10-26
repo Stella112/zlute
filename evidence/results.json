@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-26T13:42:14.689Z",
- "commit": "ad91af59f00bf35f07edfdfd62a16d22590aa007",
+ "generated_at": "2026-10-26T14:25:34.506Z",
+ "commit": "515eb7d400095f7bdf474d78909fd0ff2a182e73",
  "dirty": false,
  "suites": [
   {
@@ -21,7 +21,7 @@
   {
    "name": "api",
    "source": "local",
-   "passed": 42,
+   "passed": 51,
    "failed": 0,
    "skipped": 0
   },
@@ -927,6 +927,30 @@
   },
   {
    "suite": "api",
+   "file": "apps/api/test/commerce.test.ts",
+   "name": "commerce: checkout, signed receipts, refunds (§19.3, U10) an order is a payment request; no receipt until it is PAID",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/commerce.test.ts",
+   "name": "commerce: checkout, signed receipts, refunds (§19.3, U10) U10: the receipt verifies; a tampered receipt does not; it carries no address or item text",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/commerce.test.ts",
+   "name": "commerce: checkout, signed receipts, refunds (§19.3, U10) refunds: only after payment, never more than was paid, owner-approved through LuteGuard",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/commerce.test.ts",
+   "name": "commerce: checkout, signed receipts, refunds (§19.3, U10) other users get 404; unknown receipts are 404",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
    "file": "apps/api/test/sidecar.test.ts",
    "name": "sidecar HMAC client matches the sidecar signature vector",
    "status": "passed"
@@ -989,6 +1013,36 @@
    "suite": "api",
    "file": "apps/api/test/streams.test.ts",
    "name": "streams API (S group) refuses transparent recipients, nothing-due settlements, and other users (U6)",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/subs-groups.test.ts",
+   "name": "subscriptions (§19.7) status rule: ACTIVE when the period is paid, DUE inside grace, LAPSED after, CANCELLED wins",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/subs-groups.test.ts",
+   "name": "subscriptions (§19.7) each period gets its own invoice; paying it makes the subscription ACTIVE until the period ends",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/subs-groups.test.ts",
+   "name": "subscriptions (§19.7) the subscriber page shows status and the invoice to pay, nothing about the merchant; cancel stops billing",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/subs-groups.test.ts",
+   "name": "groups (§19.4) splits exactly: shares differ by at most 1 zat and sum to the total",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/subs-groups.test.ts",
+   "name": "groups (§19.4) one request per member with its own address; the organizer sees who paid",
    "status": "passed"
   },
   {
@@ -1558,6 +1612,16 @@
     "d637d8f0fd5bd02d73ffc44bcbd28784ab6e19a11367e30f855cc6a2af01b752"
    ],
    "limits": "The agent here is Claude driving the MCP server from Claude Code (a Claude Desktop chat client was configured, but the app rewrote its config on quit). The metered API is an operator-run demo receiving into the `merchant` wallet. Agent tokens are bearer tokens: anyone holding one can spend inside the grant until it is revoked or expires."
+  },
+  {
+   "id": "E-012",
+   "env": "regtest",
+   "claim": "Commerce on regtest through the real API code: a checkout is paid by a separate wallet using the ZIP-321 request (address + memo), becomes PAID only when confirmed, gets an Ed25519-signed receipt with no address or item text that verifies (a tampered copy does not), and a partial refund is owner-approved through LuteGuard, capped at what was paid, and verified by the refund recipient",
+   "txids": [
+    "33ed4033c5a5e7e70ebb25892e59af153498dc89a3cda7033aae182e4227812a",
+    "7d9b68260c0a9a80ba204d48613eca8b0ad15a81ce415745401b6ddc988032b0"
+   ],
+   "limits": "A first run left the refund SUBMITTED (merchant wallet not synced before the confirmation check); fixed and re-run (this row). Receipts are signed by a key held by the operator (encrypted at rest); they prove what the merchant attests, not more. A refund needs an address from the customer (a shielded payment does not reveal its sender)."
   },
   {
    "id": "E-003",
