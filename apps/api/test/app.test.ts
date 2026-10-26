@@ -227,6 +227,22 @@ describe('API', () => {
   });
 });
 
+describe('public deployment guards', () => {
+  it('password guessing is rate limited per client IP', async () => {
+    const t = await setup();
+    const codes: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      const r = await t.app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'maris', password: 'wrong-password!!' }, headers: { 'x-forwarded-for': '203.0.113.7' } });
+      codes.push(r.statusCode);
+    }
+    expect(codes.slice(0, 10).every((c) => c === 401)).toBe(true);
+    expect(codes.slice(10)).toEqual([429, 429]);
+    // Another client is unaffected.
+    const other = await t.app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'maris', password: PW }, headers: { 'x-forwarded-for': '198.51.100.9' } });
+    expect(other.statusCode).toBe(200);
+  });
+});
+
 describe('U9 logger redaction', () => {
   it('drops sensitive keys at any depth and buckets amounts', () => {
     const out = redact({ action: { to: RECIPIENT, memo: 'LUTE:x', amount_zat: 1_000_000n, nested: [{ ufvk: 'uview1…', seed: 'x' }] }, state: 'SUBMITTED' });

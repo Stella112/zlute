@@ -40,6 +40,10 @@ pub struct ApiConfig {
     pub secret: Vec<u8>,
     pub owner_pub: PathBuf,
     pub network: NetworkKind,
+    /// Wallet creation over the API is enabled only when both are set: key-encryption-key files
+    /// go to `keys_dir` (outside every wallet directory), wallets sync from `lightwalletd`.
+    pub keys_dir: Option<PathBuf>,
+    pub lightwalletd: Option<String>,
 }
 
 struct AppState {
@@ -47,6 +51,8 @@ struct AppState {
     secret: Vec<u8>,
     owner_pub: PathBuf,
     network: NetworkKind,
+    keys_dir: Option<PathBuf>,
+    lightwalletd: Option<String>,
     nonces: Mutex<HashMap<String, u64>>,
 }
 
@@ -191,6 +197,20 @@ fn from_anyhow(e: anyhow::Error) -> Response {
     }
     err(StatusCode::INTERNAL_SERVER_ERROR, "SIDECAR_ERROR")
 }
+
+/// The owner key that approves spends from wallet `name`: the wallet's own `owner.pub` (written
+/// once at creation, never changed by any route) or, for wallets created before per-wallet keys,
+/// the install-wide owner key.
+fn owner_pub_for(st: &AppState, name: &str) -> PathBuf {
+    let own = st.wallets_root.join(name).join(OWNER_PUB_FILE);
+    if own.exists() {
+        own
+    } else {
+        st.owner_pub.clone()
+    }
+}
+
+const OWNER_PUB_FILE: &str = "owner.pub";
 
 fn valid_wallet_name(n: &str) -> bool {
     (1..=32).contains(&n.len())
@@ -357,11 +377,12 @@ async fn h_approve(
     UrlPath((w, id)): UrlPath<(String, String)>,
     Json(r): Json<ApproveReq>,
 ) -> Response {
+    let owner_pub = owner_pub_for(&st, &w);
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
         Err(r) => return *r,
     };
-    match w.approve(&id, &r.signature, &st.owner_pub) {
+    match w.approve(&id, &r.signature, &owner_pub) {
         Ok(()) => Json(json!({ "approved": true })).into_response(),
         Err(e) => from_anyhow(e),
     }
@@ -371,14 +392,64 @@ async fn h_execute(
     State(st): State<Arc<AppState>>,
     UrlPath((w, id)): UrlPath<(String, String)>,
 ) -> Response {
+    let owner_pub = owner_pub_for(&st, &w);
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
         Err(r) => return *r,
     };
-    match w.execute(&id, &st.owner_pub).await {
+    match w.execute(&id, &owner_pub).await {
         Ok(o) => Json(o).into_response(),
         Err(e) => from_anyhow(e),
     }
+}
+
+#[derive(Deserialize)]
+struct CreateWalletReq {
+    name: String,
+    /// The wallet owner's Ed25519 public key (hex). Stored once; no route can change it.
+    owner_pub: String,
+}
+
+/// Creates a wallet (fresh seed sealed with its own key-encryption-key file) bound to its owner's
+/// approval key. Refuses existing names; disabled unless keys_dir and lightwalletd are configured.
+async fn h_create_wallet(
+    State(st): State<Arc<AppState>>,
+    Json(r): Json<CreateWalletReq>,
+) -> Response {
+    let (Some(keys_dir), Some(server)) = (st.keys_dir.as_ref(), st.lightwalletd.as_ref()) else {
+        return err(StatusCode::NOT_FOUND, "WALLET_CREATION_DISABLED");
+    };
+    if !valid_wallet_name(&r.name) {
+        return err(StatusCode::BAD_REQUEST, "BAD_WALLET_NAME");
+    }
+    if crate::approval::parse_owner_pubkey(&r.owner_pub).is_err() {
+        return err(StatusCode::BAD_REQUEST, "BAD_OWNER_PUB");
+    }
+    let dir = st.wallets_root.join(&r.name);
+    if dir.exists() {
+        return err(StatusCode::CONFLICT, "WALLET_EXISTS");
+    }
+    let net = match st.network {
+        NetworkKind::Main => "main",
+        NetworkKind::Test => "test",
+        NetworkKind::Regtest => "regtest",
+    };
+    let kek = keys_dir.join(format!("{net}-{}.kek", r.name));
+    if kek.exists() {
+        return err(StatusCode::CONFLICT, "WALLET_EXISTS");
+    }
+    if let Err(e) = Wallet::init(&dir, &r.name, st.network, server, None, Some(&kek)).await {
+        return from_anyhow(e);
+    }
+    let written = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(dir.join(OWNER_PUB_FILE))
+        .and_then(|mut f| std::io::Write::write_all(&mut f, r.owner_pub.trim().as_bytes()));
+    if written.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "SIDECAR_ERROR");
+    }
+    Json(json!({ "name": r.name, "owner_key": "set" })).into_response()
 }
 
 #[derive(Deserialize)]
@@ -393,11 +464,12 @@ async fn h_load_mandate(
     UrlPath(w): UrlPath<String>,
     Json(r): Json<LoadMandateReq>,
 ) -> Response {
+    let owner_pub = owner_pub_for(&st, &w);
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
         Err(r) => return *r,
     };
-    match w.load_mandate(&r.mandate_json, &r.signature, &st.owner_pub) {
+    match w.load_mandate(&r.mandate_json, &r.signature, &owner_pub) {
         Ok(v) => Json(v).into_response(),
         Err(e) => from_anyhow(e),
     }
@@ -427,14 +499,12 @@ async fn h_execute_mandate(
     UrlPath((w, id)): UrlPath<(String, String)>,
     Json(r): Json<ExecuteMandateReq>,
 ) -> Response {
+    let owner_pub = owner_pub_for(&st, &w);
     let w = match open_wallet(&st, &w) {
         Ok(w) => w,
         Err(r) => return *r,
     };
-    match w
-        .execute_with_mandate(&id, &r.mandate_id, &st.owner_pub)
-        .await
-    {
+    match w.execute_with_mandate(&id, &r.mandate_id, &owner_pub).await {
         Ok(o) => Json(o).into_response(),
         Err(e) => from_anyhow(e),
     }
@@ -465,6 +535,8 @@ pub fn router(cfg: &ApiConfig) -> Router {
         wallets_root: cfg.wallets_root.clone(),
         secret: cfg.secret.clone(),
         owner_pub: cfg.owner_pub.clone(),
+        keys_dir: cfg.keys_dir.clone(),
+        lightwalletd: cfg.lightwalletd.clone(),
         network: cfg.network,
         nonces: Mutex::new(HashMap::new()),
     });
@@ -483,6 +555,7 @@ pub fn router(cfg: &ApiConfig) -> Router {
             post(h_execute_mandate),
         )
         .route("/v1/wallets/{w}/mandates", post(h_load_mandate))
+        .route("/v1/wallets", post(h_create_wallet))
         .route("/v1/wallets/{w}/mandates/{id}", get(h_mandate))
         .route("/v1/wallets/{w}/verify", post(h_verify))
         .route("/v1/wallets/{w}/requests/check", post(h_check))
@@ -652,6 +725,8 @@ mod tests {
             secret: SECRET.to_vec(),
             owner_pub: PathBuf::from("/nonexistent"),
             network: NetworkKind::Regtest,
+            keys_dir: None,
+            lightwalletd: None,
         };
         assert!(serve(cfg).await.is_err());
     }

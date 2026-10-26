@@ -13,6 +13,7 @@ import { registerRequestRoutes } from './requests.js';
 import { registerStreamRoutes } from './streams.js';
 import type { MandateSidecar, RequestSidecar } from './sidecar.js';
 import { PgActionStore, type Db } from './db/store.js';
+import { clientIp, LIMITS, RateLimiter } from './ratelimit.js';
 
 export interface AppDeps {
   db: Db;
@@ -82,15 +83,24 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   /** Same 404 for "does not exist" and "not yours" (U6). */
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'NOT_FOUND' });
 
+  // LUTE_APP_ORIGIN may list several origins (public site + the owner's SSH-tunnel origin).
+  const origins = new Set(deps.appOrigin.split(',').map((o) => o.trim()).filter(Boolean));
   const sameOrigin = (req: FastifyRequest) => {
     const o = req.headers.origin;
-    return o === undefined || o === deps.appOrigin;
+    return o === undefined || origins.has(o);
   };
+  const limiter = new RateLimiter(deps.now);
 
   app.addHook('onRequest', async (req, reply) => {
     // State-changing requests from a browser must come from the app origin (CSRF defense in
     // addition to SameSite=Strict cookies).
     if (req.method !== 'GET' && !sameOrigin(req)) return reply.code(403).send({ error: 'BAD_ORIGIN' });
+    const ip = clientIp(req);
+    const kind = req.url.startsWith('/v1/auth/') ? 'auth' : req.method === 'GET' ? 'read' : 'write';
+    if (!limiter.take(`${kind}|${ip}`, LIMITS[kind])) {
+      reply.header('retry-after', String(LIMITS[kind].windowS));
+      return reply.code(429).send({ error: 'RATE_LIMITED' });
+    }
   });
 
   registerRequestRoutes(app, { db: deps.db, cipher: deps.cipher, sidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });

@@ -57,6 +57,13 @@ enum Cmd {
         secret_file: PathBuf,
         #[arg(long, default_value = "/opt/zlute/owner.pub")]
         owner_pub: PathBuf,
+        /// Enables wallet creation over the API: key-encryption-key files are written here
+        /// (outside the wallets directory). Requires --lightwalletd.
+        #[arg(long)]
+        keys_dir: Option<PathBuf>,
+        /// Light-wallet server new wallets sync from, e.g. https://zec.rocks:443.
+        #[arg(long)]
+        lightwalletd: Option<String>,
     },
     /// Query a light-wallet server's GetLightdInfo (chain, height, branch id, upgrade).
     ServerInfo {
@@ -252,13 +259,22 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             network,
             secret_file,
             owner_pub,
+            keys_dir,
+            lightwalletd,
         } => {
+            if let Some(k) = &keys_dir {
+                if k.starts_with(&wallets) {
+                    anyhow::bail!("--keys-dir must be outside the wallets directory");
+                }
+            }
             let cfg = lute_sidecar::api::ApiConfig {
                 listen,
                 wallets_root: wallets,
                 secret: lute_sidecar::api::load_secret(&secret_file)?,
                 owner_pub,
                 network,
+                keys_dir,
+                lightwalletd,
             };
             eprintln!("lute-sidecar API listening on {listen} ({network:?})");
             lute_sidecar::api::serve(cfg).await?;
