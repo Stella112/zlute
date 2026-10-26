@@ -20,6 +20,15 @@ export function generateStaticParams() {
   return Object.keys(DOCS).map((k) => ({ slug: k ? [k] : [] }));
 }
 
+const decode = (t: string) =>
+  t
+    .replace(/<[^>]+>/g, '')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&');
+
 const slugify = (t: string) =>
   t
     .toLowerCase()
@@ -35,8 +44,8 @@ function load(key: string) {
   const renderer = new marked.Renderer();
   renderer.heading = function ({ tokens, depth }: Tokens.Heading) {
     const text = this.parser.parseInline(tokens);
-    const id = slugify(text);
-    if (depth === 2) toc.push({ id, text: text.replace(/<[^>]+>/g, '') });
+    const id = slugify(decode(text));
+    if (depth === 2) toc.push({ id, text: decode(text) });
     return `<h${depth} id="${id}">${text}</h${depth}>`;
   };
   const html = marked.parse(md, { renderer, async: false }) as string;
@@ -56,10 +65,10 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-display text-[1.05em] text-on-accent">L</span>
             <span className="font-display text-lg tracking-tight">Lute</span>
           </Link>
-          <span className="text-sm text-muted">Documentation</span>
+          <span className="hidden text-sm text-muted sm:inline">Documentation</span>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/signup" className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:opacity-90">
+            <Link href="/signup" className="whitespace-nowrap rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:opacity-90">
               Get started
             </Link>
           </div>
@@ -68,15 +77,15 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-10 md:grid-cols-[14rem_1fr]">
         <aside className="md:sticky md:top-24 md:self-start">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">Guides</p>
-          <nav className="mb-6 flex flex-col gap-1 text-sm">
+          <nav className="mb-2 flex gap-4 text-sm md:mb-6 md:flex-col md:gap-1">
             {Object.entries(DOCS).map(([k, d]) => (
               <Link key={k} href={k ? `/docs/${k}` : '/docs'} className={k === key ? 'font-medium' : 'text-muted hover:text-text'}>
                 {d.title}
               </Link>
             ))}
           </nav>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">On this page</p>
-          <nav className="flex flex-col gap-1 text-sm">
+          <p className="mb-2 hidden text-[11px] font-medium uppercase tracking-[0.18em] text-muted md:block">On this page</p>
+          <nav className="hidden flex-col gap-1 text-sm md:flex">
             {toc.map((t) => (
               <a key={t.id} href={`#${t.id}`} className="text-muted hover:text-text">
                 {t.text}
