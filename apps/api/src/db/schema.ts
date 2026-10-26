@@ -173,3 +173,48 @@ export const orderRefunds = pgTable('order_refunds', {
   amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
+
+export const subscriptionPlans = pgTable('subscription_plans', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  name_enc: text('name_enc').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  period_s: bigint('period_s', { mode: 'number' }).notNull(),
+  grace_s: bigint('grace_s', { mode: 'number' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const subscriptions = pgTable('subscriptions', {
+  id: text('id').primaryKey(),
+  plan_id: text('plan_id').notNull(),
+  owner_user_id: text('owner_user_id').notNull(),
+  label_enc: text('label_enc').notNull(),
+  start_ts: bigint('start_ts', { mode: 'number' }).notNull(),
+  cancelled_at: bigint('cancelled_at', { mode: 'number' }),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const subscriptionInvoices = pgTable('subscription_invoices', {
+  subscription_id: text('subscription_id').notNull(),
+  period_no: integer('period_no').notNull(),
+  request_id: text('request_id').notNull(),
+  period_start: bigint('period_start', { mode: 'number' }).notNull(),
+  period_end: bigint('period_end', { mode: 'number' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const paymentGroups = pgTable('payment_groups', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  title_enc: text('title_enc').notNull(),
+  total_zat: bigint('total_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const groupMembers = pgTable('group_members', {
+  group_id: text('group_id').notNull(),
+  idx: integer('idx').notNull(),
+  label_enc: text('label_enc').notNull(),
+  share_zat: bigint('share_zat', { mode: 'bigint' }).notNull(),
+  request_id: text('request_id').notNull(),
+});

@@ -342,7 +342,7 @@ describe('dashboard feeds (§19.10)', () => {
     let s = (await t.app.inject({ method: 'GET', url: '/v1/privacy/status', headers: { cookie } })).json();
     expect(s.run).toBeNull();
     expect(s.modules.find((m: { key: string }) => m.key === 'send').status).toBe('UNTESTED');
-    expect(s.modules.find((m: { key: string }) => m.key === 'groups').status).toBe('ROADMAP');
+    expect(s.modules.find((m: { key: string }) => m.key === 'groups').status).toBe('UNTESTED');
     writeFileSync(
       RESULTS_FILE,
       JSON.stringify({ schema: 'lute-results/1', generated_at: 'x', commit: 'c', dirty: false, suites: [], findings: [], reviewed: false, evidence: [], tests: [{ suite: 'luteguard', file: 'packages/luteguard/test/evaluate.test.ts', name: 'a', status: 'failed' }] }),

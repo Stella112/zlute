@@ -62,6 +62,6 @@ describe('feature status (§23)', () => {
 
   it('unimplemented modules are ROADMAP whatever the results say', () => {
     expect(moduleStatus({ ...def, implemented: false }, results()).status).toBe('ROADMAP');
-    expect(computeStatus(results()).find((m) => m.key === 'groups')?.status).toBe('ROADMAP');
+    expect(computeStatus(results()).every((m) => m.status !== 'ROADMAP' || m.reasons[0] === 'Not available in this build')).toBe(true);
   });
 });

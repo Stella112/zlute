@@ -188,3 +188,54 @@ CREATE TABLE IF NOT EXISTS order_refunds (
   created_at BIGINT NOT NULL,
   PRIMARY KEY (order_id, seq)
 );
+
+-- Subscriptions (mandate §19.7): a plan bills each period with a fresh payment request (invoice).
+-- Lute never pulls funds: the subscriber pays each invoice from their own wallet.
+CREATE TABLE IF NOT EXISTS subscription_plans (
+  id            TEXT PRIMARY KEY,
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  name_enc      TEXT NOT NULL,
+  amount_zat    BIGINT NOT NULL CHECK (amount_zat > 0),
+  period_s      BIGINT NOT NULL CHECK (period_s >= 60),
+  grace_s       BIGINT NOT NULL CHECK (grace_s >= 0),
+  created_at    BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id            TEXT PRIMARY KEY,
+  plan_id       TEXT NOT NULL REFERENCES subscription_plans(id),
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  label_enc     TEXT NOT NULL,
+  start_ts      BIGINT NOT NULL,
+  cancelled_at  BIGINT,
+  created_at    BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subscription_invoices (
+  subscription_id TEXT NOT NULL REFERENCES subscriptions(id),
+  period_no       INTEGER NOT NULL CHECK (period_no >= 0),
+  request_id      TEXT NOT NULL UNIQUE REFERENCES payment_requests(id),
+  period_start    BIGINT NOT NULL,
+  period_end      BIGINT NOT NULL,
+  created_at      BIGINT NOT NULL,
+  PRIMARY KEY (subscription_id, period_no)
+);
+
+-- Groups (mandate §19.4): a shared bill split into one payment request per member. Members only
+-- see their own share link; the organizer sees who has paid.
+CREATE TABLE IF NOT EXISTS payment_groups (
+  id            TEXT PRIMARY KEY,
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  title_enc     TEXT NOT NULL,
+  total_zat     BIGINT NOT NULL CHECK (total_zat > 0),
+  created_at    BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  group_id   TEXT NOT NULL REFERENCES payment_groups(id),
+  idx        INTEGER NOT NULL CHECK (idx >= 0),
+  label_enc  TEXT NOT NULL,
+  share_zat  BIGINT NOT NULL CHECK (share_zat > 0),
+  request_id TEXT NOT NULL UNIQUE REFERENCES payment_requests(id),
+  PRIMARY KEY (group_id, idx)
+);
