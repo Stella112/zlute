@@ -6,16 +6,16 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/opt/zlute/bin/lute-sidecar serve --listen 127.0.0.1:48100 --wallets /opt/zlute/wallets/main --network main --secret-file /opt/zlute/keys/api.secret --owner-pub /opt/zlute/owner.pub
+ExecStart=/opt/zlute/bin/lute-sidecar serve --listen 127.0.0.1:48100 --wallets /opt/zlute/wallets/main --network main --secret-file /opt/zlute/keys/api.secret --owner-pub /opt/zlute/owner.pub --keys-dir /opt/zlute/keys --lightwalletd https://zec.rocks:443
 Restart=on-failure
 RestartSec=5
 # Hard limits so Lute can never starve co-tenants (D-005).
 MemoryMax=512M
 CPUQuota=50%
-# Hardening: only the wallet directories are writable.
+# Hardening: only the wallet directories and the key-file directory (new users' wallets) are writable.
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/opt/zlute/wallets/main
+ReadWritePaths=/opt/zlute/wallets/main /opt/zlute/keys
 # Read-only (not hidden): the Sapling proving parameters live in root's home (~/.zcash-params).
 ProtectHome=read-only
 PrivateTmp=true
