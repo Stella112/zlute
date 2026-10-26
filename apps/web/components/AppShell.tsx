@@ -14,7 +14,7 @@ const NAV: { href: string; label: string; off?: boolean }[] = [
   { href: '/agents', label: 'Agents and Meter' },
   { href: '/unavailable/subscriptions', label: 'Subscriptions', off: true },
   { href: '/unavailable/groups', label: 'Groups', off: true },
-  { href: '/unavailable/commerce', label: 'Commerce', off: true },
+  { href: '/commerce', label: 'Commerce' },
   { href: '/activity', label: 'Actions' },
   { href: '/cross-chain', label: 'Cross-Chain' },
   { href: '/privacy', label: 'Privacy Center' },

@@ -3,7 +3,7 @@
 import QRCode from 'qrcode';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ApiError, get } from '@/lib/api';
+import { ApiError, get, post } from '@/lib/api';
 import { decryptDetails } from '@/lib/fragment';
 import { zec, when } from '@/lib/format';
 
@@ -23,11 +23,14 @@ export default function PayPage() {
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [check, setCheck] = useState<{ status: string; receipt_id: string | null } | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     get<PublicRequest>(`/v1/public/requests/${encodeURIComponent(id)}`)
       .then(async (r) => {
         setReq(r);
+        if (r.status === 'PAID') setCheck(await post<{ status: string; receipt_id: string | null }>(`/v1/public/requests/${encodeURIComponent(id)}/check`).catch(() => null));
         if (r.zip321_uri) setQr(await QRCode.toString(r.zip321_uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } }));
         const key = new URLSearchParams(window.location.hash.slice(1)).get('k');
         if (r.details_ciphertext && key) {
@@ -64,10 +67,45 @@ export default function PayPage() {
                     {copied ? 'Copied' : 'Copy payment URI'}
                   </button>
                 </div>
+                <div className="mt-4 text-center">
+                  <button
+                    className="rounded-lg border border-line px-3.5 py-2 text-sm disabled:opacity-60"
+                    disabled={checking}
+                    onClick={async () => {
+                      setChecking(true);
+                      try {
+                        setCheck(await post(`/v1/public/requests/${encodeURIComponent(id)}/check`));
+                      } catch {
+                        setCheck({ status: 'UNAVAILABLE', receipt_id: null });
+                      } finally {
+                        setChecking(false);
+                      }
+                    }}
+                  >
+                    {checking ? 'Checking…' : "I've paid: check"}
+                  </button>
+                  {check && (
+                    <p className="mt-2 text-sm">
+                      {check.status === 'PAID' ? 'Paid and confirmed.' : check.status === 'PENDING' ? 'Payment seen; waiting for confirmations (about 4 minutes).' : check.status === 'OPEN' ? 'Not seen yet. It can take a minute to appear.' : 'Cannot check right now.'}
+                      {check.receipt_id && (
+                        <a className="ml-2 text-accent hover:underline" href={`/receipt/${check.receipt_id}`}>
+                          View receipt
+                        </a>
+                      )}
+                    </p>
+                  )}
+                </div>
                 <p className="mt-4 text-center text-[11px] text-muted">Expires {when(req.expires_at)}</p>
               </>
             ) : (
-              <p className="mt-4 text-sm">{req.status === 'PAID' ? 'This request has been paid.' : 'This request is closed.'}</p>
+              <p className="mt-4 text-sm">
+                {req.status === 'PAID' ? 'This request has been paid.' : 'This request is closed.'}
+                {check?.receipt_id && (
+                  <a className="ml-2 text-accent hover:underline" href={`/receipt/${check.receipt_id}`}>
+                    View receipt
+                  </a>
+                )}
+              </p>
             )}
           </>
         )}

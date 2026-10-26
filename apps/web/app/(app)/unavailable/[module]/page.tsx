@@ -3,7 +3,6 @@ import { Card, PageTitle } from '@/components/ui';
 const NAMES: Record<string, string> = {
   subscriptions: 'Subscriptions',
   groups: 'Groups',
-  commerce: 'Commerce',
 };
 
 export default async function Unavailable({ params }: { params: Promise<{ module: string }> }) {
