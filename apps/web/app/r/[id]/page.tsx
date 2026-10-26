@@ -31,7 +31,7 @@ export default function PayPage() {
       .then(async (r) => {
         setReq(r);
         if (r.status === 'PAID') setCheck(await post<{ status: string; receipt_id: string | null }>(`/v1/public/requests/${encodeURIComponent(id)}/check`).catch(() => null));
-        if (r.zip321_uri) setQr(await QRCode.toString(r.zip321_uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } }));
+        if (r.zip321_uri) setQr(await QRCode.toString(r.zip321_uri, { type: 'svg', margin: 4, errorCorrectionLevel: 'L', color: { dark: '#000000', light: '#ffffff' } }));
         const key = new URLSearchParams(window.location.hash.slice(1)).get('k');
         if (r.details_ciphertext && key) {
           setNote(await decryptDetails(r.details_ciphertext, key).catch(() => '(the note could not be decrypted with this link)'));
@@ -51,7 +51,7 @@ export default function PayPage() {
             {note && <p className="mt-3 whitespace-pre-wrap rounded-md border border-line bg-bg p-3 text-sm">{note}</p>}
             {req.status === 'OPEN' && req.zip321_uri ? (
               <>
-                {qr && <div className="mx-auto mt-5 w-60 overflow-hidden rounded-lg bg-white p-2" dangerouslySetInnerHTML={{ __html: qr }} />}
+                {qr && <div className="mx-auto mt-5 w-full max-w-[18rem] overflow-hidden rounded-lg bg-white" dangerouslySetInnerHTML={{ __html: qr }} />}
                 <p className="mt-4 text-center text-xs text-muted">Scan with a shielded wallet (for example Zodl). The memo is filled in for you; keep it so the payment can be matched.</p>
                 <div className="mt-4 flex justify-center gap-2">
                   <a href={req.zip321_uri} className="rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white">
