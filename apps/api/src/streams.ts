@@ -204,6 +204,9 @@ export function registerStreamRoutes(app: FastifyInstance, d: StreamDeps): void 
       // Unique (stream_id, seq) and unique action_id: a concurrent duplicate fails here (S10).
       await d.db.insert(streamSettlements).values({ stream_id: s.id, seq, action_id: action.id, amount_zat: amount, created_at: d.now() });
     }
+    // The wallet must know the current tip before a proposal is built: its expiry height is
+    // derived from it, and a stale tip yields a transaction that is already expired.
+    if (action.state === 'CREATED') await d.requestSidecar.sync(s.wallet);
     const result = await executeAction(
       { store: d.store, sidecar: d.sidecar, configured_network: d.network, now: d.now, newId: opaqueId },
       { actionId: action.id, principal: { kind: 'owner', id: u.id, authenticated: true }, caller: 'api', idempotencyKey: idem },

@@ -162,6 +162,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         },
         u.id,
       ));
+    // The wallet must know the current tip before a proposal is built: its expiry height is
+    // derived from it, and a stale tip yields a transaction that is already expired.
+    if (action.state === 'CREATED') await deps.requestSidecar.sync(body.data.wallet);
     const principal: Principal = { kind: 'owner', id: u.id, authenticated: true };
     const result = await executeAction(
       { store: deps.store, sidecar: deps.sidecar, configured_network: deps.network, now: deps.now, newId: opaqueId },

@@ -365,6 +365,9 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
       mandate_id: g.mandate_id,
     };
     const principal: Principal = { kind: 'agent', id: g.id, authenticated: true, grant };
+    // The wallet must know the current tip before a proposal is built: its expiry height is
+    // derived from it, and a stale tip yields a transaction that is already expired.
+    if (action.state === 'CREATED') await d.requestSidecar.sync(g.wallet);
     const result = await executeAction(
       { store: d.store, sidecar: d.sidecar, configured_network: d.network, now: d.now, newId: opaqueId },
       { actionId: action.id, principal, caller, idempotencyKey: action.idempotency_key },
