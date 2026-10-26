@@ -70,6 +70,11 @@ const TONE: Record<ActivityItem['status']['tone'], string> = {
   muted: 'bg-raised text-muted',
 };
 
+/** Money that never moved (blocked, failed, expired) is shown struck through, without a sign. */
+const dead = (i: ActivityItem) => i.status.tone === 'bad' || i.status.label === 'Expired' || i.status.label === 'Failed';
+/** Only completed or confirming movements carry +/−; a request still waiting has no sign yet. */
+const sign = (i: ActivityItem) => (dead(i) || i.status.label === 'Waiting' ? '' : i.direction === 'in' ? '+' : '−');
+
 export function ActivityList({ items, network, empty }: { items: ActivityItem[]; network: string; empty: React.ReactNode }) {
   if (items.length === 0) return <div className="py-10 text-center text-sm text-muted">{empty}</div>;
   return (
@@ -86,8 +91,8 @@ export function ActivityList({ items, network, empty }: { items: ActivityItem[];
               <p className="text-xs text-muted">{ago(i.at)}</p>
             </div>
             <div className="text-right">
-              <p className={`num text-[15px] ${i.direction === 'in' && i.status.tone === 'ok' ? 'text-ok' : ''} ${i.status.tone === 'bad' || i.status.tone === 'muted' ? 'text-muted line-through decoration-1' : ''}`}>
-                {i.status.tone === 'bad' || (i.status.tone === 'muted' && i.direction === 'out') ? '' : i.direction === 'in' ? '+' : '−'}
+              <p className={`num text-[15px] ${i.direction === 'in' && i.status.tone === 'ok' ? 'text-ok' : ''} ${dead(i) ? 'text-muted line-through decoration-1' : ''}`}>
+                {sign(i)}
                 {zecShort(i.amount_zat)} <span className="text-xs text-muted">ZEC</span>
               </p>
               <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${TONE[i.status.tone]}`}>{i.status.label}</span>
