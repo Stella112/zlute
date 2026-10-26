@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-26T15:13:48.782Z",
- "commit": "f5db6c0657b83fd3d01bc99643b831624b5c1085",
+ "generated_at": "2026-10-26T20:28:51.055Z",
+ "commit": "4c5abcfac99a7385b3f52c14b1504f23a2730622",
  "dirty": false,
  "suites": [
   {
@@ -21,27 +21,27 @@
   {
    "name": "api",
    "source": "local",
-   "passed": 51,
+   "passed": 55,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "mcp",
    "source": "local",
-   "passed": 5,
+   "passed": 6,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "web",
    "source": "local",
-   "passed": 2,
+   "passed": 5,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "sidecar",
-   "source": "ci run 40244998334 @ 015ea91",
+   "source": "ci run 40393531695 @ db85596",
    "passed": 67,
    "failed": 0,
    "skipped": 0
@@ -862,6 +862,30 @@
   {
    "suite": "api",
    "file": "apps/api/test/app.test.ts",
+   "name": "public deployment guards password guessing is rate limited per client IP",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "self-serve sign-up (public deployment) creates the user's own three wallets bound to their browser key, then signs them in",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "self-serve sign-up (public deployment) existing accounts keep the install wallets; duplicate names, bad keys and a full install are refused",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "self-serve sign-up (public deployment) is absent when sign-up is not enabled; the second configured origin is accepted",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
    "name": "U9 logger redaction drops sensitive keys at any depth and buckets amounts",
    "status": "passed"
   },
@@ -1072,6 +1096,12 @@
   {
    "suite": "mcp",
    "file": "apps/mcp/test/tools.test.ts",
+   "name": "Lute MCP tools (A6, A8, A9) tool output keeps what the next step needs and withholds linking identifiers",
+   "status": "passed"
+  },
+  {
+   "suite": "mcp",
+   "file": "apps/mcp/test/tools.test.ts",
    "name": "Lute MCP tools (A6, A8, A9) A9: tool output never contains the token",
    "status": "passed"
   },
@@ -1088,6 +1118,24 @@
    "status": "passed"
   },
   {
+   "suite": "web",
+   "file": "apps/web/lib/format.test.ts",
+   "name": "consumer formatting drops trailing zeros but stays exact",
+   "status": "passed"
+  },
+  {
+   "suite": "web",
+   "file": "apps/web/lib/format.test.ts",
+   "name": "consumer formatting relative times",
+   "status": "passed"
+  },
+  {
+   "suite": "web",
+   "file": "apps/web/lib/ownerKey.test.ts",
+   "name": "browser approval key: canonical hashing matches the sidecar/lute-owner cross-language vector",
+   "status": "passed"
+  },
+  {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::api::tests",
    "name": "api::tests::cross_language_hmac_vector",
@@ -1096,13 +1144,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::api::tests",
-   "name": "api::tests::tampering_fails",
+   "name": "api::tests::stale_and_malformed_rejected",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::api::tests",
-   "name": "api::tests::stale_and_malformed_rejected",
+   "name": "api::tests::tampering_fails",
    "status": "passed"
   },
   {
@@ -1161,14 +1209,14 @@
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::forged_approval_rejected",
+   "file": "services/wallet-sidecar::approval::tests",
+   "name": "approval::tests::approval_signature_roundtrip_and_binding",
    "status": "passed"
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::approval::tests",
-   "name": "approval::tests::approval_signature_roundtrip_and_binding",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::forged_approval_rejected",
    "status": "passed"
   },
   {
@@ -1204,13 +1252,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w13_approval_reuse_denied",
+   "name": "control::tests::w14_per_tx_cap",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w14_per_tx_cap",
+   "name": "control::tests::w13_approval_reuse_denied",
    "status": "passed"
   },
   {
@@ -1438,13 +1486,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::missing_or_zero_amount_rejected",
+   "name": "zip321req::tests::build_parse_roundtrip",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::build_parse_roundtrip",
+   "name": "zip321req::tests::missing_or_zero_amount_rejected",
    "status": "passed"
   },
   {
@@ -1480,13 +1528,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::opaque_ref_must_be_opaque",
+   "name": "zip321req::tests::wrong_network_denied",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::wrong_network_denied",
+   "name": "zip321req::tests::opaque_ref_must_be_opaque",
    "status": "passed"
   },
   {
@@ -1633,6 +1681,13 @@
     "5c865f17b8206f3ce143d053a5b4546f0764f5a73c2e797c886e4c66a4f40b02"
    ],
    "limits": "Lute never pulls subscription funds (no auto-debit in shielded Zcash): each period is a payment the subscriber makes. Receiving into Lute wallets is the same request path proven on mainnet (E-004)."
+  },
+  {
+   "id": "E-014",
+   "env": "mainnet",
+   "claim": "Mainnet, on-chain audit: every transaction Lute has made or received is fully shielded on chain (no transparent inputs or outputs, no Sprout, exactly one shielded pool, only the fee leaves the shielded pool); a payment to a transparent address is refused by LuteGuard on mainnet before any proposal; request notes and recipient addresses never appear in plaintext in the database",
+   "txids": [],
+   "limits": "`inspect-tx` uses `GetTransaction`, which tells the light server these txids are of interest (they are already public in this repository). The audit covers structure, not timing or network metadata (docs/PRIVATE-PAID-APIS.md)."
   },
   {
    "id": "E-003",
