@@ -140,7 +140,7 @@ export const MODULES: readonly ModuleDef[] = [
     implemented: true,
     moves_money: false,
     tests: [{ suite: 'api', file: /subs-groups\.test/, name: /groups/ }],
-    evidence: [],
+    evidence: ['E-013', 'E-004'],
   },
   {
     key: 'meter',
@@ -156,7 +156,7 @@ export const MODULES: readonly ModuleDef[] = [
     implemented: true,
     moves_money: false,
     tests: [{ suite: 'api', file: /subs-groups\.test/, name: /subscriptions/ }],
-    evidence: [],
+    evidence: ['E-013', 'E-004'],
   },
   {
     key: 'agents',
