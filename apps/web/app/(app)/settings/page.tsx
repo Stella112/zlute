@@ -69,11 +69,19 @@ export default function SettingsPage() {
         )}
       </Card>
       <Card title="Custody">
+        {me.browser_signed ? (
+          <p className="text-sm text-muted">
+            Non-custodial. Your merchant and payout wallets are signed in this browser: Lute holds only viewing keys, so it can show your payments but cannot move your money. Your backup file
+            holds the 24-word recovery phrase, which restores the wallets on another device or in Zodl. The AI-agent wallet, if you fund one, is the exception: Lute holds it so an agent can
+            pay inside the budget you sign, so keep only a small budget there.
+          </p>
+        ) : (
         <p className="text-sm text-muted">
           Lute is custodial. Your Lute wallets (merchant, payout, agent) are hot wallets on the operator&apos;s server, each with its own sealed seed. Lute&apos;s software pays out only with
           your approval key or an agent budget you signed; whoever operates the server could bypass that, and there is no wallet recovery phrase yet. Keep working balances only. Payers always pay
           from their own wallets.
         </p>
+        )}
       </Card>
     </>
   );
