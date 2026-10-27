@@ -14,7 +14,7 @@ on the deployed server. It decides what Lute may claim.
 | What does the operator still see? | Everything a viewing key shows: incoming and outgoing payments, amounts, memos, timing. Non-custodial is not "invisible to Lute". |
 | Exceptions | The **agent** wallet stays Lute-held (an agent pays unattended, inside a signed mandate; keep a small budget). Accounts created before 2026-10-27, including the install owner's, remain custodial as described below. The signer code is served by Lute: a malicious operator could ship a different signer, so the guarantee is against a passive or compromised server, not an operator who changes the code users run. |
 
-Evidence: E-016 (regtest, real sidecar and chain).
+Evidence: E-016 (regtest, every refusal case) and E-017 (mainnet: received from Zodl, paid out with a browser signature, txid e8f1de04…887a, single Ironwood pool).
 
 ## Accounts created before 2026-10-27, and agent wallets: custodial
 
