@@ -46,6 +46,7 @@ export class PgActionStore implements ActionStore {
     if (r.recipient_ref) rec.recipient_ref = r.recipient_ref;
     if (r.memo_kind === 'lute_ref' && r.memo_ref) rec.memo = { kind: 'lute_ref', ref: r.memo_ref };
     if (r.memo_kind === 'user_typed') rec.memo = { kind: 'user_typed' };
+    if (r.memo_kind === 'invoice_ref' && r.memo_ref) rec.memo = { kind: 'invoice_ref', ref: r.memo_ref };
     if (r.memo_text_enc) rec.memo_text = this.cipher.decrypt(r.memo_text_enc, this.aad(r.id, 'memo'));
     if (r.proposal_id) rec.proposal_id = r.proposal_id;
     if (r.proposal_hash) rec.proposal_hash = r.proposal_hash;
@@ -70,7 +71,7 @@ export class PgActionStore implements ActionStore {
       recipient_address_enc: a.recipient_address ? this.cipher.encrypt(a.recipient_address, this.aad(a.id, 'recipient')) : null,
       recipient_ref: a.recipient_ref ?? null,
       memo_kind: memo?.kind ?? null,
-      memo_ref: memo?.kind === 'lute_ref' ? memo.ref : null,
+      memo_ref: memo?.kind === 'lute_ref' || memo?.kind === 'invoice_ref' ? memo.ref : null,
       memo_text_enc: a.memo_text ? this.cipher.encrypt(a.memo_text, this.aad(a.id, 'memo')) : null,
       idempotency_key: a.idempotency_key,
       expires_at: a.expires_at,

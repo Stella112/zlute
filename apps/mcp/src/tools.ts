@@ -1,7 +1,8 @@
 /**
  * Lute MCP tools (mandate §19.8). Each tool is backed by a real API route; nothing else exists.
- * Inputs are opaque session ids (validated) and, for extraction, the document text: an agent cannot
- * name a recipient or an amount, so prompt-injected text cannot redirect or inflate a payment (A8).
+ * Inputs are opaque session ids (validated), document text, and invoices / paid URLs. An agent can
+ * never choose who is paid: an invoice is paid only if its address is the payee the owner signed,
+ * so prompt-injected text cannot redirect a payment; amounts stay inside the signed budget (A8).
  * Amounts are what the metered service says is owed (per call or per page, bounded by the credit
  * limit and the signed budget); recipients are resolved server-side from the grant.
  */
@@ -61,6 +62,49 @@ export const TOOLS: ToolDef[] = [
       quote_id: z.string().regex(/^[A-Za-z0-9_-]{22}$/).optional().describe('A quote from lute_quote_document for this exact text; it is used once.'),
     },
     run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/extract`, {}, { text: a.text, ...(a.quote_id ? { quote_id: a.quote_id } : {}) }),
+  },
+  {
+    name: 'lute_pay_invoice',
+    title: 'Pay an invoice from the API this agent may pay',
+    description:
+      "Pays a Zcash payment request (ZIP-321 'zcash:' URI) issued by the outside API this grant pays, as a shielded payment from the agent wallet. Paid only if the invoice's address is exactly the payee the owner signed, within the budget; its memo may only be a short invoice reference. The same invoice is never paid twice.",
+    input: { uri: z.string().min(8).max(2048).describe("The invoice: a 'zcash:' payment request from the paid API.") },
+    run: (c, a) => c.call('POST', '/v1/agent/invoices/pay', {}, { uri: a.uri }),
+  },
+  {
+    name: 'lute_fetch_paid',
+    title: 'Call a paid API that answers HTTP 402',
+    description:
+      'Calls a paid API (POST with JSON {text}). If it answers 402 with a Zcash payment request, pays it through Lute (only to the payee this grant may pay, within budget) and returns payment_ref. Once the payment is mined (about 1-2 minutes), call again with the same url, text and payment_ref to receive the result.',
+    input: {
+      url: z.string().url().max(512).describe('The paid endpoint (https).'),
+      text: z.string().min(1).max(40000).describe('The request body text, e.g. a document to extract.'),
+      payment_ref: z.string().regex(/^[A-Za-z0-9_-]{22}$/).optional().describe('From the earlier call, once paid.'),
+    },
+    run: async (c, a) => {
+      const url = new URL(a.url ?? '');
+      if (url.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(url.hostname)) return { status: 400, body: { error: 'HTTPS_REQUIRED' } };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(a.payment_ref ? { 'x-payment-ref': a.payment_ref } : {}) },
+        body: JSON.stringify({ text: a.text }),
+      });
+      const body = (await res.json().catch(() => ({ error: `HTTP_${res.status}` }))) as Record<string, unknown>;
+      if (res.status !== 402 || a.payment_ref) return { status: res.status, body: { api_status: res.status, ...body } };
+      const zip321 = typeof body.zip321 === 'string' ? body.zip321 : null;
+      if (!zip321 || typeof body.payment_ref !== 'string') return { status: 402, body: { error: 'NO_ZCASH_PAYMENT_REQUEST', api: body } };
+      const paid = await c.call('POST', '/v1/agent/invoices/pay', {}, { uri: zip321 });
+      return {
+        status: paid.status,
+        body: {
+          api_status: 402,
+          api_price_zat: body.amount_zat,
+          payment: paid.body,
+          payment_ref: body.payment_ref,
+          next: 'When the payment is mined (about 1-2 minutes), call lute_fetch_paid again with the same url, text and this payment_ref.',
+        },
+      };
+    },
   },
   {
     name: 'lute_get_meter_session',

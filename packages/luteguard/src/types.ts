@@ -93,7 +93,12 @@ export interface Principal {
   grant?: AgentGrant;
 }
 
-export type MemoSpec = { kind: 'lute_ref'; ref: string } | { kind: 'user_typed' };
+/**
+ * `invoice_ref`: the reference an external payee put in its own invoice (ZIP-321 memo), so it can
+ * match the payment. Short and character-restricted, so an agent cannot use it as a free-text
+ * channel.
+ */
+export type MemoSpec = { kind: 'lute_ref'; ref: string } | { kind: 'user_typed' } | { kind: 'invoice_ref'; ref: string };
 
 export interface ActionFacts {
   id: string;

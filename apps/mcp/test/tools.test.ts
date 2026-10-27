@@ -23,12 +23,14 @@ describe('Lute MCP tools (A6, A8, A9)', () => {
       'lute_call_metered_api',
       'lute_quote_document',
       'lute_extract_document',
+      'lute_pay_invoice',
+      'lute_fetch_paid',
       'lute_get_meter_session',
       'lute_propose_settlement',
       'lute_verify_settlement',
     ]);
-    // Inputs are a session id and, for extraction, the document text: never an address or an amount.
-    for (const t of TOOLS) expect(Object.keys(t.input).every((k) => k === 'session_id' || (['lute_extract_document', 'lute_quote_document'].includes(t.name) && (k === 'text' || k === 'quote_id')))).toBe(true);
+    // No tool takes an address or an amount: invoices are checked against the signed payee.
+    for (const t of TOOLS) expect(Object.keys(t.input).some((k) => ['to', 'address', 'amount', 'amount_zat', 'recipient'].includes(k))).toBe(false);
   });
 
   it('A8: session ids are validated, so injected text never reaches a URL', () => {
@@ -40,7 +42,7 @@ describe('Lute MCP tools (A6, A8, A9)', () => {
 
   it('A6: every call goes to the Lute API with the agent token, never to the sidecar', async () => {
     const { seen, client } = fake();
-    for (const t of TOOLS) await t.run(client, { session_id: SID, text: 'Invoice #1' });
+    for (const t of TOOLS) if (t.name !== 'lute_fetch_paid') await t.run(client, { session_id: SID, text: 'Invoice #1', uri: 'zcash:u1x?amount=0.0001' });
     expect(seen.every((r) => r.url.startsWith('http://127.0.0.1:48300/v1/') && !r.url.includes(':48100'))).toBe(true);
     expect(seen.every((r) => r.headers.authorization === `Bearer ${TOKEN}` && r.headers['x-lute-caller'] === 'mcp')).toBe(true);
   });

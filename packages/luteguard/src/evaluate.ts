@@ -123,6 +123,9 @@ function transactionPolicy(ctx: EvaluationContext, add: Builder): void {
   );
 }
 
+/** A payee's invoice reference: short, no spaces or free text. */
+const INVOICE_REF = /^[A-Za-z0-9:_.-]{1,64}$/;
+
 function metadataPolicy(ctx: EvaluationContext, add: Builder): void {
   const m = ctx.action.memo;
   if (!m) {
@@ -132,6 +135,12 @@ function metadataPolicy(ctx: EvaluationContext, add: Builder): void {
       OPAQUE_REF.test(m.ref)
         ? pass('memo_format', 'memo is an opaque LUTE reference')
         : { check: 'memo_format', outcome: 'FAIL', reason_code: 'MEMO_NOT_OPAQUE', explanation: 'LUTE memo reference must be 8-64 base64url characters' },
+    );
+  } else if (m.kind === 'invoice_ref') {
+    add(
+      INVOICE_REF.test(m.ref)
+        ? pass('memo_format', "memo is the payee's own invoice reference")
+        : { check: 'memo_format', outcome: 'FAIL', reason_code: 'MEMO_NOT_OPAQUE', explanation: 'an invoice reference must be 1-64 characters of A-Z a-z 0-9 : _ . -' },
     );
   } else {
     const typedByHuman = ctx.action.type === 'SEND' && (ctx.principal.kind === 'owner' || ctx.principal.kind === 'user');

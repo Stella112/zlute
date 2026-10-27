@@ -14,6 +14,11 @@ interface Service {
   name: string;
   price_per_call_zat: string;
   credit_limit_zat: string;
+  kind?: 'hosted' | 'external';
+  provider?: 'you' | 'another Lute account';
+  listed?: boolean;
+  endpoint?: string | null;
+  x402_endpoint?: string;
 }
 interface Grant {
   grant_id: string;
@@ -83,6 +88,10 @@ function NewService({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('Document extraction');
   const [price, setPrice] = useState('1000');
   const [limit, setLimit] = useState('15000');
+  const [kind, setKind] = useState<'hosted' | 'external'>('hosted');
+  const [address, setAddress] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [listed, setListed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
     <form
@@ -91,23 +100,54 @@ function NewService({ onDone }: { onDone: () => void }) {
         e.preventDefault();
         setError(null);
         try {
-          await post('/v1/meter/services', { name, price_per_call_zat: Number(price), credit_limit_zat: Number(limit) });
+          await post(
+            '/v1/meter/services',
+            kind === 'external'
+              ? { name, kind, address: address.trim(), ...(endpoint.trim() ? { endpoint: endpoint.trim() } : {}) }
+              : { name, price_per_call_zat: Number(price), credit_limit_zat: Number(limit), listed },
+          );
           onDone();
         } catch (err) {
-          setError(err instanceof ApiError ? err.code : 'Request failed');
+          setError(err instanceof ApiError ? (err.code === 'PAYEE_NOT_SHIELDED' ? 'That address is not a shielded Zcash address.' : err.code) : 'Request failed');
         }
       }}
     >
-      <Field label="Service name">
+      <div className="flex flex-wrap gap-4 text-sm sm:col-span-4">
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={kind === 'hosted'} onChange={() => setKind('hosted')} /> Run on Lute (metered)
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" checked={kind === 'external'} onChange={() => setKind('external')} /> Outside API (pay its invoices)
+        </label>
+      </div>
+      <Field label={kind === 'external' ? 'API name' : 'Service name'}>
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} required />
       </Field>
-      <Field label="Price per page or call (zat)">
-        <input className={`${inputCls} num`} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" required />
-      </Field>
-      <Field label="Credit limit (zat)">
-        <input className={`${inputCls} num`} value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" required />
-      </Field>
-      <Button type="submit">Add service</Button>
+      {kind === 'external' ? (
+        <>
+          <div className="sm:col-span-2">
+            <Field label="Its shielded payment address" hint="The only address an agent may pay for this API. Its invoices must pay this address.">
+              <input className={`${inputCls} font-mono text-xs`} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="u1… or zs1…" required spellCheck={false} />
+            </Field>
+          </div>
+          <Field label="API URL (optional)">
+            <input className={inputCls} value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://…" />
+          </Field>
+        </>
+      ) : (
+        <>
+          <Field label="Price per page or call (zat)">
+            <input className={`${inputCls} num`} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" required />
+          </Field>
+          <Field label="Credit limit (zat)">
+            <input className={`${inputCls} num`} value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" required />
+          </Field>
+          <label className="flex items-center gap-2 text-sm sm:col-span-3">
+            <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} /> Offer to other Lute accounts&apos; agents, and sell over HTTP 402 (payments go to your merchant wallet)
+          </label>
+        </>
+      )}
+      <Button type="submit">Add</Button>
       <div className="sm:col-span-4">
         <ErrorNote error={error} />
       </div>
@@ -174,7 +214,7 @@ function NewGrant({ services, onDone }: { services: Service[]; onDone: () => voi
             <select className={inputCls} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({zat(s.price_per_call_zat)} zat/page)
+                  {s.name} ({s.kind === 'external' ? 'outside API' : `${zat(s.price_per_call_zat)} zat/page`}{s.provider === 'another Lute account' ? ', another account' : ''})
                 </option>
               ))}
             </select>
@@ -335,7 +375,9 @@ export default function AgentsPage() {
               <li key={s.id} className="flex flex-wrap justify-between gap-2 py-2">
                 <span>{s.name}</span>
                 <span className="num text-muted">
-                  {zat(s.price_per_call_zat)} zat per page or call · credit limit {zat(s.credit_limit_zat)} zat
+                  {s.kind === 'external'
+                    ? `outside API, paid per invoice${s.endpoint ? ` · ${s.endpoint}` : ''}`
+                    : `${zat(s.price_per_call_zat)} zat per page or call · credit limit ${zat(s.credit_limit_zat)} zat${s.provider === 'another Lute account' ? ' · by another Lute account' : ''}${s.listed && s.provider === 'you' ? ` · listed, x402 at ${s.x402_endpoint}` : ''}`}
                 </span>
               </li>
             ))}

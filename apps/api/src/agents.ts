@@ -12,15 +12,16 @@
  *   Recipients are resolved server-side from the grant's service, never from agent input (A8).
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, notInArray, or, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { AmountError, executeAction, parseZec, type ActionState, type SidecarClient } from '@lute/core';
+import { AmountError, executeAction, parseZec, type ActionRecord, type ActionState, type SidecarClient } from '@lute/core';
 import type { AgentGrant, Caller, Network, Principal } from '@lute/luteguard';
 import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { MAX_CHARS, extract, pagesOf } from './extract.js';
-import { actions, agentGrants, meterQuotes, meterServices, meterSessions, meterSettlements } from './db/schema.js';
+import { InvoiceError, parseInvoice, type Invoice } from './zip321.js';
+import { actions, agentGrants, agentInvoices, meterQuotes, meterServices, meterSessions, meterSettlements, x402Invoices } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
 import { minConf } from './requests.js';
 import type { MandateSidecar, RequestSidecar } from './sidecar.js';
@@ -61,7 +62,25 @@ const QuoteBody = z.object({ text: z.string().min(1).max(MAX_CHARS) }).strict();
 /** A quote is valid for two minutes and for one call. */
 const QUOTE_TTL_S = 120;
 const requestHash = (text: string) => createHash('sha256').update(`lute-extract-request-v1|${text}`, 'utf8').digest('hex');
-const ServiceBody = z.object({ name: z.string().min(1).max(64), price_per_call_zat: z.number().int().min(1).max(2_000_000), credit_limit_zat: z.number().int().min(1).max(2_000_000) }).strict();
+const ServiceBody = z
+  .object({
+    name: z.string().min(1).max(64),
+    price_per_call_zat: z.number().int().min(1).max(2_000_000).default(1000),
+    credit_limit_zat: z.number().int().min(1).max(2_000_000).default(15000),
+    /** `external`: an outside API paid per invoice at its fixed shielded address (A, B). */
+    kind: z.enum(['hosted', 'external']).default('hosted'),
+    address: z.string().min(10).max(512).optional(),
+    endpoint: z.string().url().max(512).optional(),
+    /** Hosted services only: offered to other Lute accounts' agents (C) and over x402 (B). */
+    listed: z.boolean().default(false),
+  })
+  .strict()
+  .refine((b) => (b.kind === 'external') === !!b.address, { message: 'an external payee needs its address; a hosted service takes none' });
+const InvoiceBody = z.object({ uri: z.string().min(8).max(2048) }).strict();
+const X402Body = z.object({ text: z.string().min(1).max(MAX_CHARS) }).strict();
+const PAYMENT_REF = /^[A-Za-z0-9_-]{22}$/;
+/** An external payee's invoice reference (the only memo an agent may send): no free text. */
+const INVOICE_REF = /^[A-Za-z0-9:_.-]{1,64}$/;
 const DraftBody = z.object({ service_id: z.string().regex(ID), max_tx_zec: z.string().max(32), total_zec: z.string().max(32), ttl_hours: z.number().int().min(1).max(48) }).strict();
 const MandateShape = z
   .object({
@@ -122,6 +141,25 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     return (await d.db.select().from(meterServices).where(eq(meterServices.id, id)).limit(1))[0] ?? null;
   }
 
+  /** May this owner give an agent a budget for this service? Their own, or another account's listed one. */
+  const grantable = (svc: typeof meterServices.$inferSelect, userId: string) => svc.owner_user_id === userId || (svc.listed && svc.kind === 'hosted');
+
+  function serviceView(s: typeof meterServices.$inferSelect, userId: string) {
+    const mine = s.owner_user_id === userId;
+    return {
+      id: s.id,
+      name: s.name,
+      kind: s.kind,
+      provider: mine ? 'you' : 'another Lute account',
+      listed: s.listed,
+      endpoint: s.endpoint,
+      price_per_call_zat: s.price_per_call_zat.toString(),
+      credit_limit_zat: s.credit_limit_zat.toString(),
+      ...(s.listed ? { x402_endpoint: `/v1/x402/${s.id}/extract` } : {}),
+      created_at: s.created_at,
+    };
+  }
+
   async function grantView(g: typeof agentGrants.$inferSelect) {
     const s = await spent(g.id);
     const svc = await service(g.service_id);
@@ -150,25 +188,41 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const b = ServiceBody.safeParse(req.body);
     if (!b.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
     const id = opaqueId();
-    const address = await d.requestSidecar.newAddress(walletOf(u, 'merchant'));
+    let address: string;
+    if (b.data.kind === 'external') {
+      // An outside payee: only a shielded address is accepted, checked by the wallet sidecar.
+      const ins = await d.sidecar.inspect(b.data.address!);
+      if (ins.verdict !== 'ALLOWED') return reply.code(400).send({ error: 'PAYEE_NOT_SHIELDED', verdict: ins.verdict });
+      address = b.data.address!;
+    } else {
+      address = await d.requestSidecar.newAddress(walletOf(u, 'merchant'));
+    }
     await d.db.insert(meterServices).values({
       id,
       owner_user_id: u.id,
       name: b.data.name,
-      wallet: walletOf(u, 'merchant'),
+      wallet: b.data.kind === 'external' ? 'external' : walletOf(u, 'merchant'),
       address_enc: d.cipher.encrypt(address, svcAad(id)),
       price_per_call_zat: BigInt(b.data.price_per_call_zat),
       credit_limit_zat: BigInt(b.data.credit_limit_zat),
+      kind: b.data.kind,
+      listed: b.data.kind === 'hosted' && b.data.listed,
+      endpoint: b.data.endpoint ?? null,
       created_at: d.now(),
     });
-    return { id, name: b.data.name, price_per_call_zat: String(b.data.price_per_call_zat), credit_limit_zat: String(b.data.credit_limit_zat) };
+    return serviceView((await service(id))!, u.id);
   });
 
   app.get('/v1/meter/services', async (req, reply) => {
     const u = await owner(req);
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
-    const rows = await d.db.select().from(meterServices).where(eq(meterServices.owner_user_id, u.id)).orderBy(desc(meterServices.created_at));
-    return { services: rows.map((s) => ({ id: s.id, name: s.name, price_per_call_zat: s.price_per_call_zat.toString(), credit_limit_zat: s.credit_limit_zat.toString(), created_at: s.created_at })) };
+    // Your own services and payees, and hosted services other Lute accounts have listed (C).
+    const rows = await d.db
+      .select()
+      .from(meterServices)
+      .where(or(eq(meterServices.owner_user_id, u.id), and(eq(meterServices.listed, true), eq(meterServices.kind, 'hosted'))))
+      .orderBy(desc(meterServices.created_at));
+    return { services: rows.map((s) => serviceView(s, u.id)) };
   });
 
   /** Builds the exact mandate the owner will review and sign with `lute-owner sign-mandate`. */
@@ -178,7 +232,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const b = DraftBody.safeParse(req.body);
     if (!b.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
     const svc = await service(b.data.service_id);
-    if (!svc || svc.owner_user_id !== u.id) return notFound(reply);
+    if (!svc || !grantable(svc, u.id)) return notFound(reply);
     let maxTx: bigint;
     let total: bigint;
     try {
@@ -209,7 +263,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const b = GrantBody.safeParse(req.body);
     if (!b.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
     const svc = await service(b.data.service_id);
-    if (!svc || svc.owner_user_id !== u.id) return notFound(reply);
+    if (!svc || !grantable(svc, u.id)) return notFound(reply);
     const m = b.data.mandate;
     const svcAddress = d.cipher.decrypt(svc.address_enc, svcAad(svc.id));
     // The grant may only pay this service: the mandate must be bound to exactly its address.
@@ -324,6 +378,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     if (!s) return notFound(reply);
     const v = await sessionView(s);
     const svc = (await service(s.service_id))!;
+    if (svc.kind === 'external') return reply.code(409).send({ error: 'EXTERNAL_PAYEE', reason: 'This grant pays an outside API: use lute_pay_invoice or lute_fetch_paid.' });
     if (BigInt(v.due_zat) + svc.price_per_call_zat > svc.credit_limit_zat) {
       return reply.code(402).send({ error: 'PAYMENT_REQUIRED', due_zat: v.due_zat, credit_limit_zat: v.service.credit_limit_zat });
     }
@@ -386,6 +441,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const body = QuoteBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST', reason: `Send {"text": "..."} with 1 to ${MAX_CHARS} characters.` });
     const svc = (await service(s.service_id))!;
+    if (svc.kind === 'external') return reply.code(409).send({ error: 'EXTERNAL_PAYEE', reason: 'This grant pays an outside API: use lute_pay_invoice or lute_fetch_paid.' });
     const pages = pagesOf(body.data.text);
     const amount = BigInt(pages) * svc.price_per_call_zat;
     const id = opaqueId();
@@ -411,6 +467,7 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const body = ExtractBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST', reason: `Send {"text": "..."} with 1 to ${MAX_CHARS} characters.` });
     const svc = (await service(s.service_id))!;
+    if (svc.kind === 'external') return reply.code(409).send({ error: 'EXTERNAL_PAYEE', reason: 'This grant pays an outside API: use lute_pay_invoice or lute_fetch_paid.' });
     let pages = pagesOf(body.data.text);
     let charge = BigInt(pages) * svc.price_per_call_zat;
     let quoteId: string | null = null;
@@ -494,6 +551,11 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
       );
       await d.db.insert(meterSettlements).values({ session_id: s.id, seq: v.settlements.length + 1, action_id: action.id, amount_zat: amount, created_at: d.now() });
     }
+    return { action_id: action.id, result: await runAgentAction(g, action, caller) };
+  }
+
+  /** Authorizes an agent's action against its grant (LuteGuard) and mandate (sidecar), then executes. */
+  async function runAgentAction(g: typeof agentGrants.$inferSelect, action: ActionRecord, caller: Caller) {
     // The spent total excludes this action itself (it is the one being checked).
     const spentOthers = (await spent(g.id)) - (action.state === 'CREATED' ? action.amount_zat : 0n);
     const grant: AgentGrant = {
@@ -511,12 +573,130 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     // The wallet must know the current tip before a proposal is built: its expiry height is
     // derived from it, and a stale tip yields a transaction that is already expired.
     if (action.state === 'CREATED') await d.requestSidecar.sync(g.wallet);
-    const result = await executeAction(
+    return executeAction(
       { store: d.store, sidecar: d.sidecar, configured_network: d.network, now: d.now, newId: opaqueId },
       { actionId: action.id, principal, caller, idempotencyKey: action.idempotency_key },
     );
-    return { action_id: action.id, result };
   }
+
+  /**
+   * A (and B): the agent pays an outside API's ZIP-321 invoice. Paid only if the invoice's address
+   * is exactly the payee the owner signed (grant + mandate), within the caps; its memo may only be
+   * a short invoice reference. The same invoice is paid at most once per grant.
+   */
+  app.post('/v1/agent/invoices/pay', async (req, reply) => {
+    const g = await agent(req);
+    if (!g) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
+    const b = InvoiceBody.safeParse(req.body);
+    if (!b.success) return reply.code(400).send({ error: 'BAD_REQUEST' });
+    const uri = b.data.uri.trim();
+    let inv: Invoice;
+    try {
+      inv = parseInvoice(uri);
+    } catch (e) {
+      if (e instanceof InvoiceError) return reply.code(400).send({ error: 'BAD_INVOICE', reason: e.message });
+      throw e;
+    }
+    const caller: Caller = req.headers['x-lute-caller'] === 'mcp' ? 'mcp' : 'sdk';
+    return serialized(g.id, async () => {
+      const cur = (await d.db.select().from(agentGrants).where(eq(agentGrants.id, g.id)).limit(1))[0]!;
+      const svc = (await service(cur.service_id))!;
+      if (inv.address !== d.cipher.decrypt(svc.address_enc, svcAad(svc.id))) {
+        return reply.code(403).send({ error: 'RECIPIENT_NOT_IN_GRANT', reason: 'The invoice pays an address this agent was not given a budget for.' });
+      }
+      if (inv.memo !== null && !INVOICE_REF.test(inv.memo)) {
+        return reply.code(400).send({ error: 'MEMO_NOT_ALLOWED', reason: 'Only a short invoice reference can be sent as a memo.' });
+      }
+      const uriHash = createHash('sha256').update(`lute-invoice-v1|${uri}`, 'utf8').digest('hex');
+      const prior = (await d.db.select().from(agentInvoices).where(and(eq(agentInvoices.grant_id, cur.id), eq(agentInvoices.uri_hash, uriHash))).limit(1))[0];
+      let action = prior ? await d.store.get(prior.action_id) : undefined;
+      if (!action) {
+        action = await d.store.create(
+          {
+            id: opaqueId(),
+            type: 'METER_SETTLEMENT',
+            network: d.network,
+            state: 'CREATED',
+            amount_zat: inv.amount_zat,
+            wallet: cur.wallet,
+            recipient_address: inv.address,
+            recipient_ref: svc.id,
+            ...(inv.memo ? { memo: { kind: 'invoice_ref' as const, ref: inv.memo }, memo_text: inv.memo } : {}),
+            idempotency_key: `agent:${cur.id}:inv:${uriHash.slice(0, 40)}`,
+            expires_at: d.now() + 15 * 60,
+          },
+          cur.owner_user_id,
+          cur.id,
+        );
+        await d.db.insert(agentInvoices).values({ grant_id: cur.id, uri_hash: uriHash, action_id: action.id, amount_zat: inv.amount_zat, created_at: d.now() });
+      }
+      const result = await runAgentAction(cur, action, caller);
+      return {
+        action_id: action.id,
+        invoice: { amount_zat: inv.amount_zat.toString(), payee: svc.name, memo: inv.memo !== null },
+        result,
+        ...(prior ? { already_paid_this_invoice: true } : {}),
+      };
+    });
+  });
+
+  // ---------------- B: x402 provider (a listed hosted service sold over HTTP 402) ----------------
+
+  let lastX402Sync = 0;
+  /**
+   * Document extraction sold over HTTP 402. Without a payment, it answers 402 with a ZIP-321
+   * request to the service's fixed shielded address and a one-time payment reference (the memo).
+   * Repeated with `X-Payment-Ref` once that payment is mined, it serves the result once.
+   */
+  app.post<{ Params: { id: string } }>('/v1/x402/:id/extract', async (req, reply) => {
+    if (!ID.test(req.params.id)) return notFound(reply);
+    const svc = await service(req.params.id);
+    if (!svc || !svc.listed || svc.kind !== 'hosted') return notFound(reply);
+    const b = X402Body.safeParse(req.body);
+    if (!b.success) return reply.code(400).send({ error: 'BAD_REQUEST', reason: `Send {"text": "..."} with 1 to ${MAX_CHARS} characters.` });
+    reply.header('cache-control', 'no-store');
+    const hash = createHash('sha256').update(`lute-x402-v1|${b.data.text}`, 'utf8').digest('hex');
+    const address = d.cipher.decrypt(svc.address_enc, svcAad(svc.id));
+    const ref = req.headers['x-payment-ref'];
+    if (typeof ref === 'string' && PAYMENT_REF.test(ref)) {
+      const inv = (await d.db.select().from(x402Invoices).where(and(eq(x402Invoices.ref, ref), eq(x402Invoices.service_id, svc.id))).limit(1))[0];
+      if (!inv) return reply.code(404).send({ error: 'UNKNOWN_PAYMENT_REF' });
+      if (inv.request_hash !== hash) return reply.code(409).send({ error: 'PAYMENT_FOR_ANOTHER_REQUEST' });
+      if (inv.used_at !== null) return reply.code(409).send({ error: 'PAYMENT_ALREADY_USED' });
+      if (inv.paid_at === null) {
+        if (d.now() - lastX402Sync >= 20) {
+          await d.requestSidecar.sync(svc.wallet).catch(() => undefined);
+          lastX402Sync = d.now();
+        }
+        const c = await d.requestSidecar.checkRequest(svc.wallet, { address, amount_zat: inv.amount_zat, opaque_ref: inv.ref, min_conf: 1 });
+        if (c.status !== 'PAID') return reply.code(402).send({ error: 'PAYMENT_PENDING', status: c.status, retry_after_s: 60 });
+        await d.db.update(x402Invoices).set({ paid_at: d.now() }).where(eq(x402Invoices.ref, inv.ref));
+      }
+      const used = await d.db
+        .update(x402Invoices)
+        .set({ used_at: d.now() })
+        .where(and(eq(x402Invoices.ref, inv.ref), isNull(x402Invoices.used_at)))
+        .returning({ ref: x402Invoices.ref });
+      if (used.length === 0) return reply.code(409).send({ error: 'PAYMENT_ALREADY_USED' });
+      return { result: extract(b.data.text), paid_zat: inv.amount_zat.toString(), service: svc.name };
+    }
+    const pages = pagesOf(b.data.text);
+    const amount = BigInt(pages) * svc.price_per_call_zat;
+    const newRef = opaqueId();
+    await d.db.insert(x402Invoices).values({ ref: newRef, service_id: svc.id, request_hash: hash, amount_zat: amount, created_at: d.now(), paid_at: null, used_at: null });
+    const zip321 = await d.requestSidecar.buildZip321(address, amount, newRef);
+    return reply.code(402).send({
+      error: 'PAYMENT_REQUIRED',
+      scheme: 'zcash-shielded-zip321',
+      zip321,
+      payment_ref: newRef,
+      amount_zat: amount.toString(),
+      pages,
+      service: svc.name,
+      how: 'Pay the zip321 request (shielded), then repeat this request with header X-Payment-Ref set to payment_ref once the payment is mined.',
+    });
+  });
+
 
   /** Moves submitted settlements to CONFIRMED once mined with enough confirmations. */
   app.post<{ Params: { id: string } }>('/v1/meter/sessions/:id/refresh', async (req, reply) => {

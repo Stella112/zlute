@@ -113,6 +113,9 @@ export const meterServices = pgTable('meter_services', {
   address_enc: text('address_enc').notNull(),
   price_per_call_zat: bigint('price_per_call_zat', { mode: 'bigint' }).notNull(),
   credit_limit_zat: bigint('credit_limit_zat', { mode: 'bigint' }).notNull(),
+  kind: text('kind').notNull().default('hosted'),
+  listed: boolean('listed').notNull().default(false),
+  endpoint: text('endpoint'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
@@ -140,6 +143,24 @@ export const meterSessions = pgTable('meter_sessions', {
   calls: integer('calls').notNull().default(0),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
+});
+
+export const agentInvoices = pgTable('agent_invoices', {
+  grant_id: text('grant_id').notNull(),
+  uri_hash: text('uri_hash').notNull(),
+  action_id: text('action_id').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const x402Invoices = pgTable('x402_invoices', {
+  ref: text('ref').primaryKey(),
+  service_id: text('service_id').notNull(),
+  request_hash: text('request_hash').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+  paid_at: bigint('paid_at', { mode: 'number' }),
+  used_at: bigint('used_at', { mode: 'number' }),
 });
 
 export const meterQuotes = pgTable('meter_quotes', {

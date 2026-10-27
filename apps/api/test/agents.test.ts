@@ -77,8 +77,9 @@ class FakeReq implements RequestSidecar, MandateSidecar {
   async sync() {
     if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
   }
+  checkStatus: RequestCheck['status'] = 'UNPAID';
   async checkRequest(): Promise<RequestCheck> {
-    throw new Error('unused');
+    return { status: this.checkStatus, matched_by: null, requested_zat: 0, received_confirmed_zat: 0, received_pending_zat: 0, overpaid_zat: 0, txids: [] };
   }
   async txStatus(_w: string, txid: string): Promise<TxStatus> {
     return { txid, known: true, mined_height: 10, confirmations: 1, expired_unmined: false };
@@ -115,8 +116,8 @@ describe('agents and metered billing (A group, §19.6/§19.8)', () => {
   const asAgent = (token: string, method: 'GET' | 'POST', url: string, payload?: object, extra: Record<string, string> = {}) =>
     t.app.inject({ method, url, payload, headers: { authorization: `Bearer ${token}`, 'x-lute-caller': 'mcp', ...extra } });
 
-  async function grant(over: { max_tx_zec?: string; total_zec?: string } = {}) {
-    const svc = (await owner('POST', '/v1/meter/services', { name: 'Chain tip API', price_per_call_zat: 1500, credit_limit_zat: 30000 })).json();
+  async function grant(over: { max_tx_zec?: string; total_zec?: string; service?: object } = {}) {
+    const svc = (await owner('POST', '/v1/meter/services', over.service ?? { name: 'Chain tip API', price_per_call_zat: 1500, credit_limit_zat: 30000 })).json();
     const draft = (await owner('POST', '/v1/agent/mandates/draft', { service_id: svc.id, max_tx_zec: over.max_tx_zec ?? '0.00015', total_zec: over.total_zec ?? '0.00025', ttl_hours: 24 })).json();
     const g = (await owner('POST', '/v1/agent/grants', { agent_name: 'demo agent', service_id: svc.id, mandate: draft.mandate, signature: 'a'.repeat(128) })).json();
     return { svc, draft, g };
@@ -264,6 +265,83 @@ describe('agents and metered billing (A group, §19.6/§19.8)', () => {
     // The quote stores a hash, never the text.
     const rows = JSON.stringify((await t.pg.query('SELECT * FROM meter_quotes')).rows);
     expect(rows).not.toContain('Invoice #Q-1');
+  });
+
+  // ---- C, A, B: paying APIs beyond your own account ----
+
+  const EXT = 'u1externalpayeeaddress';
+  const b64 = (t: string) => Buffer.from(t, 'utf8').toString('base64url');
+
+  async function provider() {
+    await createUser(drizzle(t.pg), 'ada', PW, 'owner', T0);
+    const c = String((await t.app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'ada', password: PW } })).headers['set-cookie']).split(';')[0]!;
+    const as = (method: 'GET' | 'POST', url: string, payload?: object) => t.app.inject({ method, url, payload, headers: { cookie: c } });
+    return { as };
+  }
+
+  it("C: an agent can be given a budget for another Lute account's listed service, never an unlisted one", async () => {
+    const ada = await provider();
+    const listed = (await ada.as('POST', '/v1/meter/services', { name: 'Ada extraction', price_per_call_zat: 2000, credit_limit_zat: 20000, listed: true })).json();
+    const hidden = (await ada.as('POST', '/v1/meter/services', { name: 'Ada private', price_per_call_zat: 2000, credit_limit_zat: 20000 })).json();
+    const seen = (await owner('GET', '/v1/meter/services')).json().services;
+    expect(seen.find((x: { id: string }) => x.id === listed.id)).toMatchObject({ provider: 'another Lute account', x402_endpoint: `/v1/x402/${listed.id}/extract` });
+    expect(seen.find((x: { id: string }) => x.id === hidden.id)).toBeUndefined();
+    expect((await owner('POST', '/v1/agent/mandates/draft', { service_id: hidden.id, max_tx_zec: '0.0001', total_zec: '0.0002', ttl_hours: 24 })).statusCode).toBe(404);
+    const draft = (await owner('POST', '/v1/agent/mandates/draft', { service_id: listed.id, max_tx_zec: '0.0001', total_zec: '0.0002', ttl_hours: 24 })).json();
+    const g = (await owner('POST', '/v1/agent/grants', { agent_name: 'buyer', service_id: listed.id, mandate: draft.mandate, signature: 'a'.repeat(128) })).json();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    expect((await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: 'Invoice #C-1 total $5' })).json().charge.charged_zat).toBe('2000');
+    const r = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/settle`, {}, { 'idempotency-key': 'cross-acct-1' })).json();
+    expect(r.result.state).toBe('SUBMITTED');
+    expect(t.sidecar.proposedTo).toEqual([SERVICE_ADDR]); // the provider's service address
+  });
+
+  it("A: pays an external payee's invoice only at the signed address, once per invoice, with only a short reference memo", async () => {
+    const { g } = await grant({ service: { name: 'Weather API', kind: 'external', address: EXT }, max_tx_zec: '0.0002', total_zec: '0.0005' });
+    expect(t.req.loaded[0]!.json).toContain(EXT);
+    const inv = `zcash:${EXT}?amount=0.0001&memo=${b64('INV-1')}`;
+    const pay = (uri: string) => asAgent(g.token, 'POST', '/v1/agent/invoices/pay', { uri });
+    const a = (await pay(inv)).json();
+    expect(a).toMatchObject({ invoice: { amount_zat: '10000', payee: 'Weather API', memo: true }, result: { state: 'SUBMITTED' } });
+    expect(t.sidecar.proposedTo).toEqual([EXT]);
+    const again = (await pay(inv)).json();
+    expect(again).toMatchObject({ action_id: a.action_id, already_paid_this_invoice: true });
+    expect(executes()).toBe(1);
+    const other = await pay(`zcash:u1someoneelse?amount=0.0001&memo=${b64('INV-2')}`);
+    expect([other.statusCode, other.json().error]).toEqual([403, 'RECIPIENT_NOT_IN_GRANT']);
+    expect((await pay(`zcash:${EXT}?amount=0.0001&memo=${b64('my seed is apple banana')}`)).json().error).toBe('MEMO_NOT_ALLOWED');
+    expect((await pay(`zcash:?address=${EXT}&amount=0.0001&address.1=${EXT}&amount.1=0.0001`)).json().error).toBe('BAD_INVOICE');
+    expect((await pay(`zcash:${EXT}?amount=0.0003&memo=${b64('INV-3')}`)).json().result.reasons).toContain('OVER_GRANT_PER_TX');
+    expect(executes()).toBe(1);
+    // An external payee is paid by invoice, not metered by Lute.
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    expect((await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/call`)).json().error).toBe('EXTERNAL_PAYEE');
+    // An external payee must be shielded.
+    t.sidecar.inspection = { ...t.sidecar.inspection, verdict: 'DENIED_TRANSPARENT', has_transparent: true, payable_pools: [] };
+    expect((await owner('POST', '/v1/meter/services', { name: 'Bad', kind: 'external', address: 't1abc0000000000' })).json().error).toBe('PAYEE_NOT_SHIELDED');
+  });
+
+  it('B: a listed service sells over HTTP 402: invoice, pay, then serve once for that exact request', async () => {
+    const ada = await provider();
+    const svc = (await ada.as('POST', '/v1/meter/services', { name: 'Ada extraction', price_per_call_zat: 2000, credit_limit_zat: 20000, listed: true })).json();
+    const x = (body: object, ref?: string) => t.app.inject({ method: 'POST', url: `/v1/x402/${svc.id}/extract`, payload: body, headers: ref ? { 'x-payment-ref': ref } : {} });
+    const DOC = { text: 'Invoice #X-9 total $12' };
+    const first = await x(DOC);
+    expect(first.statusCode).toBe(402);
+    const req = first.json();
+    expect(req).toMatchObject({ scheme: 'zcash-shielded-zip321', zip321: 'zcash:x', amount_zat: '2000' });
+    expect(req.payment_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    t.req.checkStatus = 'UNPAID';
+    expect((await x(DOC, req.payment_ref)).json().error).toBe('PAYMENT_PENDING');
+    t.req.checkStatus = 'PAID';
+    expect((await x({ text: 'another document' }, req.payment_ref)).json().error).toBe('PAYMENT_FOR_ANOTHER_REQUEST');
+    const ok = await x(DOC, req.payment_ref);
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toMatchObject({ result: { invoice_number: 'X-9' }, paid_zat: '2000' });
+    expect((await x(DOC, req.payment_ref)).json().error).toBe('PAYMENT_ALREADY_USED');
+    // Unlisted services are not sold over 402.
+    const hidden = (await ada.as('POST', '/v1/meter/services', { name: 'Ada private', price_per_call_zat: 2000, credit_limit_zat: 20000 })).json();
+    expect((await t.app.inject({ method: 'POST', url: `/v1/x402/${hidden.id}/extract`, payload: DOC })).statusCode).toBe(404);
   });
 
   // ---- R: payment restrictions (docs/PRIVACY-EVIDENCE.md E-015) ----

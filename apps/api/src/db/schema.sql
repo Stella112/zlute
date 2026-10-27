@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS actions (
   wallet                TEXT,
   recipient_address_enc TEXT,
   recipient_ref         TEXT,
-  memo_kind             TEXT CHECK (memo_kind IN ('lute_ref','user_typed')),
+  memo_kind             TEXT,
   memo_ref              TEXT,
   memo_text_enc         TEXT,
   idempotency_key       TEXT NOT NULL,
@@ -130,6 +130,33 @@ CREATE TABLE IF NOT EXISTS meter_services (
   created_at         BIGINT NOT NULL
 );
 
+-- External payees (A/B) and listed services (C). `hosted`: metered by Lute, receives into the
+-- owner's merchant wallet. `external`: an outside API's fixed shielded address, paid per invoice.
+ALTER TABLE meter_services ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'hosted';
+ALTER TABLE meter_services ADD COLUMN IF NOT EXISTS listed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE meter_services ADD COLUMN IF NOT EXISTS endpoint TEXT;
+
+-- A: invoices an agent paid to an external payee (one payment per invoice per grant).
+CREATE TABLE IF NOT EXISTS agent_invoices (
+  grant_id   TEXT NOT NULL,
+  uri_hash   TEXT NOT NULL,
+  action_id  TEXT NOT NULL,
+  amount_zat BIGINT NOT NULL CHECK (amount_zat > 0),
+  created_at BIGINT NOT NULL,
+  PRIMARY KEY (grant_id, uri_hash)
+);
+
+-- B: HTTP 402 invoices issued by a listed hosted service (payment reference = memo).
+CREATE TABLE IF NOT EXISTS x402_invoices (
+  ref          TEXT PRIMARY KEY,
+  service_id   TEXT NOT NULL,
+  request_hash TEXT NOT NULL,
+  amount_zat   BIGINT NOT NULL CHECK (amount_zat > 0),
+  created_at   BIGINT NOT NULL,
+  paid_at      BIGINT,
+  used_at      BIGINT
+);
+
 CREATE TABLE IF NOT EXISTS agent_grants (
   id             TEXT PRIMARY KEY,
   owner_user_id  TEXT NOT NULL REFERENCES users(id),
@@ -184,6 +211,9 @@ ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS seen_zat BIGINT NOT NULL D
 
 -- Spends made by an agent carry its grant (budget accounting).
 ALTER TABLE actions ADD COLUMN IF NOT EXISTS grant_id TEXT;
+-- Memo kinds, including a payee's own invoice reference (agent invoice payments).
+ALTER TABLE actions DROP CONSTRAINT IF EXISTS actions_memo_kind_check;
+ALTER TABLE actions ADD CONSTRAINT actions_memo_kind_check CHECK (memo_kind IN ('lute_ref','user_typed','invoice_ref'));
 
 -- Commerce (mandate §19.3). Orders are checkouts backed by a payment request. Receipts are signed
 -- with an Ed25519 receipt key (not a wallet or owner key), stored encrypted in signing_keys.
