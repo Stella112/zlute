@@ -113,7 +113,7 @@ export default function SignupPage() {
           {busy ? 'Creating your wallets…' : 'Create account'}
         </Button>
         <p className="text-xs leading-relaxed text-muted">
-          Your wallet is created in this browser, and only this browser can sign a payment: Lute cannot move your money. Hosted Lute can see the payment activity it needs to operate. An AI-agent budget, if you set one up, is held by Lute and capped. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
+          Your wallet is created in this browser, and only this browser can sign a payment: Lute holds no key that can move your money. Hosted Lute can see the payment activity it needs to operate. An AI-agent budget, if you set one up, is held by Lute and capped. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.
         </p>
         <p className="text-center text-xs text-muted">
           Already have an account?{' '}

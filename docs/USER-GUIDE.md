@@ -7,7 +7,7 @@ you sign. Every payment is shielded: on the blockchain nobody can see who paid w
 - **App:** https://uselute.xyz (Zcash mainnet)
 - **Who needs an account:** only you, the person getting paid or paying out. Your payers need
   nothing but a Zcash wallet that supports shielded payments, such as Zodl.
-- **Custody:** Lute is custodial. Your Lute wallets are held on Lute's server; Lute's software pays
+- **Custody:** accounts created from 27 Oct 2026 are non-custodial: the recovery phrase stays in your browser and every payout is signed there ([Custody](https://github.com/Stella112/zlute/blob/main/docs/CUSTODY.md)). The AI-agent wallet, and accounts created earlier, are custodial: Your Lute wallets are held on Lute's server; Lute's software pays
   out only with your approval key or a budget you signed, but the operator of the server could bypass
   that, and the approval-key backup does not restore the wallet. Keep working balances only. Details:
   [Custody](https://github.com/Stella112/zlute/blob/main/docs/CUSTODY.md).

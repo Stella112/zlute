@@ -92,7 +92,7 @@ export default function Welcome() {
                 See what your payer sees
               </Link>
             </div>
-            <p className="mt-6 text-xs text-muted">Non-custodial: your keys stay in your browser. Lute sees your payments, not your keys.</p>
+            <p className="mt-6 text-xs text-muted">Non-custodial: your keys stay in your browser (AI-agent budgets excepted). Lute sees your payments, not your keys.</p>
           </div>
 
           <div className="relative">

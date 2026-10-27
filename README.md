@@ -74,7 +74,7 @@ flowchart LR
 
 **Custody disclosure.** The `merchant` and `payout` wallets are **operator-custodied hot wallets** on the server (each in its own wallet database and sealed key file, kept at or below 0.1 ZEC; the sidecar warns above that). Customers pay from their own wallets (e.g. Zodl); Lute never touches payer keys. Lute's software releases a spend from a Lute wallet only with the owner's signature (or a signed agent mandate); this is enforced by software, not by the chain, so the operator can bypass it. There is no independent recovery yet. See [docs/CUSTODY.md](docs/CUSTODY.md).
 
-**Next: browser-signed, non-custodial payments.** Lute prepares each payment and only the user's browser can sign it, so Lute holds no key that can move user funds (viewing key only). Design in [docs/CUSTODY.md](docs/CUSTODY.md#next-browser-signed-non-custodial-payments).
+**Shipped 2026-10-27: browser-signed, non-custodial accounts.** New sign-ups keep a 24-word recovery phrase in the browser; Lute prepares each payment and only the browser can sign it, so Lute holds no key that can move their funds (viewing keys only; evidence E-016 regtest, E-017 mainnet). The paragraph above applies to accounts created before that date and to agent wallets. Caveat: Lute serves the signer code. Design in [docs/CUSTODY.md](docs/CUSTODY.md#next-browser-signed-non-custodial-payments).
 
 ## Repository
 

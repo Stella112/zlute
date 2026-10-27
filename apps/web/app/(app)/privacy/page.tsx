@@ -205,7 +205,7 @@ const DISCLOSURE: [string, string, string][] = [
   ['Your payer or payee', 'Their own payment with you: amount and memo.', 'Your balance and your other payments.'],
   ['A merchant or paid service', 'The payment it received and what was bought or called.', 'Your wallet, balance and other payments.'],
   ['Someone holding a receipt link', 'Amount, date, transaction id, a salted item hash.', 'Addresses and the item text.'],
-  ['Lute operator: new (non-custodial) accounts', 'Your payments in and out, amounts, timing (it holds viewing keys).', 'Your keys. It cannot move your money; request notes are encrypted in the link.'],
+  ['Lute operator: new (non-custodial) accounts', 'Your payments in and out, amounts, timing (it holds viewing keys).', 'Your keys. It holds no key that can move your money; request notes are encrypted in the link.'],
   ['Lute operator: agent wallets and older accounts', 'Everything above.', 'Nothing more is hidden: these wallets are Lute-held (custodial); approvals and budgets are enforced by Lute software.'],
   ["The AI provider (agent's chat)", 'What tools return: charges, budget, status.', 'Addresses, keys, grant and transaction ids.'],
 ];

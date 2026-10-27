@@ -170,7 +170,7 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
           >
             {busy ? (me.browser_signed ? 'Signing in this browser…' : 'Sending…') : 'Confirm and pay'}
           </button>
-          {me.browser_signed && <p className="text-center text-xs text-muted">Signed in this browser. Lute cannot move your money without it.</p>}
+          {me.browser_signed && <p className="text-center text-xs text-muted">Signed in this browser. Lute holds no key that can move your money.</p>}
         </div>
       ) : (
         <div className="mt-6 space-y-3 text-sm">

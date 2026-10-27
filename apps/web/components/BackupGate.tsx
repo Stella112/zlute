@@ -61,7 +61,7 @@ export function BackupGate({ me, children }: { me: { username: string; self_serv
       <h2 className="font-display mt-2 text-3xl leading-tight">{me.browser_signed ? 'Save your wallet backup' : 'Save your approval key'}</h2>
       {me.browser_signed ? (
         <div className="mt-4 space-y-3 leading-relaxed">
-          <p>Your wallet&apos;s keys exist only in this browser: Lute cannot move your money, and cannot recover it for you either. Save the backup file before adding money.</p>
+          <p>Your wallet&apos;s keys exist only in this browser: Lute holds no key that can move your money, and cannot recover it for you either. Save the backup file before adding money.</p>
           <p className="rounded-xl bg-raised px-4 py-3">
             <b>What the backup recovers:</b> your wallet, on another device or without Lute. It holds your 24-word recovery phrase, which you can also import into Zodl (account 0 is your
             merchant wallet, account 1 your payout wallet).
