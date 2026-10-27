@@ -1,0 +1,12 @@
+E-020 mainnet BatchPay payroll, 2026-10-27
+Owner (maris) payroll run LaJjiprvKejU3L0-fGzqeQ "Mainnet payroll test" from the merchant wallet, created in the web API:
+  2 lines: "Ada (payout wallet)" 500 zat, "Ben (agent wallet)" 500 zat (fresh shielded addresses of the owner's own payout and agent wallets)
+  LuteGuard ALLOW; summary recipient "batch", amount 1,000, fee 15,000 (ZIP-317), pools Ironwood only, 2 payment lines
+  Owner approval on the laptop: lute-owner showed "BATCH: 2 payments in one transaction", owner typed approve c5ef79de
+  action dWyM1gO0kl5iR1crisorAQ SUBMITTED, txid 26c815f9600a9e9a2639dff965c304e03506218850ee4cb7fd4ae411e13ca9be
+Recipients verify (each with its own viewing key):
+  payout wallet: ironwood 500 zat, memo LUTE:f_ZP25T4rePJyoTaoNDHMw (= Ada's payslip id), mined 3532606
+  agent wallet:  ironwood 500 zat, memo LUTE:eII1TUmKcAG-nS-kJpOSTQ (= Ben's payslip id), mined 3532606
+inspect-tx: transparent 0/0, sprout 0, sapling 0/0, orchard 0, ironwood_actions 3, net_out_of_shielded_zat 15000 (fee), SHIELDED_SINGLE_POOL
+Payslip /payslip/f_ZP25T4rePJyoTaoNDHMw: label "Ada (payout wallet)", 500 zat, txid, only Ada's line.
+A first attempt (2 x 1,000 zat) was refused by the wallet: "have 21000, need 22000 including fee" (several small notes raised the fee); amounts were lowered.
