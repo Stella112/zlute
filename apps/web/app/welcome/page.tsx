@@ -13,7 +13,7 @@ const FEATURES: { icon: IconName; title: string; body: string }[] = [
 
 const PILLARS: { icon: IconName; title: string; body: string }[] = [
   { icon: 'shield', title: 'Shielded by default', body: 'Payment details stay off the public blockchain. Lute refuses transparent addresses and any payment that would cross shielded pools.' },
-  { icon: 'check', title: 'You approve the payouts', body: 'Approve payouts individually, or authorise an agent within a fixed budget. Lute’s software refuses any payout without your browser key. Lute is custodial: the operator holds the wallets.' },
+  { icon: 'check', title: 'You approve the payouts', body: 'Approve payouts individually, or authorise an agent within a fixed budget. Payouts are signed in your browser with keys Lute never holds, so Lute cannot move your money.' },
   { icon: 'activity', title: 'Proven, not promised', body: 'Every feature’s status comes from real test runs and real mainnet transactions, with the limits written down next to it.' },
 ];
 
@@ -27,7 +27,7 @@ const STEPS: [string, string][] = [
 const FAQ: [string, string][] = [
   ['What does my payer need?', 'Only a compatible shielded Zcash wallet, such as Zodl. No account, no sign-up, no app from us.'],
   ['Who can see my payments?', 'Shielded payments protect your transaction details from public blockchain observers. Hosted Lute can see payment activity needed to operate the service (amounts, timing, your wallets’ history); recipients and notes are stored encrypted. Your payer’s wallet and the light-wallet server see what they always see.'],
-  ['Who holds the money?', 'Lute does (custodial). Each wallet’s key is sealed on Lute’s server, and Lute’s software releases a payout only with your approval key, but whoever operates the server could bypass that, and you cannot yet restore the wallet elsewhere. Keep only working balances here: payouts are limited to 0.02 ZEC each and 0.05 ZEC a day. For full self-custody, run Lute on your own server.'],
+  ['Who holds the money?', 'You do. Your wallet’s recovery phrase is created in your browser and never sent to Lute; every payout is signed in your browser, and your backup restores the wallet in Zodl without Lute. Lute holds only viewing keys, so it can see your payments but cannot move them. The exception is an AI-agent budget, which Lute holds so the agent can pay unattended: keep it small. Accounts created before 27 Oct 2026 remain custodial.'],
   ['What does it cost?', 'Lute adds no fee. The Zcash network fee for a payment is about 0.0001 ZEC.'],
   ['What still leaks?', 'The light-wallet server Lute syncs from sees network-level information such as IP address and timing, but never keys, amounts or memos. The Privacy page lists every known limit.'],
 ];
@@ -92,7 +92,7 @@ export default function Welcome() {
                 See what your payer sees
               </Link>
             </div>
-            <p className="mt-6 text-xs text-muted">Custodial: wallets are held by Lute. Payouts need your approval key or a budget you signed.</p>
+            <p className="mt-6 text-xs text-muted">Non-custodial: your keys stay in your browser. Lute sees your payments, not your keys.</p>
           </div>
 
           <div className="relative">

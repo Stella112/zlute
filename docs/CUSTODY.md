@@ -1,9 +1,24 @@
 # Custody: who can spend the money
 
 This is the answer to "who can ultimately spend the funds in a Lute wallet", traced in the code and
-on the deployed server (2026-10-26). It decides what Lute may claim.
+on the deployed server. It decides what Lute may claim.
 
-## Summary
+## Accounts created from 2026-10-27: non-custodial (browser-signed)
+
+| Question | Answer |
+|---|---|
+| Where are the spending keys? | In the user's browser only. Sign-up creates a 24-word BIP-39 recovery phrase there (`apps/web/lib/ownerKey.ts`); the merchant and payout wallets are accounts 0 and 1 of it. Lute's server receives only their unified full viewing keys (shielded parts only) and stores no seed or key file for them (`Wallet::init_view_only`, `services/wallet-sidecar/src/wallet/mod.rs`). |
+| How is a payout made? | The server builds and proves the transaction as a PCZT (`wallet/pczt.rs` `prepare_pczt`). The browser's WebAssembly signer (`services/lute-signer`) checks on the PCZT itself that it pays exactly the approved recipient and amount, single Ironwood pool, only the fee leaving the pool, and signs only then. The server applies those signatures to the transaction it stored, verifies proof and signatures, and broadcasts (`execute_signed`), after the usual approval and caps checks. |
+| Can the operator spend? | No: it has no spending key. The custodial execute path refuses these wallets before an approval is consumed. |
+| Can users recover without Lute? | Yes: the backup file holds the recovery phrase, which restores the wallets in Zodl or another ZIP-32 wallet (account 0 merchant, account 1 payout). |
+| What does the operator still see? | Everything a viewing key shows: incoming and outgoing payments, amounts, memos, timing. Non-custodial is not "invisible to Lute". |
+| Exceptions | The **agent** wallet stays Lute-held (an agent pays unattended, inside a signed mandate; keep a small budget). Accounts created before 2026-10-27, including the install owner's, remain custodial as described below. The signer code is served by Lute: a malicious operator could ship a different signer, so the guarantee is against a passive or compromised server, not an operator who changes the code users run. |
+
+Evidence: E-016 (regtest, real sidecar and chain).
+
+## Accounts created before 2026-10-27, and agent wallets: custodial
+
+### Summary
 
 | Question | Answer |
 |---|---|
