@@ -168,6 +168,11 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar, Mandate
     return this.result(await this.call('POST', '/v1/wallets', { name, owner_pub: ownerPub, ...(ufvk ? { ufvk } : {}) }));
   }
 
+  /** Recovery: what happened to a proposal's spend ("none" if never reserved). Read-only. */
+  async spendStatus(wallet: string, proposalId: string): Promise<SidecarResult<{ status: string; txid: string | null }>> {
+    return this.result(await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/spend`));
+  }
+
   async preparePczt(wallet: string, proposalId: string): Promise<SidecarResult<PcztView>> {
     return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/pczt`));
   }

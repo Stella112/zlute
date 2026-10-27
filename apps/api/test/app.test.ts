@@ -12,6 +12,7 @@ import { FieldCipher } from '../src/crypto.js';
 import { schemaSql } from '../src/db/migrate.js';
 import { PgActionStore } from '../src/db/store.js';
 import { redact } from '../src/log.js';
+import { recoverInFlight } from '../src/recovery.js';
 import type { RequestCheck, RequestSidecar } from '../src/sidecar.js';
 
 const NOW = 1_800_000_000;
@@ -33,7 +34,7 @@ class FakeSidecar implements SidecarClient {
     this.calls.push('propose');
     this.proposeWallets.push(w);
     const s: SidecarProposalSummary = {
-      proposal_id: 'p1', account: 'a', network: 'regtest', recipient: RECIPIENT, recipient_pool: 'ironwood',
+      proposal_id: `p${this.proposeWallets.length}`, account: 'a', network: 'regtest', recipient: RECIPIENT, recipient_pool: 'ironwood',
       amount_zat: Number(r.amount_zat), fee_zat: 10000, input_pools: ['ironwood'], output_pools: ['ironwood'],
       change_pools: ['ironwood'], policy: 'LUTE_STRICT/D-002', memo_hash: '', created_at: NOW, expires_at: NOW + 300,
     };
@@ -335,6 +336,54 @@ describe('self-serve sign-up (public deployment)', () => {
     expect((await signup(t.app)).statusCode).toBe(404);
     const r = await t.app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'maris', password: PW }, headers: { origin: 'http://127.0.0.1:48300' } });
     expect(r.statusCode).toBe(200);
+  });
+});
+
+describe('recoverable operations (crash between approval and result)', () => {
+  // Interrupted actions: approved, then the API died before recording what the sidecar did.
+  async function interrupted(t: Awaited<ReturnType<typeof setup>>, n: number) {
+    const cookie = await t.loginAs('maris');
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const r = (await t.app.inject(send(cookie, `crash-${i}-0001`))).json();
+      await t.store.transition(r.action_id, 'AWAITING_AUTHORIZATION', 'AUTHORIZED', 'owner');
+      if (i % 2 === 1) await t.store.transition(r.action_id, 'AUTHORIZED', 'PREPARING', 'owner');
+      ids.push(r.action_id);
+    }
+    return ids;
+  }
+
+  it('settles each from the sidecar record, never by retrying: sent -> SUBMITTED, not sent -> FAILED, in progress -> unchanged', async () => {
+    const t = await setup();
+    const ids = await interrupted(t, 5);
+    const outcomes: Record<string, { status: string; txid: string | null } | null> = {
+      [ids[0]!]: { status: 'submitted', txid: 'aa'.repeat(32) },
+      [ids[1]!]: { status: 'ambiguous', txid: 'bb'.repeat(32) },
+      [ids[2]!]: { status: 'released', txid: null },
+      [ids[3]!]: null, // the sidecar never saw it
+      [ids[4]!]: { status: 'reserved', txid: null },
+    };
+    const proposals = new Map<string, string>();
+    for (const id of ids) proposals.set((await t.store.get(id))!.proposal_id!, id);
+    const sidecar = {
+      spendStatus: async (_w: string, p: string) => {
+        const o = outcomes[proposals.get(p)!];
+        return o ? { ok: true as const, value: o } : { ok: false as const, code: 'UNKNOWN_PROPOSAL' };
+      },
+    };
+    const db = drizzle(t.pg);
+    // Not yet stale: nothing is touched.
+    expect(await recoverInFlight({ db, store: t.store, sidecar, now: () => NOW })).toEqual([]);
+    const r = await recoverInFlight({ db, store: t.store, sidecar, now: () => NOW + 600 });
+    const to = Object.fromEntries(r.map((x) => [x.action_id, x.to]));
+    expect(to).toEqual({ [ids[0]!]: 'SUBMITTED', [ids[1]!]: 'SUBMITTED', [ids[2]!]: 'FAILED', [ids[3]!]: 'FAILED', [ids[4]!]: 'UNCHANGED' });
+    expect(await t.store.get(ids[0]!)).toMatchObject({ state: 'SUBMITTED', txid: 'aa'.repeat(32), broadcast_ambiguous: false });
+    expect(await t.store.get(ids[1]!)).toMatchObject({ state: 'SUBMITTED', broadcast_ambiguous: true });
+    expect(await t.store.get(ids[2]!)).toMatchObject({ state: 'FAILED', reject_reason: 'RECOVERED_NOT_SENT' });
+    // Nothing was executed again.
+    expect(t.sidecar.calls.filter((c) => c === 'execute')).toEqual([]);
+    // A second sweep finds nothing left except the one the sidecar is still working on.
+    expect((await recoverInFlight({ db, store: t.store, sidecar, now: () => NOW + 900 })).map((x) => x.to)).toEqual(['UNCHANGED']);
   });
 });
 

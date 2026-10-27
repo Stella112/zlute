@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type { Network } from '@lute/luteguard';
+import { recoverInFlight } from './recovery.js';
 import { buildApp } from './app.js';
 import { createUser, type Role } from './auth.js';
 import { FieldCipher } from './crypto.js';
@@ -70,6 +71,16 @@ async function main(): Promise<void> {
   const host = env('LUTE_API_HOST', '127.0.0.1');
   await app.listen({ host, port: Number(env('LUTE_API_PORT', '48200')) });
   console.log(`lute api listening on ${host} (${network})`);
+
+  // Recoverable operations: settle actions interrupted by a crash or restart, now and every 5 min.
+  const sweep = () =>
+    recoverInFlight({ db, store, sidecar, now })
+      .then((r) => {
+        if (r.length) console.log(`recovery: ${r.map((x) => `${x.from}->${x.to} (${x.spend})`).join(', ')}`);
+      })
+      .catch(() => console.error('recovery sweep failed'));
+  void sweep();
+  setInterval(() => void sweep(), 5 * 60 * 1000).unref();
 }
 
 main().catch((e: unknown) => {

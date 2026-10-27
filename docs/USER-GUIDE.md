@@ -186,6 +186,7 @@ Any MCP client that can start a stdio server works the same way.
 |---|---|
 | `lute_get_wallet_status` | Budget: per-payment cap, total, spent, remaining, expiry |
 | `lute_create_meter_session` | Opens a usage session with the service |
+| `lute_quote_document` | One-time quote: `{session_id, text}` → pages, price, total, expiry (2 min). Binds price, service, session and the exact text; nothing charged |
 | `lute_extract_document` | Paid per page: `{session_id, text}` → extracted fields, the charge, what is due, remaining budget, network fee, how settlement is batched; `402 PAYMENT_REQUIRED` with the reason past the credit limit |
 | `lute_call_metered_api` | One paid unit (chain tip); returns `402 PAYMENT_REQUIRED` at the credit limit |
 | `lute_get_meter_session` | Calls, usage, pending and paid amounts, what is due |
@@ -204,6 +205,21 @@ pays inside the budget, then is refused with `OVER_GRANT_TOTAL` once a payment w
 What stays private, and what does not, is traced in [PRIVATE-PAID-APIS.md](PRIVATE-PAID-APIS.md).
 
 ---
+
+### Agent keys are scoped and revocable
+
+An agent token is a scoped API key: it can only pay the one service of its grant, within the
+per-payment cap and total budget of the mandate you signed, until the expiry you chose. Lute stores
+only its hash; you can revoke it at any time (**AI agents → grant → Revoke**), and the wallet
+service refuses anything outside the signed mandate even if the API were bypassed (evidence E-010).
+
+### If something crashes mid-payment
+
+Every payment is an action with an idempotency key, recorded before anything is sent; a broadcast
+is never retried automatically. If the server restarts between your approval and the result, a
+recovery sweep (at start and every 5 minutes) asks the wallet service what actually happened: a
+sent payment is marked sent with its transaction id, one that was never sent is marked failed
+(`RECOVERED_NOT_SENT`), so nothing is paid twice.
 
 ## 5. The API
 
@@ -253,7 +269,8 @@ lute-approve-v1|<network>|<proposal hash>
 | `POST /v1/agent/grants/{id}/revoke` | Owner: revoke |
 | `GET /v1/agent/me` | Agent: budget |
 | `POST /v1/meter/sessions`, `POST /v1/meter/sessions/{id}/call` | Agent: session, paid call |
-| `POST /v1/meter/sessions/{id}/extract` | Agent: `{text}` → extraction, charged per page |
+| `POST /v1/meter/sessions/{id}/quote` | Agent: `{text}` → one-time quote (single use, 2 min) |
+| `POST /v1/meter/sessions/{id}/extract` | Agent: `{text, quote_id?}` → extraction, charged per page (exactly the quoted amount with a quote) |
 | `POST /v1/meter/sessions/{id}/settle` (+ Idempotency-Key), `/refresh` | Agent: pay, confirm |
 
 ### Public (no login)
