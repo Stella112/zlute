@@ -560,6 +560,7 @@ mod tests {
 
     fn summary(id: &str, amount: u64) -> ProposalSummary {
         ProposalSummary {
+            payments: vec![],
             proposal_id: id.into(),
             account: "a".into(),
             network: "regtest".into(),

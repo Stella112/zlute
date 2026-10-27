@@ -342,6 +342,18 @@ async fn h_check(
 
 #[derive(Deserialize)]
 struct ProposeReq {
+    #[serde(default)]
+    to: Option<String>,
+    #[serde(default)]
+    amount_zat: Option<u64>,
+    memo: Option<String>,
+    /// BatchPay: several recipients in one transaction (instead of to/amount/memo).
+    #[serde(default)]
+    payments: Option<Vec<PayLine>>,
+}
+
+#[derive(Deserialize)]
+struct PayLine {
     to: String,
     amount_zat: u64,
     memo: Option<String>,
@@ -356,7 +368,15 @@ async fn h_propose(
         Ok(w) => w,
         Err(r) => return *r,
     };
-    match w.propose(&r.to, r.amount_zat, r.memo.as_deref()) {
+    let lines: Vec<(String, u64, Option<String>)> = match (r.payments, r.to, r.amount_zat) {
+        (Some(p), None, None) => p
+            .into_iter()
+            .map(|l| (l.to, l.amount_zat, l.memo))
+            .collect(),
+        (None, Some(to), Some(a)) => vec![(to, a, r.memo)],
+        _ => return err(StatusCode::BAD_REQUEST, "BAD_REQUEST"),
+    };
+    match w.propose_batch(&lines) {
         Ok(v) => Json(v).into_response(),
         Err(e) => from_anyhow(e),
     }

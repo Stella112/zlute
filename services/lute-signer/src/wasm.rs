@@ -15,6 +15,38 @@ pub fn derive_ufvk_js(seed_hex: &str, network: &str, account: u32) -> Result<Str
     derive_ufvk(&seed, Net::parse(network).map_err(js)?, account).map_err(js)
 }
 
+/// Batch payout: like `signPczt`, with every recipient and amount (JSON
+/// `[{"recipient":"u1…","amount_zat":1000}]`) checked on the transaction.
+#[wasm_bindgen(js_name = signPcztBatch)]
+pub fn sign_pczt_batch_js(
+    seed_hex: &str,
+    network: &str,
+    account: u32,
+    pczt_hex: &str,
+    payments_json: &str,
+    fee_zat: &str,
+) -> Result<String, JsError> {
+    let seed = hex::decode(seed_hex).map_err(|e| JsError::new(&e.to_string()))?;
+    let pczt = hex::decode(pczt_hex).map_err(|e| JsError::new(&e.to_string()))?;
+    let payments: Vec<crate::ExpectPay> =
+        serde_json::from_str(payments_json).map_err(|e| JsError::new(&e.to_string()))?;
+    let expect = Expect {
+        recipient: String::new(),
+        amount_zat: 0,
+        fee_zat: fee_zat.parse().map_err(|_| JsError::new("bad fee"))?,
+        payments,
+    };
+    let sigs = sign_pczt(
+        &seed,
+        Net::parse(network).map_err(js)?,
+        account,
+        &pczt,
+        &expect,
+    )
+    .map_err(js)?;
+    serde_json::to_string(&sigs).map_err(|e| JsError::new(&e.to_string()))
+}
+
 /// Checks the PCZT (hex) against the expected payment and returns the signatures as JSON
 /// `[{"index":0,"sig":"…"}]`. Amounts are decimal strings (zatoshi).
 #[wasm_bindgen(js_name = signPczt)]
@@ -33,6 +65,7 @@ pub fn sign_pczt_js(
         recipient: recipient.to_string(),
         amount_zat: amount_zat.parse().map_err(|_| JsError::new("bad amount"))?,
         fee_zat: fee_zat.parse().map_err(|_| JsError::new("bad fee"))?,
+        payments: vec![],
     };
     let sigs = sign_pczt(
         &seed,

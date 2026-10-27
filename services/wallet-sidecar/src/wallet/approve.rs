@@ -14,7 +14,8 @@ use zcash_protocol::{PoolType, ShieldedPool};
 use super::send::{Broadcast, LuteProposal};
 use super::Wallet;
 use crate::approval::{
-    approval_message, parse_owner_pubkey, ProposalSummary, MAX_TX_ZAT, POLICY, PROPOSAL_TTL_S,
+    approval_message, parse_owner_pubkey, PaymentLine, ProposalSummary, MAX_TX_ZAT, POLICY,
+    PROPOSAL_TTL_S,
 };
 use crate::control::{ControlDb, SpendStatus};
 use crate::mandate::Mandate;
@@ -73,15 +74,29 @@ impl Wallet {
         crate::policy::decide(&[StepPools::of(step)])
             .map_err(|d| anyhow!("policy denied: {}", serde_json::to_string(&d).unwrap()))?;
         let payments = step.transaction_request().payments();
-        if payments.len() != 1 {
-            bail!("expected exactly one payment");
+        if payments.is_empty() || payments.len() > crate::approval::MAX_BATCH {
+            bail!("expected 1 to {} payments", crate::approval::MAX_BATCH);
         }
-        let (idx, payment) = payments.iter().next().expect("one payment");
-        let recipient_pool = step
-            .payment_pools()
-            .get(idx)
-            .copied()
-            .ok_or_else(|| anyhow!("payment pool unknown"))?;
+        let memo_hash = |p: &zip321::Payment| {
+            p.memo()
+                .map(|m| hex::encode(Sha256::digest(m.as_slice())))
+                .unwrap_or_default()
+        };
+        let mut lines = Vec::with_capacity(payments.len());
+        for (idx, p) in payments.iter() {
+            let pool = step
+                .payment_pools()
+                .get(idx)
+                .copied()
+                .ok_or_else(|| anyhow!("payment pool unknown"))?;
+            lines.push(PaymentLine {
+                recipient: p.recipient_address().encode(),
+                recipient_pool: pool_label(pool).to_string(),
+                amount_zat: p.amount().map(u64::from).unwrap_or(0),
+                memo_hash: memo_hash(p),
+            });
+        }
+        let batch = lines.len() > 1;
         let pools = |f: &dyn Fn(PoolType) -> bool| -> Vec<String> {
             ALL_POOLS
                 .iter()
@@ -96,20 +111,26 @@ impl Wallet {
                 .as_str()
                 .unwrap_or_default()
                 .to_string(),
-            recipient: payment.recipient_address().encode(),
-            recipient_pool: pool_label(recipient_pool).to_string(),
-            amount_zat: payment.amount().map(u64::from).unwrap_or(0),
+            recipient: if batch {
+                "batch".to_string()
+            } else {
+                lines[0].recipient.clone()
+            },
+            recipient_pool: lines[0].recipient_pool.clone(),
+            amount_zat: lines.iter().map(|l| l.amount_zat).sum(),
             fee_zat: u64::from(step.balance().fee_required()),
             input_pools: pools(&|p| step.input_in_pool(p)),
             output_pools: pools(&|p| step.output_in_pool(p)),
             change_pools: pools(&|p| step.change_in_pool(p)),
             policy: POLICY.to_string(),
-            memo_hash: payment
-                .memo()
-                .map(|m| hex::encode(Sha256::digest(m.as_slice())))
-                .unwrap_or_default(),
+            memo_hash: if batch {
+                String::new()
+            } else {
+                lines[0].memo_hash.clone()
+            },
             created_at: meta.created_at,
             expires_at: meta.expires_at,
+            payments: if batch { lines } else { vec![] },
         })
     }
 
@@ -120,11 +141,24 @@ impl Wallet {
         amount_zat: u64,
         memo: Option<&str>,
     ) -> anyhow::Result<ProposalView> {
-        if amount_zat > MAX_TX_ZAT {
+        self.propose_batch(&[(to.to_string(), amount_zat, memo.map(str::to_string))])
+    }
+
+    /// Step 1 for one or several recipients in one transaction (BatchPay). The per-transaction
+    /// cap applies to the total.
+    pub fn propose_batch(
+        &self,
+        lines: &[(String, u64, Option<String>)],
+    ) -> anyhow::Result<ProposalView> {
+        let total = lines
+            .iter()
+            .try_fold(0u64, |a, l| a.checked_add(l.1))
+            .ok_or_else(|| anyhow!("amount overflow"))?;
+        if total > MAX_TX_ZAT {
             bail!("amount exceeds the per-transaction cap of {MAX_TX_ZAT} zat");
         }
         let mut db = self.db()?;
-        let (proposal, _pool) = self.make_proposal(&mut db, to, amount_zat, memo)?;
+        let (proposal, _pool) = self.make_proposal_batch(&mut db, lines)?;
         let mut id = [0u8; 16];
         OsRng.fill_bytes(&mut id);
         let created_at = now();

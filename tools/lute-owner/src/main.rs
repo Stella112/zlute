@@ -187,6 +187,20 @@ fn main() -> anyhow::Result<()> {
             writeln!(out, "change pools:   {}", field(summary, "change_pools")?)?;
             writeln!(out, "policy:         {}", field(summary, "policy")?)?;
             writeln!(out, "memo hash:      {}", field(summary, "memo_hash")?)?;
+            if let Some(lines) = summary.get("payments").and_then(|p| p.as_array()) {
+                writeln!(out, "BATCH: {} payments in one transaction:", lines.len())?;
+                for (i, l) in lines.iter().enumerate() {
+                    let a = l
+                        .get("amount_zat")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or_default();
+                    let r = l
+                        .get("recipient")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default();
+                    writeln!(out, "  {}. {} ZEC -> {}", i + 1, zec(a), truncate(r))?;
+                }
+            }
             writeln!(out, "expires (unix): {}", field(summary, "expires_at")?)?;
             writeln!(out, "proposal hash:  {hash}")?;
             if unattended_regtest {

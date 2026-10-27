@@ -96,12 +96,21 @@ pub fn shielded_only_ufvk(encoded: &str) -> anyhow::Result<String> {
         .encode(&net))
 }
 
-/// What the user approved, from the proposal summary shown to them.
+/// What the user approved, from the proposal summary shown to them. For a batch, `payments`
+/// lists every recipient and amount (and `recipient` / `amount_zat` are ignored).
 #[derive(Clone, Debug, Deserialize)]
 pub struct Expect {
     pub recipient: String,
     pub amount_zat: u64,
     pub fee_zat: u64,
+    #[serde(default)]
+    pub payments: Vec<ExpectPay>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ExpectPay {
+    pub recipient: String,
+    pub amount_zat: u64,
 }
 
 /// One spend-authorization signature for the Ironwood action at `index`.
@@ -134,14 +143,30 @@ pub fn sign_pczt(
         bail!("refused: the transaction uses the Orchard pool");
     }
 
-    let to = match Address::decode(&net, &expect.recipient) {
-        Some(Address::Unified(ua)) => *ua
-            .orchard()
-            .ok_or_else(|| anyhow!("recipient has no Orchard-shaped receiver"))?,
-        _ => bail!("recipient is not a unified address for this network"),
+    let wanted: Vec<(String, u64)> = if expect.payments.is_empty() {
+        vec![(expect.recipient.clone(), expect.amount_zat)]
+    } else {
+        expect
+            .payments
+            .iter()
+            .map(|p| (p.recipient.clone(), p.amount_zat))
+            .collect()
     };
+    // Expected total per Orchard-shaped receiver (a recipient may appear on several lines).
+    let mut expected: Vec<(orchard::Address, u64, u64)> = vec![];
+    for (r, amount) in &wanted {
+        let to = match Address::decode(&net, r) {
+            Some(Address::Unified(ua)) => *ua
+                .orchard()
+                .ok_or_else(|| anyhow!("recipient has no Orchard-shaped receiver"))?,
+            _ => bail!("recipient is not a unified address for this network"),
+        };
+        match expected.iter_mut().find(|e| e.0 == to) {
+            Some(e) => e.1 += amount,
+            None => expected.push((to, *amount, 0)),
+        }
+    }
 
-    let mut to_recipient: u64 = 0;
     let mut mine: Vec<usize> = vec![];
     let checked = pczt::roles::verifier::Verifier::new(pczt)
         .with_ironwood::<String, _>(|b| {
@@ -149,10 +174,11 @@ pub fn sign_pczt(
             for (i, a) in b.actions().iter().enumerate() {
                 let out = a.output();
                 match (out.recipient(), out.value().map(|v| v.inner())) {
-                    (Some(r), Some(v)) if *r == to => {
-                        to_recipient = to_recipient
-                            .checked_add(v)
-                            .ok_or_else(|| Custom("value overflow".into()))?;
+                    (Some(r), Some(v)) if expected.iter().any(|e| e.0 == *r) => {
+                        let e = expected.iter_mut().find(|e| e.0 == *r).expect("found");
+                        e.2 =
+                            e.2.checked_add(v)
+                                .ok_or_else(|| Custom("value overflow".into()))?;
                     }
                     (Some(r), Some(_)) if fvk.scope_for_address(r).is_some() => {} // change
                     (_, Some(0)) => {}                                             // padding
@@ -174,11 +200,10 @@ pub fn sign_pczt(
         })
         .map_err(|e| anyhow!("{e:?}"))?
         .finish();
-    if to_recipient != expect.amount_zat {
-        bail!(
-            "refused: the transaction pays the recipient {to_recipient} zat, not {}",
-            expect.amount_zat
-        );
+    for (_, want, got) in &expected {
+        if got != want {
+            bail!("refused: the transaction pays the recipient {got} zat, not {want}");
+        }
     }
     if mine.is_empty() {
         bail!("refused: the transaction spends nothing from this wallet");
@@ -239,6 +264,7 @@ mod tests {
             recipient: "u1x".into(),
             amount_zat: 1,
             fee_zat: 10_000,
+            payments: vec![],
         };
         assert!(sign_pczt(&[7u8; 32], Net::Main, 0, b"not a pczt", &e).is_err());
     }

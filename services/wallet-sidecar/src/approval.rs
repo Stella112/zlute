@@ -42,7 +42,23 @@ pub struct ProposalSummary {
     pub memo_hash: String,
     pub created_at: u64,
     pub expires_at: u64,
+    /// Batch payouts (BatchPay): one line per recipient. Absent for a single payment, so single
+    /// payments hash exactly as before. For a batch, `recipient` is "batch", `amount_zat` the total
+    /// and `memo_hash` empty; the owner approves every line through the hash.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub payments: Vec<PaymentLine>,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PaymentLine {
+    pub recipient: String,
+    pub recipient_pool: String,
+    pub amount_zat: u64,
+    pub memo_hash: String,
+}
+
+/// The most recipients one batch transaction may pay.
+pub const MAX_BATCH: usize = 10;
 
 impl ProposalSummary {
     /// Canonical JSON: `serde_json::Value` objects are `BTreeMap`-backed (the `preserve_order`
@@ -112,6 +128,7 @@ mod tests {
 
     fn summary() -> ProposalSummary {
         ProposalSummary {
+            payments: vec![],
             proposal_id: "p1".into(),
             account: "a1".into(),
             network: "regtest".into(),

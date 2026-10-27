@@ -166,33 +166,57 @@ impl Wallet {
         amount_zat: u64,
         memo: Option<&str>,
     ) -> anyhow::Result<(LuteProposal, SinglePool)> {
-        // Sidecar-side recipient inspection, independent of LuteGuard (W1, W2, W9).
-        let inspection = inspect(to, self.config.network.params_type());
-        if !inspection.is_allowed() {
+        self.make_proposal_batch(
+            db,
+            &[(to.to_string(), amount_zat, memo.map(str::to_string))],
+        )
+    }
+
+    /// Builds and policy-checks one transaction paying every `(to, amount_zat, memo)` line.
+    pub(crate) fn make_proposal_batch(
+        &self,
+        db: &mut super::Db,
+        lines: &[(String, u64, Option<String>)],
+    ) -> anyhow::Result<(LuteProposal, SinglePool)> {
+        if lines.is_empty() || lines.len() > crate::approval::MAX_BATCH {
             bail!(
-                "recipient denied: {}",
-                serde_json::to_string(&inspection.verdict)?
+                "a batch pays 1 to {} recipients",
+                crate::approval::MAX_BATCH
             );
         }
-        if amount_zat == 0 {
-            bail!("amount must be > 0");
+        let mut payments = Vec::with_capacity(lines.len());
+        for (to, amount_zat, memo) in lines {
+            // Sidecar-side recipient inspection, independent of LuteGuard (W1, W2, W9).
+            let inspection = inspect(to, self.config.network.params_type());
+            if !inspection.is_allowed() {
+                bail!(
+                    "recipient denied: {}",
+                    serde_json::to_string(&inspection.verdict)?
+                );
+            }
+            if *amount_zat == 0 {
+                bail!("amount must be > 0");
+            }
+            // W10: Memo::from_str rejects text over 512 bytes.
+            let memo = memo
+                .as_deref()
+                .map(Memo::from_str)
+                .transpose()
+                .map_err(|e| anyhow!("invalid memo: {e:?}"))?
+                .map(MemoBytes::from);
+            payments.push(
+                Payment::new(
+                    ZcashAddress::from_str(to).map_err(|e| anyhow!("{e}"))?,
+                    Some(Zatoshis::from_u64(*amount_zat).map_err(|_| anyhow!("invalid amount"))?),
+                    memo,
+                    None,
+                    None,
+                    vec![],
+                )
+                .map_err(|e| anyhow!("payment: {e:?}"))?,
+            );
         }
-        // W10: Memo::from_str rejects text over 512 bytes.
-        let memo = memo
-            .map(Memo::from_str)
-            .transpose()
-            .map_err(|e| anyhow!("invalid memo: {e:?}"))?
-            .map(MemoBytes::from);
-        let payment = Payment::new(
-            ZcashAddress::from_str(to).map_err(|e| anyhow!("{e}"))?,
-            Some(Zatoshis::from_u64(amount_zat).map_err(|_| anyhow!("invalid amount"))?),
-            memo,
-            None,
-            None,
-            vec![],
-        )
-        .map_err(|e| anyhow!("payment: {e:?}"))?;
-        let request = TransactionRequest::new(vec![payment]).map_err(|e| anyhow!("{e}"))?;
+        let request = TransactionRequest::new(payments).map_err(|e| anyhow!("{e}"))?;
 
         // Change stays in Ironwood when not otherwise determined; the policy check below
         // rejects any proposal that is not single-pool regardless.
