@@ -20,6 +20,9 @@ const csp = [
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  // Payments sync the wallet and create a zero-knowledge proof before answering (10-60 s on the
+  // VPS); the default 30 s proxy timeout turned a successful payment into a 500 for the caller.
+  experimental: { proxyTimeout: 180_000 },
   async rewrites() {
     return [{ source: '/v1/:path*', destination: `${api}/v1/:path*` }];
   },
