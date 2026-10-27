@@ -43,8 +43,61 @@ const CreateBody = z
   })
   .strict();
 
+const streamAad = (id: string) => `lute-stream|${id}|recipient`;
+
+/** A stream's recipient address (decrypted server-side; never shown to callers). */
+export function streamRecipient(d: Pick<StreamDeps, 'cipher'>, s: typeof streamAgreements.$inferSelect): string {
+  return d.cipher.decrypt(s.recipient_address_enc, streamAad(s.id));
+}
+
+/** Accrued, pending, confirmed-paid and outstanding amounts of a stream (also used by payroll). */
+export async function streamView(d: Pick<StreamDeps, 'db' | 'now'>, s: typeof streamAgreements.$inferSelect) {
+  const now = d.now();
+  const terms = { total_zat: s.total_zat, start_ts: s.start_ts, end_ts: s.end_ts, events: s.events as StreamEvent[] };
+  const settlements = await d.db.select().from(streamSettlements).where(eq(streamSettlements.stream_id, s.id)).orderBy(asc(streamSettlements.seq));
+  const states = settlements.length
+    ? await d.db.select({ id: actions.id, state: actions.state, txid: actions.txid }).from(actions).where(inArray(actions.id, settlements.map((x) => x.action_id)))
+    : [];
+  const byId = new Map(states.map((a) => [a.id, a]));
+  let pending = 0n;
+  let confirmed = 0n;
+  const rows = settlements.map((x) => {
+    const a = byId.get(x.action_id);
+    const st = (a?.state ?? 'FAILED') as ActionState;
+    if (PENDING.has(st)) pending += x.amount_zat;
+    if (PAID.has(st)) confirmed += x.amount_zat;
+    return { seq: x.seq, action_id: x.action_id, amount_zat: x.amount_zat.toString(), state: st, txid: a?.txid ?? null };
+  });
+  const acc = accrued(terms, now);
+  const ev = s.events as StreamEvent[];
+  const status = ev.some((e) => e.kind === 'cancel')
+    ? 'CANCELLED'
+    : now < s.start_ts
+      ? 'SCHEDULED'
+      : now >= s.end_ts
+        ? 'ENDED'
+        : ev.length && ev[ev.length - 1]!.kind === 'pause'
+          ? 'PAUSED'
+          : 'ACTIVE';
+  return {
+    id: s.id,
+    status,
+    server_time: now,
+    start_ts: s.start_ts,
+    end_ts: s.end_ts,
+    rate_zat_per_s: ratePerSecond(terms).toString(),
+    contracted_zat: s.total_zat.toString(),
+    accrued_zat: acc.toString(),
+    pending_zat: pending.toString(),
+    confirmed_paid_zat: confirmed.toString(),
+    outstanding_zat: due(acc, confirmed, pending).toString(),
+    labels: { accrued: 'Earned (accounting), not wallet funds', model: 'Payer-controlled. Not trustless. Payouts stop if the payer stops authorizing.' },
+    settlements: rows,
+  };
+}
+
 export function registerStreamRoutes(app: FastifyInstance, d: StreamDeps): void {
-  const aad = (id: string) => `lute-stream|${id}|recipient`;
+  const aad = streamAad;
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'NOT_FOUND' });
 
   async function load(req: FastifyRequest<{ Params: { id: string } }>) {
@@ -55,50 +108,7 @@ export function registerStreamRoutes(app: FastifyInstance, d: StreamDeps): void 
     return { u, s: s ?? null };
   }
 
-  async function view(s: typeof streamAgreements.$inferSelect) {
-    const now = d.now();
-    const terms = { total_zat: s.total_zat, start_ts: s.start_ts, end_ts: s.end_ts, events: s.events as StreamEvent[] };
-    const settlements = await d.db.select().from(streamSettlements).where(eq(streamSettlements.stream_id, s.id)).orderBy(asc(streamSettlements.seq));
-    const states = settlements.length
-      ? await d.db.select({ id: actions.id, state: actions.state, txid: actions.txid }).from(actions).where(inArray(actions.id, settlements.map((x) => x.action_id)))
-      : [];
-    const byId = new Map(states.map((a) => [a.id, a]));
-    let pending = 0n;
-    let confirmed = 0n;
-    const rows = settlements.map((x) => {
-      const a = byId.get(x.action_id);
-      const st = (a?.state ?? 'FAILED') as ActionState;
-      if (PENDING.has(st)) pending += x.amount_zat;
-      if (PAID.has(st)) confirmed += x.amount_zat;
-      return { seq: x.seq, action_id: x.action_id, amount_zat: x.amount_zat.toString(), state: st, txid: a?.txid ?? null };
-    });
-    const acc = accrued(terms, now);
-    const ev = s.events as StreamEvent[];
-    const status = ev.some((e) => e.kind === 'cancel')
-      ? 'CANCELLED'
-      : now < s.start_ts
-        ? 'SCHEDULED'
-        : now >= s.end_ts
-          ? 'ENDED'
-          : ev.length && ev[ev.length - 1]!.kind === 'pause'
-            ? 'PAUSED'
-            : 'ACTIVE';
-    return {
-      id: s.id,
-      status,
-      server_time: now,
-      start_ts: s.start_ts,
-      end_ts: s.end_ts,
-      rate_zat_per_s: ratePerSecond(terms).toString(),
-      contracted_zat: s.total_zat.toString(),
-      accrued_zat: acc.toString(),
-      pending_zat: pending.toString(),
-      confirmed_paid_zat: confirmed.toString(),
-      outstanding_zat: due(acc, confirmed, pending).toString(),
-      labels: { accrued: 'Earned (accounting), not wallet funds', model: 'Payer-controlled. Not trustless. Payouts stop if the payer stops authorizing.' },
-      settlements: rows,
-    };
-  }
+  const view = (s: typeof streamAgreements.$inferSelect) => streamView(d, s);
 
   app.post('/v1/streams', async (req, reply) => {
     const u = await d.user(req);

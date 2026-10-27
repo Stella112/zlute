@@ -26,6 +26,7 @@ const ROLE_OPS: Record<Exclude<EvaluationContext['principal']['kind'], 'agent'>,
     'STREAM_SETTLEMENT',
     'METER_SETTLEMENT',
     'SUBSCRIPTION_RENEWAL',
+    'BATCH_PAYOUT',
   ]),
   merchant: new Set<ActionType>(['REQUEST', 'CHECKOUT', 'REFUND', 'SUBSCRIPTION_RENEWAL']),
   user: new Set<ActionType>(['REQUEST', 'GROUP_CONTRIBUTION', 'METER_SESSION']),
@@ -111,6 +112,24 @@ function transactionPolicy(ctx: EvaluationContext, add: Builder): void {
       ? pass('recipient_pool', 'payment goes to a shielded receiver of the recipient')
       : { check: 'recipient_pool', outcome: 'FAIL', reason_code: 'RECIPIENT_POOL_MISMATCH', explanation: 'payment pool is not a payable shielded receiver of the recipient' },
   );
+  if (s.payments) {
+    // BatchPay: every line goes to an inspected, payable shielded receiver; lines add up.
+    const rs = ctx.recipients ?? [];
+    const ok =
+      rs.length === s.payments.length &&
+      s.payments.every((l, i) => rs[i]?.verdict === 'ALLOWED' && rs[i]!.payable_pools.includes(l.recipient_pool as 'ironwood' | 'sapling'));
+    add(
+      ok
+        ? pass('batch_recipients', 'every batch payment goes to a payable shielded receiver')
+        : { check: 'batch_recipients', outcome: 'FAIL', reason_code: 'BATCH_RECIPIENT_NOT_PAYABLE', explanation: 'a batch payment is not to a payable shielded receiver' },
+    );
+    const sum = s.payments.reduce((a, l) => a + BigInt(l.amount_zat), 0n);
+    add(
+      sum === BigInt(s.amount_zat)
+        ? pass('batch_total', 'batch lines add up to the proposal total')
+        : { check: 'batch_total', outcome: 'FAIL', reason_code: 'BATCH_TOTAL_MISMATCH', explanation: 'batch lines do not add up to the total' },
+    );
+  }
   add(
     BigInt(s.amount_zat) === action.amount_zat
       ? pass('amount_binding', 'proposal amount equals the action amount')

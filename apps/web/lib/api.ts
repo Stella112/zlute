@@ -79,6 +79,8 @@ export interface ProposalSummary {
   memo_hash: string;
   created_at: number;
   expires_at: number;
+  /** BatchPay: one line per recipient (absent for a single payment). */
+  payments?: { recipient: string; recipient_pool: string; amount_zat: number; memo_hash: string }[];
 }
 
 export type ExecuteResult =

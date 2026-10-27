@@ -15,6 +15,7 @@ export type ActionType =
   | 'METER_SESSION'
   | 'METER_SETTLEMENT'
   | 'SUBSCRIPTION_RENEWAL'
+  | 'BATCH_PAYOUT'
   | 'AGENT_PAYMENT'
   | 'CROSSCHAIN_FUNDING';
 
@@ -23,6 +24,7 @@ export const SPEND_ACTIONS: ReadonlySet<ActionType> = new Set<ActionType>([
   'SEND',
   'REFUND',
   'STREAM_SETTLEMENT',
+  'BATCH_PAYOUT',
   'METER_SETTLEMENT',
   'AGENT_PAYMENT',
   'CROSSCHAIN_FUNDING',
@@ -63,6 +65,8 @@ export interface SidecarProposalSummary {
   memo_hash: string;
   created_at: number;
   expires_at: number;
+  /** Batch payouts only (absent for a single payment): one line per recipient. */
+  payments?: { recipient: string; recipient_pool: string; amount_zat: number; memo_hash: string }[];
 }
 
 export interface ProposalFacts {
@@ -120,6 +124,8 @@ export interface EvaluationContext {
   via_execute_action: boolean;
   principal: Principal;
   recipient?: RecipientInspection;
+  /** Batch payouts: one inspection per payment line, in order. */
+  recipients?: RecipientInspection[];
   proposal?: ProposalFacts;
   /** How a mainnet spend is authorized; null when it is not. */
   spend_authorization: 'owner_approval' | 'mandate' | null;

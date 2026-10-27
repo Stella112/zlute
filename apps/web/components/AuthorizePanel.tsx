@@ -74,10 +74,24 @@ export function AuthorizePanel({ actionId, result, network, onDone }: { actionId
         {zecShort(s.amount_zat)} <span className="text-2xl font-normal text-muted">ZEC</span>
       </p>
       <dl className="mt-6 divide-y divide-line rounded-2xl bg-raised px-4 text-sm">
-        <div className="flex justify-between py-3">
-          <dt className="text-muted">To</dt>
-          <dd className="font-mono text-xs">{short(s.recipient, 10)}</dd>
-        </div>
+        {s.payments?.length ? (
+          <div className="py-3">
+            <dt className="text-muted">To {s.payments.length} people, in one shielded payment</dt>
+            <dd className="mt-2 space-y-1">
+              {s.payments.map((p, i) => (
+                <div key={i} className="flex justify-between gap-3">
+                  <span className="font-mono text-xs">{short(p.recipient, 8)}</span>
+                  <span className="num">{zecShort(p.amount_zat)} ZEC</span>
+                </div>
+              ))}
+            </dd>
+          </div>
+        ) : (
+          <div className="flex justify-between py-3">
+            <dt className="text-muted">To</dt>
+            <dd className="font-mono text-xs">{short(s.recipient, 10)}</dd>
+          </div>
+        )}
         <div className="flex justify-between py-3">
           <dt className="text-muted">Network fee</dt>
           <dd className="num">{zecShort(s.fee_zat)} ZEC</dd>

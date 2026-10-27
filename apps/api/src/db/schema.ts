@@ -1,5 +1,5 @@
 /** Drizzle mirror of schema.sql (the SQL file is authoritative). */
-import { bigint, bigserial, boolean, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
+import { bigint, bigserial, boolean, integer, jsonb, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -30,6 +30,7 @@ export const actions = pgTable('actions', {
   recipient_address_enc: text('recipient_address_enc'),
   recipient_ref: text('recipient_ref'),
   memo_kind: text('memo_kind'),
+  payments_enc: text('payments_enc'),
   memo_ref: text('memo_ref'),
   memo_text_enc: text('memo_text_enc'),
   idempotency_key: text('idempotency_key').notNull(),
@@ -144,6 +145,46 @@ export const meterSessions = pgTable('meter_sessions', {
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
 });
+
+export const payrollRuns = pgTable('payroll_runs', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  action_id: text('action_id').notNull(),
+  name: text('name').notNull(),
+  source: text('source').notNull(),
+  template_id: text('template_id'),
+  created_by_user_id: text('created_by_user_id').notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const payrollItems = pgTable('payroll_items', {
+  run_id: text('run_id').notNull(),
+  idx: integer('idx').notNull(),
+  label_enc: text('label_enc').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  receipt_id: text('receipt_id').notNull(),
+  stream_id: text('stream_id'),
+});
+
+export const payrollTemplates = pgTable('payroll_templates', {
+  id: text('id').primaryKey(),
+  owner_user_id: text('owner_user_id').notNull(),
+  name: text('name').notNull(),
+  wallet: text('wallet').notNull(),
+  items_enc: text('items_enc').notNull(),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+export const payrollMembers = pgTable(
+  'payroll_members',
+  {
+    owner_user_id: text('owner_user_id').notNull(),
+    member_user_id: text('member_user_id').notNull(),
+    role: text('role').notNull(),
+    created_at: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.owner_user_id, t.member_user_id] })],
+);
 
 export const agentInvoices = pgTable('agent_invoices', {
   grant_id: text('grant_id').notNull(),

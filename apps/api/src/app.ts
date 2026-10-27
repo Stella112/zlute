@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionRecord, type SidecarClient, type SidecarResult } from '@lute/core';
+import { AmountError, executeAction, IdempotencyMismatch, parseZec, type ActionRecord, type ProposalView, type SidecarClient, type SidecarResult } from '@lute/core';
 import type { Network, Principal } from '@lute/luteguard';
 import { createUser, login, logout, SESSION_COOKIE, SESSION_TTL_S, sessionUser, WALLET_ROLES, walletOf, type SessionUser } from './auth.js';
 import { randomBytes } from 'node:crypto';
@@ -8,6 +8,7 @@ import { eq, sql } from 'drizzle-orm';
 import { users } from './db/schema.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { registerAgentRoutes } from './agents.js';
+import { registerPayrollRoutes } from './payroll.js';
 import { registerCommerceRoutes } from './commerce.js';
 import { registerGroupRoutes } from './groups.js';
 import { registerSubscriptionRoutes } from './subscriptions.js';
@@ -38,6 +39,8 @@ export interface AppDeps {
   mandates?: MandateSidecar;
   /** Self-serve sign-up (own wallets per user). Without it, sign-up does not exist. */
   walletAdmin?: WalletAdmin;
+  /** Payroll: re-reads a stored proposal for approving a run prepared earlier. */
+  proposals?: { showProposal(wallet: string, proposalId: string): Promise<SidecarResult<ProposalView>> };
   /** Browser-signed wallets: builds the unsigned transaction the browser signs. */
   pczt?: { preparePczt(wallet: string, proposalId: string): Promise<SidecarResult<PcztView>> };
   /** Most accounts the install accepts through sign-up. */
@@ -146,6 +149,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   registerDashboardRoutes(app, { db: deps.db, sidecar: deps.requestSidecar, network: deps.network, user, resultsFile: deps.resultsFile ?? 'evidence/results.json', store: deps.store, now: deps.now });
 
+  registerPayrollRoutes(app, {
+    db: deps.db,
+    store: deps.store,
+    cipher: deps.cipher,
+    sidecar: deps.sidecar,
+    ...(deps.proposals ? { proposals: deps.proposals } : {}),
+    sync: (w) => deps.requestSidecar.sync(w),
+    network: deps.network,
+    now: deps.now,
+    user,
+  });
   registerCommerceRoutes(app, { db: deps.db, store: deps.store, cipher: deps.cipher, sidecar: deps.sidecar, requestSidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });
 
   registerSubscriptionRoutes(app, { db: deps.db, cipher: deps.cipher, requestSidecar: deps.requestSidecar, network: deps.network, now: deps.now, user });

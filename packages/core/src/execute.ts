@@ -17,6 +17,8 @@ export interface ActionRecord {
   memo?: MemoSpec;
   /** Memo text sent on-chain (e.g. "LUTE:<ref>"), consistent with `memo`. */
   memo_text?: string;
+  /** BatchPay: several recipients paid in one transaction (`amount_zat` is the total). */
+  payments?: { to: string; amount_zat: bigint; memo_text?: string }[];
   idempotency_key: string;
   expires_at: number;
   proposal_id?: string;
@@ -56,7 +58,7 @@ export interface ExecuteOutcome {
 /** The only route to the sidecar (docs/API.md §1). */
 export interface SidecarClient {
   inspect(address: string): Promise<RecipientInspection>;
-  propose(wallet: string, req: { to: string; amount_zat: bigint; memo?: string }): Promise<SidecarResult<ProposalView>>;
+  propose(wallet: string, req: { to: string; amount_zat: bigint; memo?: string } | { payments: { to: string; amount_zat: bigint; memo?: string }[] }): Promise<SidecarResult<ProposalView>>;
   approve(wallet: string, proposalId: string, signature: string): Promise<SidecarResult<true>>;
   execute(wallet: string, proposalId: string): Promise<SidecarResult<ExecuteOutcome>>;
   /** Execute under a loaded owner-signed mandate; the sidecar re-checks its bounds atomically. */
@@ -142,7 +144,7 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       return { state: 'FAILED', reason: 'ACTION_EXPIRED' };
     }
     let a = await store.transition(action.id, 'CREATED', 'VALIDATING', actor);
-    if (!a.wallet || !a.recipient_address) {
+    if (!a.wallet || (!a.recipient_address && !a.payments?.length)) {
       await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { reject_reason: 'MISSING_PARAMETERS' });
       return { state: 'REJECTED', reasons: ['MISSING_PARAMETERS'] };
     }
@@ -172,15 +174,25 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       }
     }
     let recipient: RecipientInspection;
+    let recipients: RecipientInspection[] | undefined;
     let proposal: ProposalView | undefined;
     try {
-      recipient = await sidecar.inspect(a.recipient_address);
+      if (a.payments?.length) {
+        // BatchPay: inspect every recipient; the first one that is not payable decides.
+        recipients = [];
+        for (const l of a.payments) recipients.push(await sidecar.inspect(l.to));
+        const bad = recipients.find((r) => r.verdict !== 'ALLOWED');
+        recipient = bad ?? { ...recipients[0]!, payable_pools: recipients[0]!.payable_pools.filter((p) => recipients!.every((r) => r.payable_pools.includes(p))) };
+      } else {
+        recipient = await sidecar.inspect(a.recipient_address!);
+      }
       if (recipient.verdict === 'ALLOWED') {
-        const p = await sidecar.propose(a.wallet, {
-          to: a.recipient_address,
-          amount_zat: a.amount_zat,
-          ...(a.memo_text !== undefined ? { memo: a.memo_text } : {}),
-        });
+        const p = await sidecar.propose(
+          a.wallet,
+          a.payments?.length
+            ? { payments: a.payments.map((l) => ({ to: l.to, amount_zat: l.amount_zat, ...(l.memo_text !== undefined ? { memo: l.memo_text } : {}) })) }
+            : { to: a.recipient_address!, amount_zat: a.amount_zat, ...(a.memo_text !== undefined ? { memo: a.memo_text } : {}) },
+        );
         if (!p.ok) {
           await store.transition(a.id, 'VALIDATING', 'REJECTED', actor, { reject_reason: p.code });
           return { state: 'REJECTED', reasons: [p.code] };
@@ -200,6 +212,7 @@ export async function executeAction(deps: EngineDeps, req: ExecuteRequest): Prom
       via_execute_action: true,
       principal: req.principal,
       recipient,
+      ...(recipients ? { recipients } : {}),
       ...(proposal ? { proposal: { summary: proposal.summary, proposal_hash: proposal.proposal_hash, fee_source: 'library' as const } } : {}),
       spend_authorization: authorizationFor(req.principal),
     };

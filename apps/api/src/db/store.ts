@@ -48,6 +48,10 @@ export class PgActionStore implements ActionStore {
     if (r.memo_kind === 'user_typed') rec.memo = { kind: 'user_typed' };
     if (r.memo_kind === 'invoice_ref' && r.memo_ref) rec.memo = { kind: 'invoice_ref', ref: r.memo_ref };
     if (r.memo_text_enc) rec.memo_text = this.cipher.decrypt(r.memo_text_enc, this.aad(r.id, 'memo'));
+    if (r.payments_enc) {
+      const lines = JSON.parse(this.cipher.decrypt(r.payments_enc, this.aad(r.id, 'payments'))) as { to: string; amount_zat: string; memo_text?: string }[];
+      rec.payments = lines.map((l) => ({ to: l.to, amount_zat: BigInt(l.amount_zat), ...(l.memo_text !== undefined ? { memo_text: l.memo_text } : {}) }));
+    }
     if (r.proposal_id) rec.proposal_id = r.proposal_id;
     if (r.proposal_hash) rec.proposal_hash = r.proposal_hash;
     if (r.txid) rec.txid = r.txid;
@@ -73,6 +77,10 @@ export class PgActionStore implements ActionStore {
       memo_kind: memo?.kind ?? null,
       memo_ref: memo?.kind === 'lute_ref' || memo?.kind === 'invoice_ref' ? memo.ref : null,
       memo_text_enc: a.memo_text ? this.cipher.encrypt(a.memo_text, this.aad(a.id, 'memo')) : null,
+      // BatchPay lines (recipients, amounts, memos) are encrypted at rest like a single recipient.
+      payments_enc: a.payments?.length
+        ? this.cipher.encrypt(JSON.stringify(a.payments.map((l) => ({ to: l.to, amount_zat: l.amount_zat.toString(), ...(l.memo_text !== undefined ? { memo_text: l.memo_text } : {}) }))), this.aad(a.id, 'payments'))
+        : null,
       idempotency_key: a.idempotency_key,
       expires_at: a.expires_at,
       grant_id: grantId ?? null,

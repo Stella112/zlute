@@ -206,6 +206,12 @@ enum WalletCmd {
         #[arg(long)]
         memo: Option<String>,
     },
+    /// BatchPay: one transaction paying every line of a JSON file
+    /// `[{"to":"u…","amount_zat":1000,"memo":"LUTE:x"}]` (1 to 10 lines).
+    ProposeBatch {
+        #[arg(long)]
+        lines: PathBuf,
+    },
     /// Show a stored proposal, its hash and the exact message the owner signs.
     Show {
         #[arg(long)]
@@ -450,6 +456,22 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     let v = Wallet::open(&dir)?.propose(&to, zat, memo.as_deref())?;
                     println!("{}", serde_json::to_string(&v)?);
                 }
+                WalletCmd::ProposeBatch { lines } => {
+                    let v: Vec<serde_json::Value> =
+                        serde_json::from_str(&std::fs::read_to_string(lines)?)?;
+                    let lines: Vec<(String, u64, Option<String>)> = v
+                        .iter()
+                        .map(|l| {
+                            (
+                                l["to"].as_str().unwrap_or_default().to_string(),
+                                l["amount_zat"].as_u64().unwrap_or_default(),
+                                l["memo"].as_str().map(str::to_string),
+                            )
+                        })
+                        .collect();
+                    let v = Wallet::open(&dir)?.propose_batch(&lines)?;
+                    println!("{}", serde_json::to_string(&v)?);
+                }
                 WalletCmd::Show { proposal } => {
                     let v = Wallet::open(&dir)?.show_proposal(&proposal)?;
                     println!("{}", serde_json::to_string(&v)?);
@@ -545,6 +567,20 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                         recipient: field("recipient").as_str().unwrap_or_default().to_string(),
                         amount_zat: field("amount_zat").as_u64().unwrap_or_default(),
                         fee_zat: field("fee_zat").as_u64().unwrap_or_default(),
+                        payments: v["summary"]["payments"]
+                            .as_array()
+                            .map(|ls| {
+                                ls.iter()
+                                    .map(|l| lute_signer::ExpectPay {
+                                        recipient: l["recipient"]
+                                            .as_str()
+                                            .unwrap_or_default()
+                                            .to_string(),
+                                        amount_zat: l["amount_zat"].as_u64().unwrap_or_default(),
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
                     };
                     let pczt = hex::decode(v["pczt_hex"].as_str().unwrap_or_default())?;
                     let sigs = lute_signer::sign_pczt(

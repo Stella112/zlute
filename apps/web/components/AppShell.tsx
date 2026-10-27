@@ -31,6 +31,7 @@ export const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { href: '/subscriptions', label: 'Subscriptions', icon: 'repeat', hint: 'Bill every month' },
       { href: '/groups', label: 'Split a bill', icon: 'users', hint: 'Everyone pays their share' },
       { href: '/streams', label: 'Streams', icon: 'stream', hint: 'Pay by the second' },
+      { href: '/payroll', label: 'Payroll', icon: 'users', hint: 'Pay a team in one shielded payment' },
     ],
   },
   {

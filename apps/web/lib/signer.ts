@@ -9,6 +9,7 @@ interface SignerModule {
   default: (opts: { module_or_path: string }) => Promise<unknown>;
   deriveUfvk(seedHex: string, network: string, account: number): string;
   signPczt(seedHex: string, network: string, account: number, pcztHex: string, recipient: string, amountZat: string, feeZat: string): string;
+  signPcztBatch(seedHex: string, network: string, account: number, pcztHex: string, paymentsJson: string, feeZat: string): string;
 }
 
 let loading: Promise<SignerModule> | null = null;
@@ -57,7 +58,10 @@ export async function signPayment(seedHex: string, network: string, pcztHex: str
   let last: unknown = null;
   for (const account of [ACCOUNTS.payout, ACCOUNTS.merchant]) {
     try {
-      return JSON.parse(m.signPczt(seedHex, network, account, pcztHex, s.recipient, String(s.amount_zat), String(s.fee_zat))) as SpendAuthSig[];
+      const out = s.payments?.length
+        ? m.signPcztBatch(seedHex, network, account, pcztHex, JSON.stringify(s.payments.map((p) => ({ recipient: p.recipient, amount_zat: p.amount_zat }))), String(s.fee_zat))
+        : m.signPczt(seedHex, network, account, pcztHex, s.recipient, String(s.amount_zat), String(s.fee_zat));
+      return JSON.parse(out) as SpendAuthSig[];
     } catch (e) {
       last = e;
       if (!String(e instanceof Error ? e.message : e).includes('spends nothing from this wallet')) break;

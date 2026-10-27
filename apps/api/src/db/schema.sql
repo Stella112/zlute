@@ -157,6 +157,43 @@ CREATE TABLE IF NOT EXISTS x402_invoices (
   used_at      BIGINT
 );
 
+-- Payroll (BatchPay). A run is one BATCH_PAYOUT action; items are its lines (labels encrypted;
+-- recipients live encrypted in the action). receipt_id is each person's payslip capability.
+CREATE TABLE IF NOT EXISTS payroll_runs (
+  id                 TEXT PRIMARY KEY,
+  owner_user_id      TEXT NOT NULL,
+  action_id          TEXT NOT NULL UNIQUE,
+  name               TEXT NOT NULL,
+  source             TEXT NOT NULL CHECK (source IN ('manual','template','streams')),
+  template_id        TEXT,
+  created_by_user_id TEXT NOT NULL,
+  created_at         BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS payroll_items (
+  run_id     TEXT NOT NULL,
+  idx        INTEGER NOT NULL,
+  label_enc  TEXT NOT NULL,
+  amount_zat BIGINT NOT NULL CHECK (amount_zat > 0),
+  receipt_id TEXT NOT NULL UNIQUE,
+  stream_id  TEXT,
+  PRIMARY KEY (run_id, idx)
+);
+CREATE TABLE IF NOT EXISTS payroll_templates (
+  id            TEXT PRIMARY KEY,
+  owner_user_id TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  wallet        TEXT NOT NULL CHECK (wallet IN ('payout','merchant')),
+  items_enc     TEXT NOT NULL,
+  created_at    BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS payroll_members (
+  owner_user_id  TEXT NOT NULL,
+  member_user_id TEXT NOT NULL,
+  role           TEXT NOT NULL CHECK (role IN ('admin','operator')),
+  created_at     BIGINT NOT NULL,
+  PRIMARY KEY (owner_user_id, member_user_id)
+);
+
 CREATE TABLE IF NOT EXISTS agent_grants (
   id             TEXT PRIMARY KEY,
   owner_user_id  TEXT NOT NULL REFERENCES users(id),
@@ -211,6 +248,11 @@ ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS seen_zat BIGINT NOT NULL D
 
 -- Spends made by an agent carry its grant (budget accounting).
 ALTER TABLE actions ADD COLUMN IF NOT EXISTS grant_id TEXT;
+-- BatchPay: the payment lines of a batch action (recipients, amounts, memos), encrypted.
+ALTER TABLE actions ADD COLUMN IF NOT EXISTS payments_enc TEXT;
+-- Payroll from several streams settles them in one batch action: one action, several streams.
+ALTER TABLE stream_settlements DROP CONSTRAINT IF EXISTS stream_settlements_action_id_key;
+
 -- Memo kinds, including a payee's own invoice reference (agent invoice payments).
 ALTER TABLE actions DROP CONSTRAINT IF EXISTS actions_memo_kind_check;
 ALTER TABLE actions ADD CONSTRAINT actions_memo_kind_check CHECK (memo_kind IN ('lute_ref','user_typed','invoice_ref'));

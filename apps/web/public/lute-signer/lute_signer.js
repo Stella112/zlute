@@ -72,6 +72,46 @@ export function signPczt(seed_hex, network, account, pczt_hex, recipient, amount
         wasm.__wbindgen_free(deferred8_0, deferred8_1, 1);
     }
 }
+
+/**
+ * Batch payout: like `signPczt`, with every recipient and amount (JSON
+ * `[{"recipient":"u1…","amount_zat":1000}]`) checked on the transaction.
+ * @param {string} seed_hex
+ * @param {string} network
+ * @param {number} account
+ * @param {string} pczt_hex
+ * @param {string} payments_json
+ * @param {string} fee_zat
+ * @returns {string}
+ */
+export function signPcztBatch(seed_hex, network, account, pczt_hex, payments_json, fee_zat) {
+    let deferred7_0;
+    let deferred7_1;
+    try {
+        const ptr0 = passStringToWasm0(seed_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(pczt_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(payments_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passStringToWasm0(fee_zat, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ret = wasm.signPcztBatch(ptr0, len0, ptr1, len1, account, ptr2, len2, ptr3, len3, ptr4, len4);
+        var ptr6 = ret[0];
+        var len6 = ret[1];
+        if (ret[3]) {
+            ptr6 = 0; len6 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred7_0 = ptr6;
+        deferred7_1 = len6;
+        return getStringFromWasm0(ptr6, len6);
+    } finally {
+        wasm.__wbindgen_free(deferred7_0, deferred7_1, 1);
+    }
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

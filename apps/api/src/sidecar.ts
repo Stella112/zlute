@@ -134,7 +134,7 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar, Mandate
     return r.json as RecipientInspection;
   }
 
-  async propose(wallet: string, req: { to: string; amount_zat: bigint; memo?: string }): Promise<SidecarResult<ProposalView>> {
+  async propose(wallet: string, req: Parameters<SidecarClient['propose']>[1]): Promise<SidecarResult<ProposalView>> {
     return this.result(await this.call('POST', `/v1/wallets/${encodeURIComponent(wallet)}/proposals`, req));
   }
 
@@ -171,6 +171,11 @@ export class HttpSidecarClient implements SidecarClient, RequestSidecar, Mandate
   /** Recovery: what happened to a proposal's spend ("none" if never reserved). Read-only. */
   async spendStatus(wallet: string, proposalId: string): Promise<SidecarResult<{ status: string; txid: string | null }>> {
     return this.result(await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}/spend`));
+  }
+
+  /** Re-reads a stored proposal (summary, hash and the message the owner signs). */
+  async showProposal(wallet: string, proposalId: string): Promise<SidecarResult<ProposalView>> {
+    return this.result(await this.call('GET', `/v1/wallets/${encodeURIComponent(wallet)}/proposals/${encodeURIComponent(proposalId)}`));
   }
 
   async preparePczt(wallet: string, proposalId: string): Promise<SidecarResult<PcztView>> {
