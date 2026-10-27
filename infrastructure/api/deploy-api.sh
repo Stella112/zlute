@@ -33,7 +33,7 @@ fi
 rm -rf "$BASE/src.new" && mkdir -p "$BASE/src.new"
 tar xzf "$BASE/src.tgz" -C "$BASE/src.new"
 docker run --rm --memory 1536m --cpus 1 -e NEXT_TELEMETRY_DISABLED=1 -v "$BASE/src.new:/app" -w /app node:24-bookworm-slim \
-  sh -c "corepack enable && pnpm install --frozen-lockfile --filter @lute/api... --filter @lute/web && pnpm --filter @lute/luteguard build && pnpm --filter @lute/core build && pnpm --filter @lute/api build && pnpm --filter @lute/web build && cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static"
+  sh -c "corepack enable && pnpm install --frozen-lockfile --filter @lute/api... --filter @lute/web && pnpm --filter @lute/luteguard build && pnpm --filter @lute/core build && pnpm --filter @lute/api build && pnpm --filter @lute/web build && cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static && cp -r apps/web/public apps/web/.next/standalone/apps/web/public"
 rm -rf "$BASE/src.old"; [ -d "$BASE/src" ] && mv "$BASE/src" "$BASE/src.old"; mv "$BASE/src.new" "$BASE/src"
 
 cd "$BASE/src/infrastructure/api"
