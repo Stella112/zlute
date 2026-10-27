@@ -100,10 +100,38 @@ export default function PayPage() {
           <p>{error}</p>
         </div>
       )}
+      <FeePreview amount={amount} />
       <button type="submit" disabled={busy || !amount || !to.trim()} className="mt-6 w-full rounded-xl bg-accent py-4 text-base font-medium text-on-accent disabled:bg-accent/40">
         {busy ? 'Checking privacy…' : 'Review'}
       </button>
       <p className="mt-4 text-center text-xs text-muted">Every payment is checked by LuteGuard and must be shielded. Limits: 0.02 ZEC per payment, 0.05 ZEC per day.</p>
     </form>
+  );
+}
+
+/** ZIP-317 fee for a typical shielded payment (2 actions); the exact fee is shown before confirming. */
+const TYPICAL_FEE_ZAT = 10_000n;
+
+function toZat(v: string): bigint | null {
+  const m = /^(\d+)(?:\.(\d{1,8}))?$/.exec(v.trim());
+  if (!m) return null;
+  return BigInt(m[1]!) * 100_000_000n + BigInt((m[2] ?? '').padEnd(8, '0'));
+}
+
+function FeePreview({ amount }: { amount: string }) {
+  const zat = toZat(amount);
+  if (zat === null || zat <= 0n) return null;
+  return (
+    <dl className="mt-4 divide-y divide-line rounded-2xl bg-raised px-4 text-sm">
+      <div className="flex justify-between py-2.5">
+        <dt className="text-muted">Network fee (Zcash, ZIP-317)</dt>
+        <dd className="num">about {zecShort(TYPICAL_FEE_ZAT)} ZEC</dd>
+      </div>
+      <div className="flex justify-between py-2.5 font-medium">
+        <dt>Total about</dt>
+        <dd className="num">{zecShort(zat + TYPICAL_FEE_ZAT)} ZEC</dd>
+      </div>
+      <p className="pb-2.5 text-xs text-muted">Lute adds no fee. The exact network fee is shown on the next screen, before you confirm.</p>
+    </dl>
   );
 }

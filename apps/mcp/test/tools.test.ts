@@ -21,13 +21,14 @@ describe('Lute MCP tools (A6, A8, A9)', () => {
       'lute_get_wallet_status',
       'lute_create_meter_session',
       'lute_call_metered_api',
+      'lute_quote_document',
       'lute_extract_document',
       'lute_get_meter_session',
       'lute_propose_settlement',
       'lute_verify_settlement',
     ]);
     // Inputs are a session id and, for extraction, the document text: never an address or an amount.
-    for (const t of TOOLS) expect(Object.keys(t.input).every((k) => k === 'session_id' || (t.name === 'lute_extract_document' && k === 'text'))).toBe(true);
+    for (const t of TOOLS) expect(Object.keys(t.input).every((k) => k === 'session_id' || (['lute_extract_document', 'lute_quote_document'].includes(t.name) && (k === 'text' || k === 'quote_id')))).toBe(true);
   });
 
   it('A8: session ids are validated, so injected text never reaches a URL', () => {

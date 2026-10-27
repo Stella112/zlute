@@ -238,6 +238,34 @@ describe('agents and metered billing (A group, §19.6/§19.8)', () => {
     }
   });
 
+  it('one-time quotes: bound to price, service, session and the exact text; single use; expire', async () => {
+    const { g } = await grant();
+    const s = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    const other = (await asAgent(g.token, 'POST', '/v1/meter/sessions')).json();
+    const DOC = 'Invoice #Q-1 total $10';
+    const q = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/quote`, { text: DOC })).json();
+    expect(q).toMatchObject({ pages: 1, amount_zat: '1500', expires_at: T0 + 120 });
+    expect(q.quote_id).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    // A different document, another session, or an unknown quote: refused, nothing charged.
+    expect((await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: `${DOC}!`, quote_id: q.quote_id })).json().error).toBe('QUOTE_MISMATCH');
+    expect((await asAgent(g.token, 'POST', `/v1/meter/sessions/${other.id}/extract`, { text: DOC, quote_id: q.quote_id })).json().error).toBe('UNKNOWN_QUOTE');
+    // Two calls racing on one quote: exactly one is served and charged.
+    const rs = await Promise.all([1, 2].map(() => asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: DOC, quote_id: q.quote_id })));
+    expect(rs.map((r) => r.statusCode).sort()).toEqual([200, 409]);
+    const ok = rs.find((r) => r.statusCode === 200)!.json();
+    expect(ok.charge).toMatchObject({ charged_zat: '1500', quote: 'honoured' });
+    expect(rs.find((r) => r.statusCode === 409)!.json().error).toBe('QUOTE_ALREADY_USED');
+    expect((await asAgent(g.token, 'GET', `/v1/meter/sessions/${s.id}`)).json().usage_zat).toBe('1500');
+    // Expired.
+    const q2 = (await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/quote`, { text: DOC })).json();
+    clock = T0 + 121;
+    expect((await asAgent(g.token, 'POST', `/v1/meter/sessions/${s.id}/extract`, { text: DOC, quote_id: q2.quote_id })).json().error).toBe('QUOTE_EXPIRED');
+    clock = T0;
+    // The quote stores a hash, never the text.
+    const rows = JSON.stringify((await t.pg.query('SELECT * FROM meter_quotes')).rows);
+    expect(rows).not.toContain('Invoice #Q-1');
+  });
+
   // ---- R: payment restrictions (docs/PRIVACY-EVIDENCE.md E-015) ----
 
   const executes = () => t.sidecar.calls.filter((c) => c.startsWith('execute')).length;

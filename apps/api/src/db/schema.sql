@@ -156,6 +156,20 @@ CREATE TABLE IF NOT EXISTS meter_sessions (
   updated_at BIGINT NOT NULL
 );
 
+-- One-time quotes for metered calls: bind price, service, session and the exact request (hash of
+-- the text, never the text). Single use, short expiry.
+CREATE TABLE IF NOT EXISTS meter_quotes (
+  id           TEXT PRIMARY KEY,
+  session_id   TEXT NOT NULL REFERENCES meter_sessions(id),
+  service_id   TEXT NOT NULL REFERENCES meter_services(id),
+  pages        INTEGER NOT NULL CHECK (pages > 0),
+  amount_zat   BIGINT NOT NULL CHECK (amount_zat > 0),
+  request_hash TEXT NOT NULL,
+  expires_at   BIGINT NOT NULL,
+  used_at      BIGINT,
+  created_at   BIGINT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS meter_settlements (
   session_id TEXT NOT NULL REFERENCES meter_sessions(id),
   seq        INTEGER NOT NULL CHECK (seq > 0),

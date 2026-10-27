@@ -493,6 +493,22 @@ impl ControlDb {
         Ok(spend_id)
     }
 
+    /// What happened to a proposal's spend, for recovering operations after a crash or restart:
+    /// `None` = never reserved (nothing was sent); otherwise the spend status and txid.
+    pub fn spend_for_proposal(
+        &self,
+        proposal_id: &str,
+    ) -> rusqlite::Result<Option<(String, Option<String>)>> {
+        self.conn
+            .query_row(
+                "SELECT s.status, s.txid FROM spends s JOIN proposals p ON p.hash = s.proposal_hash
+                 WHERE p.id = ?1",
+                params![proposal_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+    }
+
     /// Stores the proved, unsigned PCZT built for a browser-signed proposal (first one wins, so a
     /// retried prepare returns the same transaction the browser may already be signing).
     pub fn store_pczt(&self, proposal_id: &str, pczt: &[u8], now: u64) -> rusqlite::Result<()> {
@@ -959,6 +975,25 @@ mod tests {
             .unwrap();
         assert_eq!(spends, 1);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn spend_for_proposal_reports_what_happened() {
+        let (mut db, s) = setup("p", 1_000_000, true);
+        assert_eq!(db.spend_for_proposal("p").unwrap(), None);
+        let id = db
+            .reserve(&owner().verifying_key(), "regtest", "p", &s.hash(), NOW + 1)
+            .unwrap();
+        assert_eq!(
+            db.spend_for_proposal("p").unwrap(),
+            Some(("reserved".into(), None))
+        );
+        db.finish(id, SpendStatus::Submitted, Some("tx1"), NOW + 2)
+            .unwrap();
+        assert_eq!(
+            db.spend_for_proposal("p").unwrap(),
+            Some(("submitted".into(), Some("tx1".into())))
+        );
     }
 
     /// W14/W15: the daily cap counts reserved, submitted and ambiguous spends; released frees it.

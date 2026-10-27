@@ -119,6 +119,29 @@ export default function PrivacyCenter() {
         </Card>
       </div>
 
+      <Card title="Who can see what" className="mb-6">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-muted">
+              <tr>
+                <th className="pb-2 pr-4 font-medium">Who</th>
+                <th className="pb-2 pr-4 font-medium">Can see</th>
+                <th className="pb-2 font-medium">Cannot see</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line align-top">
+              {DISCLOSURE.map(([who, sees, not]) => (
+                <tr key={who}>
+                  <td className="py-2.5 pr-4 font-medium">{who}</td>
+                  <td className="py-2.5 pr-4">{sees}</td>
+                  <td className="py-2.5 text-muted">{not}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       <Card title="Known limitations" className="mb-6">
         <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
           <li>
@@ -174,3 +197,15 @@ export default function PrivacyCenter() {
     </>
   );
 }
+
+/** Who learns what about a Lute payment (docs/PRIVATE-PAID-APIS.md, docs/CUSTODY.md). */
+const DISCLOSURE: [string, string, string][] = [
+  ['Anyone reading the blockchain', 'That a shielded transaction happened, when, and its fee and size.', 'Sender, recipient, amount, memo.'],
+  ['Light-wallet server (zec.rocks)', "Lute's server IP, sync timing, transactions Lute broadcasts or looks up.", 'Amounts, addresses, memos, keys.'],
+  ['Your payer or payee', 'Their own payment with you: amount and memo.', 'Your balance and your other payments.'],
+  ['A merchant or paid service', 'The payment it received and what was bought or called.', 'Your wallet, balance and other payments.'],
+  ['Someone holding a receipt link', 'Amount, date, transaction id, a salted item hash.', 'Addresses and the item text.'],
+  ['Lute operator: new (non-custodial) accounts', 'Your payments in and out, amounts, timing (it holds viewing keys).', 'Your keys. It cannot move your money; request notes are encrypted in the link.'],
+  ['Lute operator: agent wallets and older accounts', 'Everything above.', 'Nothing more is hidden: these wallets are Lute-held (custodial); approvals and budgets are enforced by Lute software.'],
+  ["The AI provider (agent's chat)", 'What tools return: charges, budget, status.', 'Addresses, keys, grant and transaction ids.'],
+];

@@ -12,7 +12,7 @@
  *   Recipients are resolved server-side from the grant's service, never from agent input (A8).
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AmountError, executeAction, parseZec, type ActionState, type SidecarClient } from '@lute/core';
@@ -20,7 +20,7 @@ import type { AgentGrant, Caller, Network, Principal } from '@lute/luteguard';
 import { walletOf, type SessionUser } from './auth.js';
 import { opaqueId, type FieldCipher } from './crypto.js';
 import { MAX_CHARS, extract, pagesOf } from './extract.js';
-import { actions, agentGrants, meterServices, meterSessions, meterSettlements } from './db/schema.js';
+import { actions, agentGrants, meterQuotes, meterServices, meterSessions, meterSettlements } from './db/schema.js';
 import type { Db, PgActionStore } from './db/store.js';
 import { minConf } from './requests.js';
 import type { MandateSidecar, RequestSidecar } from './sidecar.js';
@@ -56,7 +56,11 @@ function canonical(v: unknown): string {
   return JSON.stringify(v);
 }
 
-const ExtractBody = z.object({ text: z.string().min(1).max(MAX_CHARS) }).strict();
+const ExtractBody = z.object({ text: z.string().min(1).max(MAX_CHARS), quote_id: z.string().regex(/^[A-Za-z0-9_-]{22}$/).optional() }).strict();
+const QuoteBody = z.object({ text: z.string().min(1).max(MAX_CHARS) }).strict();
+/** A quote is valid for two minutes and for one call. */
+const QUOTE_TTL_S = 120;
+const requestHash = (text: string) => createHash('sha256').update(`lute-extract-request-v1|${text}`, 'utf8').digest('hex');
 const ServiceBody = z.object({ name: z.string().min(1).max(64), price_per_call_zat: z.number().int().min(1).max(2_000_000), credit_limit_zat: z.number().int().min(1).max(2_000_000) }).strict();
 const DraftBody = z.object({ service_id: z.string().regex(ID), max_tx_zec: z.string().max(32), total_zec: z.string().max(32), ttl_hours: z.number().int().min(1).max(48) }).strict();
 const MandateShape = z
@@ -370,6 +374,35 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
    * characters) at the service's price. The text is used in memory only: never stored, never
    * logged, and only its size reaches the database (as billed pages).
    */
+  /**
+   * One-time quote for an extraction: binds the price, the service, this session and the exact
+   * document (by hash; the text is not stored). Valid for one call within two minutes.
+   */
+  app.post<{ Params: { id: string } }>('/v1/meter/sessions/:id/quote', async (req, reply) => {
+    const g = await agent(req);
+    if (!g) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
+    const s = await session(g, req.params.id);
+    if (!s) return notFound(reply);
+    const body = QuoteBody.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST', reason: `Send {"text": "..."} with 1 to ${MAX_CHARS} characters.` });
+    const svc = (await service(s.service_id))!;
+    const pages = pagesOf(body.data.text);
+    const amount = BigInt(pages) * svc.price_per_call_zat;
+    const id = opaqueId();
+    const expires_at = d.now() + QUOTE_TTL_S;
+    await d.db.insert(meterQuotes).values({ id, session_id: s.id, service_id: svc.id, pages, amount_zat: amount, request_hash: requestHash(body.data.text), expires_at, created_at: d.now() });
+    return {
+      quote_id: id,
+      service: svc.name,
+      pages,
+      price_per_page_zat: svc.price_per_call_zat.toString(),
+      amount_zat: amount.toString(),
+      expires_at,
+      binds: 'this session, this service, this price and this exact text; one use',
+      ...(await billing(g, s.id)),
+    };
+  });
+
   app.post<{ Params: { id: string } }>('/v1/meter/sessions/:id/extract', async (req, reply) => {
     const g = await agent(req);
     if (!g) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
@@ -378,8 +411,21 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
     const body = ExtractBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST', reason: `Send {"text": "..."} with 1 to ${MAX_CHARS} characters.` });
     const svc = (await service(s.service_id))!;
-    const pages = pagesOf(body.data.text);
-    const charge = BigInt(pages) * svc.price_per_call_zat;
+    let pages = pagesOf(body.data.text);
+    let charge = BigInt(pages) * svc.price_per_call_zat;
+    let quoteId: string | null = null;
+    if (body.data.quote_id) {
+      const q = (await d.db.select().from(meterQuotes).where(and(eq(meterQuotes.id, body.data.quote_id), eq(meterQuotes.session_id, s.id))).limit(1))[0];
+      if (!q) return reply.code(404).send({ error: 'UNKNOWN_QUOTE' });
+      if (q.used_at !== null) return reply.code(409).send({ error: 'QUOTE_ALREADY_USED' });
+      if (d.now() >= q.expires_at) return reply.code(410).send({ error: 'QUOTE_EXPIRED', reason: 'Ask for a new quote.' });
+      if (q.service_id !== svc.id || q.request_hash !== requestHash(body.data.text)) {
+        return reply.code(409).send({ error: 'QUOTE_MISMATCH', reason: 'The quote was for a different document or service.' });
+      }
+      pages = q.pages;
+      charge = q.amount_zat;
+      quoteId = q.id;
+    }
     const v = await sessionView(s);
     if (BigInt(v.due_zat) + charge > svc.credit_limit_zat) {
       return reply.code(402).send({
@@ -390,11 +436,16 @@ export function registerAgentRoutes(app: FastifyInstance, d: AgentDeps): void {
         credit_limit_zat: v.service.credit_limit_zat,
       });
     }
+    if (quoteId) {
+      // Consume the quote atomically: of two calls racing on one quote, only one is served.
+      const used = await d.db.update(meterQuotes).set({ used_at: d.now() }).where(and(eq(meterQuotes.id, quoteId), isNull(meterQuotes.used_at))).returning({ id: meterQuotes.id });
+      if (used.length === 0) return reply.code(409).send({ error: 'QUOTE_ALREADY_USED' });
+    }
     const result = extract(body.data.text);
     await d.db.update(meterSessions).set({ calls: sql`${meterSessions.calls} + ${pages}`, updated_at: d.now() }).where(eq(meterSessions.id, s.id));
     return {
       result,
-      charge: { pages, price_per_page_zat: svc.price_per_call_zat.toString(), charged_zat: charge.toString() },
+      charge: { pages, price_per_page_zat: svc.price_per_call_zat.toString(), charged_zat: charge.toString(), ...(quoteId ? { quote: 'honoured' } : {}) },
       ...(await billing(g, s.id)),
     };
   });

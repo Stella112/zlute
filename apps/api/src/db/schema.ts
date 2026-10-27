@@ -142,6 +142,18 @@ export const meterSessions = pgTable('meter_sessions', {
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
 });
 
+export const meterQuotes = pgTable('meter_quotes', {
+  id: text('id').primaryKey(),
+  session_id: text('session_id').notNull(),
+  service_id: text('service_id').notNull(),
+  pages: integer('pages').notNull(),
+  amount_zat: bigint('amount_zat', { mode: 'bigint' }).notNull(),
+  request_hash: text('request_hash').notNull(),
+  expires_at: bigint('expires_at', { mode: 'number' }).notNull(),
+  used_at: bigint('used_at', { mode: 'number' }),
+  created_at: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
 export const meterSettlements = pgTable('meter_settlements', {
   session_id: text('session_id').notNull(),
   seq: integer('seq').notNull(),

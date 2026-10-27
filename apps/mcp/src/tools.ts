@@ -43,12 +43,24 @@ export const TOOLS: ToolDef[] = [
     run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/call`),
   },
   {
+    name: 'lute_quote_document',
+    title: 'Get a one-time price quote for a document',
+    description:
+      'Returns a one-time quote for extracting this document: pages, price, total and expiry (2 minutes). The quote binds the price, the service, this session and the exact text; pass its quote_id to lute_extract_document to be charged exactly that. Nothing is charged for a quote.',
+    input: { session_id: SessionId, text: z.string().min(1).max(40000).describe('The document as plain text (up to 40,000 characters).') },
+    run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/quote`, {}, { text: a.text }),
+  },
+  {
     name: 'lute_extract_document',
     title: 'Extract fields from a document (paid per page)',
     description:
       'Paid document extraction: send the plain text of an invoice, receipt or email; get back its title, invoice number, dates, amounts with currencies and labels, the total, emails and links. Charged per page (2,000 characters) to the session. The response shows the charge, what is due, the remaining budget and the network fee; payment is batched into one shielded settlement. The text is not stored. Over the credit limit it returns PAYMENT_REQUIRED (402) with the reason: settle first.',
-    input: { session_id: SessionId, text: z.string().min(1).max(40000).describe('The document as plain text (up to 40,000 characters).') },
-    run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/extract`, {}, { text: a.text }),
+    input: {
+      session_id: SessionId,
+      text: z.string().min(1).max(40000).describe('The document as plain text (up to 40,000 characters).'),
+      quote_id: z.string().regex(/^[A-Za-z0-9_-]{22}$/).optional().describe('A quote from lute_quote_document for this exact text; it is used once.'),
+    },
+    run: (c, a) => c.call('POST', `/v1/meter/sessions/${a.session_id}/extract`, {}, { text: a.text, ...(a.quote_id ? { quote_id: a.quote_id } : {}) }),
   },
   {
     name: 'lute_get_meter_session',

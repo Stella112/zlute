@@ -229,6 +229,30 @@ impl Wallet {
 }
 
 impl Wallet {
+    /// Recovery lookup: the spend status of a proposal ("none" if it was never reserved).
+    pub fn spend_status(&self, proposal_id: &str) -> anyhow::Result<SpendStatusView> {
+        let control = self.control()?;
+        if control.load_proposal(proposal_id)?.is_none() {
+            bail!("unknown proposal");
+        }
+        Ok(match control.spend_for_proposal(proposal_id)? {
+            None => SpendStatusView {
+                status: "none".into(),
+                txid: None,
+            },
+            Some((status, txid)) => SpendStatusView { status, txid },
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct SpendStatusView {
+    /// none | reserved | submitted | released | ambiguous
+    pub status: String,
+    pub txid: Option<String>,
+}
+
+impl Wallet {
     /// The wallet's directory name: what a mandate's `wallet` field must equal.
     fn wallet_name(&self) -> String {
         self.dir

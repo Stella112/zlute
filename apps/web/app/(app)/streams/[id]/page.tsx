@@ -101,6 +101,11 @@ export default function StreamDetail() {
           <Button disabled={!!busy || !!pending || BigInt(s.outstanding_zat) <= 0n} onClick={() => act('settle')}>
             {busy === 'settle' ? 'Preparing payout…' : 'Pay what is due'}
           </Button>
+          {BigInt(s.outstanding_zat) > 0n && (
+            <p className="w-full text-xs text-muted">
+              Payout {zec(s.outstanding_zat)} ZEC + network fee about 0.0001 ZEC (exact fee shown before you confirm). Each payout is one shielded payment, so fewer, larger payouts cost less.
+            </p>
+          )}
           <Button variant="ghost" disabled={!!busy} onClick={() => act('refresh')}>
             {busy === 'refresh' ? 'Checking…' : 'Check confirmations'}
           </Button>

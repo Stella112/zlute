@@ -397,6 +397,21 @@ async fn h_approve(
     }
 }
 
+/// Recovery after a crash or restart: what happened to a proposal's spend (read-only).
+async fn h_spend_status(
+    State(st): State<Arc<AppState>>,
+    UrlPath((w, id)): UrlPath<(String, String)>,
+) -> Response {
+    let w = match open_wallet(&st, &w) {
+        Ok(w) => w,
+        Err(r) => return *r,
+    };
+    match w.spend_status(&id) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => from_anyhow(e),
+    }
+}
+
 async fn h_execute(
     State(st): State<Arc<AppState>>,
     UrlPath((w, id)): UrlPath<(String, String)>,
@@ -615,6 +630,7 @@ pub fn router(cfg: &ApiConfig) -> Router {
         .route("/v1/wallets/{w}/proposals/{id}/approve", post(h_approve))
         .route("/v1/wallets/{w}/proposals/{id}/execute", post(h_execute))
         .route("/v1/wallets/{w}/proposals/{id}/pczt", post(h_prepare_pczt))
+        .route("/v1/wallets/{w}/proposals/{id}/spend", get(h_spend_status))
         .route(
             "/v1/wallets/{w}/proposals/{id}/execute-signed",
             post(h_execute_signed),
