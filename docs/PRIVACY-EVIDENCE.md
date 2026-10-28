@@ -1,6 +1,6 @@
 # Privacy evidence
 
-One row per material claim (mandate §28). Regtest evidence is not mainnet evidence; mainnet evidence is not production readiness. Reviewer status "self-review" means no independent reviewer has checked it yet.
+One row per material claim (mandate §28). Regtest evidence is not mainnet evidence; mainnet evidence is not production readiness. Reviewer status "self-review" means no independent reviewer has checked it yet. Commit hashes cited before 2026-10-28 refer to the history before it was published; see [COMMIT-MAP.md](COMMIT-MAP.md) for the published hashes (file contents are identical).
 
 | # | Claim | Threat-model ref | Env | Policy | Test | Command | Expected | Actual | Artifact | Commit | Residual limits | Reviewer |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
