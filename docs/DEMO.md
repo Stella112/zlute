@@ -1,63 +1,61 @@
 # Demo script (about 5 minutes)
 
-One journey, one person: **Ada**, a freelance designer, gets paid privately, sells a logo pack,
-and lets her bookkeeping agent pay for document extraction inside a budget. Everything is on
-**Zcash mainnet** at https://uselute.xyz. Record at 1080p; keep the browser at 100 % zoom.
+One journey: **Ada** runs a small design studio. She gets paid privately, pays her team in one
+shielded payment, and lets her bookkeeping agent pay for document extraction inside a budget.
+Everything is on **Zcash mainnet** at https://uselute.xyz. Record at 1080p, browser at 100 % zoom.
 
-Before recording: an account with its key backup saved; Zodl on a phone with about 0.01 ZEC; the
-agent wallet funded (0.0004 ZEC is enough) and a grant registered (per payment 0.00015, total 0.00025,
-24 h); Claude Code connected to the Lute MCP server (docs/USER-GUIDE.md §4). Three short invoice
-texts ready to paste.
+Before recording: Zodl on a phone with about 0.01 ZEC; the owner account (maris) with a funded agent
+wallet and a registered grant; Claude Code connected to the Lute MCP server (docs/USER-GUIDE.md §4);
+a short invoice text ready to paste.
 
 ## 1. What Lute is (0:00 to 0:30)
 
-- Open https://uselute.xyz. Read the hero: *"Receive payments, collect subscriptions and pay for
-  services with shielded Zcash. Payment details stay off the public blockchain."*
-- Scroll to the FAQ, open **Who holds the money?**: Lute is custodial, payouts need your approval key
-  or a budget you signed, keep working balances only. Say: "We state custody plainly; the full trace
-  is in the Custody doc." (Click Docs → Custody for two seconds.)
+- Open https://uselute.xyz. Hero: *"Receive payments, collect subscriptions and pay for services with
+  shielded Zcash. Payment details stay off the public blockchain."*
+- Point at the line under the buttons: *"Non-custodial: your keys stay in your browser."*
+- Scroll to **Privacy → Who can see what** for two seconds: the honest table of what the chain, the
+  light server, payers and the Lute operator can and cannot see.
 
-## 2. Get paid (0:30 to 1:40)
+## 2. Sign up: your keys stay in your browser (0:30 to 1:15)
 
-- Sign in. **Receive** → amount `0.0015`, note `Logo, invoice 12` → **Create**.
-- Point at the link: the note is encrypted in the `#` part of the link; the server never sees it.
-- Scan the QR with Zodl on the phone and send. The page goes **Confirming** (full amount seen),
-  then **Paid** after 3 confirmations (cut the wait in editing).
-- **Activity**: the payment shows as Paid, `+0.0015`.
+- **Get started** → create an account. Say: "The browser just made a 24-word recovery phrase. Lute
+  received only viewing keys: it can show my payments but holds no key that can move my money."
+- Go to **Request**: the backup screen asks you to save the backup first. Download it; say "this
+  restores my wallet in Zodl, even without Lute."
 
-## 3. Sell something, with a receipt (1:40 to 2:30)
+## 3. Get paid (1:15 to 2:00)
 
-- **Checkout** → item `Logo pack`, `0.001` → share link → pay from Zodl.
-- Once Paid, open **View receipt**: "Signature valid". Read the disclosure line: the receipt shows the
-  amount and transaction id to whoever holds the link; the item is a salted hash, so it cannot be
-  guessed from the receipt.
+- **Request** `0.0005` ZEC with a note → scan the QR with Zodl and pay.
+- The page goes **Confirming**, then **Paid** (cut the wait).
+- **Pay** `0.0002` back to Zodl: the fee preview shows the network fee and total; **Confirm and
+  pay** says *"Signing in this browser…"*. Say: "The server built the transaction; my browser
+  checked it pays exactly what I see, then signed it." (E-017)
 
-## 4. An AI agent pays for a service inside a budget (2:30 to 4:00)
+## 4. Payroll in one shielded payment (2:00 to 3:00)
 
-- **AI agents**: show the grant: per payment 0.00015, total 0.00025, one allowed recipient, expiry.
-  Say: "The agent never holds an address or a key; it can only pay this service, up to this budget."
-- Switch to Claude Code. Prompt:
-  > Use the Lute tools. Check your budget, open a metered session, and extract the fields from these
-  > three invoices: (paste). Then pay what you owe and tell me what is left.
-- Show one `lute_extract_document` result: the extracted fields, then `charge` (pages, price),
-  `budget.remaining_zat`, `settlement.batched: true` and `network_fee_zat: 10000`. Say: "Three
-  documents, one shielded payment, one network fee."
-- The agent settles: state **SUBMITTED** under the mandate, no owner signature needed.
-- Prompt: "Extract these again and pay." The settlement is refused: **REJECTED `OVER_GRANT_TOTAL`**,
-  before the wallet builds anything.
+- Switch to the owner account. **Payroll → New payroll**: two people, addresses and amounts.
+- **Review payroll**: the approval lists both people. Approve (the laptop tool shows
+  *"BATCH: 2 payments in one transaction"*).
+- Say: "One transaction, one fee. Each person sees only their own pay." Open one **private payslip
+  link**: only that person's line. (E-020)
 
-## 5. Proof (4:00 to 4:45)
+## 5. An AI agent pays for an API inside a budget (3:00 to 4:15)
 
-- **Privacy** page: module statuses computed from test runs (`evidence/results.json`, tied to the
-  commit). Click **E-014**: every mainnet transaction Lute made or received is
-  `SHIELDED_SINGLE_POOL` (no transparent inputs or outputs, one pool).
-- Click a mainnet txid: the explorer shows a shielded transaction with no visible amount or
-  addresses.
-- Docs → Evidence → **E-015**: the restriction tests (simultaneous settlements, retries, changed
-  recipient, expired or revoked grant, missing approval, transparent address).
+- **AI agents**: show the grant: per payment, total, one payee, expiry.
+- In Claude Code: *"Use the Lute tools. Check your budget, open a session, get a quote for this
+  invoice and extract its fields, then pay what you owe."*
+- Show `lute_quote_document` (price, expiry, "one use"), the extraction (invoice number, amounts,
+  total), then the settlement **SUBMITTED** without any owner signature. Reusing the quote is refused.
+- *"Do it again ten times and pay."* → **REJECTED `OVER_GRANT_PER_TX`** before anything is built.
+  (E-018)
 
-## 6. Close (4:45 to 5:00)
+## 6. Proof (4:15 to 4:50)
 
-"Shielded payments protect the details from public blockchain observers. Hosted Lute sees the
-activity it needs to operate, and it says so. Approvals and budgets are enforced on every payout, and
-every claim links to its evidence."
+- **Docs → Evidence**: each claim with its test or mainnet transaction. Click **E-014**: every mainnet
+  transaction Lute made is `SHIELDED_SINGLE_POOL`. Open one txid on the explorer: no visible amount
+  or addresses.
+
+## 7. Close (4:50 to 5:00)
+
+"Shielded payments, payroll and agent payments on Zcash, with keys in the user's browser and every
+claim backed by evidence."
