@@ -1,0 +1,9 @@
+node_modules/
+out/
+public/rec/
+*.log
+vo-gen/
+public/shots/app-request-qr.png
+public/shots/app-request-waiting.png
+capture-app.log
+public/audio/s[1-6].*

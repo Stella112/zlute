@@ -9,12 +9,154 @@ import { ThemeToggle } from '@/components/ThemeToggle';
  * Documentation, rendered at build time from the repository's own markdown (docs/*.md), so the site
  * and the repo never disagree.
  */
-const DOCS: Record<string, { file: string; title: string }> = {
-  '': { file: 'USER-GUIDE.md', title: 'User guide' },
-  'private-apis': { file: 'PRIVATE-PAID-APIS.md', title: 'Private paid APIs' },
-  custody: { file: 'CUSTODY.md', title: 'Custody' },
-  evidence: { file: 'PRIVACY-EVIDENCE.md', title: 'Evidence' },
+type Doc = {
+  slug: string;
+  title: string;
+  file: string;
+  part?: string;
+  blurb: string;
 };
+
+/** The user guide is one file in the repo; on the site each numbered section is its own page. */
+const GROUPS: { name: string; docs: Doc[] }[] = [
+  {
+    name: 'Start here',
+    docs: [
+      {
+        slug: '',
+        title: 'Overview',
+        file: 'USER-GUIDE.md',
+        part: 'intro',
+        blurb: 'What Lute is, who needs an account, custody in one paragraph.',
+      },
+      {
+        slug: 'account',
+        title: 'Account and keys',
+        file: 'USER-GUIDE.md',
+        part: '1',
+        blurb: 'Sign up, your recovery phrase, backups, how a payment is approved.',
+      },
+    ],
+  },
+  {
+    name: 'Payments',
+    docs: [
+      {
+        slug: 'getting-paid',
+        title: 'Getting paid',
+        file: 'USER-GUIDE.md',
+        part: '2',
+        blurb: 'Payment links, checkout with receipts and private refunds, subscriptions, split bills.',
+      },
+      {
+        slug: 'paying-out',
+        title: 'Paying out and streams',
+        file: 'USER-GUIDE.md',
+        part: '3',
+        blurb: 'Send, and pay someone by the second.',
+      },
+      {
+        slug: 'payroll',
+        title: 'Payroll and teams',
+        file: 'USER-GUIDE.md',
+        part: '4',
+        blurb: 'BatchPay, private payslips, saved payrolls, admin and operator roles.',
+      },
+    ],
+  },
+  {
+    name: 'AI agents',
+    docs: [
+      {
+        slug: 'agents',
+        title: 'Agents and MCP',
+        file: 'USER-GUIDE.md',
+        part: '5',
+        blurb: 'Mandates, metered APIs, quotes, HTTP 402, MCP setup and the tools.',
+      },
+      {
+        slug: 'private-apis',
+        title: 'Private paid APIs',
+        file: 'PRIVATE-PAID-APIS.md',
+        blurb: 'What stays private when an agent pays for an API, channel by channel.',
+      },
+    ],
+  },
+  {
+    name: 'Developers',
+    docs: [
+      {
+        slug: 'api',
+        title: 'API reference',
+        file: 'USER-GUIDE.md',
+        part: '6',
+        blurb: 'Every endpoint, by area.',
+      },
+    ],
+  },
+  {
+    name: 'Trust',
+    docs: [
+      {
+        slug: 'custody',
+        title: 'Custody',
+        file: 'CUSTODY.md',
+        blurb: 'Who can spend the money, account by account.',
+      },
+      {
+        slug: 'evidence',
+        title: 'Evidence',
+        file: 'PRIVACY-EVIDENCE.md',
+        blurb: 'Every claim with its mainnet or regtest proof, commands and limits.',
+      },
+      {
+        slug: 'limits',
+        title: 'Limits and fees',
+        file: 'USER-GUIDE.md',
+        part: '7',
+        blurb: 'Payment limits, network fees, custody summary.',
+      },
+      {
+        slug: 'troubleshooting',
+        title: 'Troubleshooting',
+        file: 'USER-GUIDE.md',
+        part: '8',
+        blurb: 'What an error means and what to do.',
+      },
+    ],
+  },
+];
+const ALL = GROUPS.flatMap((g) => g.docs);
+const DOCS: Record<string, Doc> = Object.fromEntries(ALL.map((d) => [d.slug, d]));
+
+/** Cuts one numbered "## N." section out of the guide (or the intro before the first one), one heading level up. */
+function part(raw: string, which: string): string {
+  const lines = raw.split('\n');
+  const first = lines.findIndex((l) => l.startsWith('## '));
+  if (which === 'intro') {
+    const intro = lines
+      .slice(lines.findIndex((l) => l.startsWith('# ')) + 1, first)
+      .join('\n')
+      .replace(/\n---\s*$/, '');
+    const list = GROUPS.map(
+      (g) =>
+        `## ${g.name}\n\n` +
+        g.docs
+          .filter((d) => d.slug)
+          .map((d) => `- [${d.title}](/docs/${d.slug}): ${d.blurb}`)
+          .join('\n'),
+    ).join('\n\n');
+    return `${intro}\n\n${list}\n`;
+  }
+  const start = lines.findIndex((l) => l.startsWith(`## ${which}. `));
+  let end = lines.findIndex((l, i) => i > start && l.startsWith('## '));
+  if (end < 0) end = lines.length;
+  return lines
+    .slice(start + 1, end)
+    .join('\n')
+    .replace(/\n---\s*$/, '')
+    .replace(/^(#{3,6}) /gm, (_, h: string) => `${h.slice(1)} `);
+}
 
 export const REPO = 'https://github.com/Stella112/zlute';
 const BLOB = `${REPO}/blob/main`;
@@ -22,7 +164,7 @@ const BLOB = `${REPO}/blob/main`;
 export const dynamic = 'force-static';
 
 export function generateStaticParams() {
-  return Object.keys(DOCS).map((k) => ({ slug: k ? [k] : [] }));
+  return ALL.map((d) => ({ slug: d.slug ? [d.slug] : [] }));
 }
 
 const decode = (t: string) =>
@@ -75,7 +217,9 @@ function evidence(md: string) {
   const lines = md.split('\n');
   const head = lines.findIndex((l) => l.startsWith('| # |'));
   const cols = cells(lines[head]!);
-  const intro = marked.parse(lines.slice(0, head).join('\n'), { async: false }) as string;
+  const intro = marked.parse(lines.slice(0, head).join('\n'), {
+    async: false,
+  }) as string;
   const rows = lines
     .slice(head + 2)
     .filter((l) => l.startsWith('| E-'))
@@ -102,9 +246,16 @@ function evidence(md: string) {
 }
 
 function load(key: string) {
-  const raw = readFileSync(join(process.cwd(), '..', '..', 'docs', DOCS[key]!.file), 'utf8');
+  const doc = DOCS[key]!;
+  const raw = readFileSync(join(process.cwd(), '..', '..', 'docs', doc.file), 'utf8');
   if (key === 'evidence') return evidence(raw);
-  const md = raw
+  const md = (
+    doc.part
+      ? `# ${doc.title}
+
+${part(raw, doc.part)}`
+      : raw
+  )
     .replaceAll('(PRIVATE-PAID-APIS.md)', '(/docs/private-apis)')
     .replaceAll('(USER-GUIDE.md)', '(/docs)')
     .replaceAll('(CUSTODY.md)', '(/docs/custody)')
@@ -128,6 +279,9 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
   const key = slug?.[0] ?? '';
   if (!(key in DOCS) || (slug?.length ?? 0) > 1) notFound();
   const { html, toc } = load(key);
+  const i = ALL.findIndex((d) => d.slug === key);
+  const prev = ALL[i - 1];
+  const next = ALL[i + 1];
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-line/60 bg-bg/85 backdrop-blur">
@@ -150,12 +304,18 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
       </header>
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-10 md:grid-cols-[14rem_1fr]">
         <aside className="md:sticky md:top-24 md:self-start">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">Guides</p>
-          <nav className="mb-2 flex gap-4 text-sm md:mb-6 md:flex-col md:gap-1">
-            {Object.entries(DOCS).map(([k, d]) => (
-              <Link key={k} href={k ? `/docs/${k}` : '/docs'} className={k === key ? 'font-medium' : 'text-muted hover:text-text'}>
-                {d.title}
-              </Link>
+          <nav className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-sm md:mb-6 md:flex-col md:gap-0">
+            {GROUPS.map((g) => (
+              <div key={g.name} className="md:mb-4">
+                <p className="mb-1 hidden text-[11px] font-medium uppercase tracking-[0.18em] text-muted md:block">{g.name}</p>
+                <div className="flex flex-wrap gap-x-4 md:flex-col md:gap-1">
+                  {g.docs.map((d) => (
+                    <Link key={d.slug} href={d.slug ? `/docs/${d.slug}` : '/docs'} className={d.slug === key ? 'font-medium' : 'text-muted hover:text-text'}>
+                      {d.title}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
           <p className="mb-2 hidden text-[11px] font-medium uppercase tracking-[0.18em] text-muted md:block">On this page</p>
@@ -167,7 +327,23 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
             ))}
           </nav>
         </aside>
-        <article className="doc min-w-0" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="min-w-0">
+          <article className="doc" dangerouslySetInnerHTML={{ __html: html }} />
+          <nav className="mt-12 flex justify-between gap-4 border-t border-line pt-6 text-sm">
+            {prev ? (
+              <Link href={prev.slug ? `/docs/${prev.slug}` : '/docs'} className="text-muted hover:text-text">
+                ← {prev.title}
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next && (
+              <Link href={`/docs/${next.slug}`} className="text-muted hover:text-text">
+                {next.title} →
+              </Link>
+            )}
+          </nav>
+        </div>
       </div>
     </div>
   );

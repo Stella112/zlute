@@ -1,0 +1,155 @@
+{
+ "offsets": {},
+ "cues": [
+  {
+   "text": "Zcash makes money private. Lute makes it programmable.",
+   "start": 1.0,
+   "end": 3.907
+  },
+  {
+   "text": "This is Lute, live on Zcash mainnet.",
+   "start": 5.0,
+   "end": 7.624
+  },
+  {
+   "text": "One private balance, and every payment shielded.",
+   "start": 7.874,
+   "end": 10.943
+  },
+  {
+   "text": "Even the payments my AI agent made, and the one it was refused.",
+   "start": 11.243,
+   "end": 15.149
+  },
+  {
+   "text": "Getting paid is one link. This one was just paid, and confirmed.",
+   "start": 15.5,
+   "end": 19.466
+  },
+  {
+   "text": "But the real story is agents. Lute runs as an MCP server.",
+   "start": 20.6,
+   "end": 24.966
+  },
+  {
+   "text": "Any agent, like Claude, gets ten tools to pay for APIs by itself.",
+   "start": 25.216,
+   "end": 30.261
+  },
+  {
+   "text": "Here's a real run, on mainnet. The agent checks its budget,",
+   "start": 30.9,
+   "end": 34.611
+  },
+  {
+   "text": "opens a metered session with a document API,",
+   "start": 34.761,
+   "end": 37.583
+  },
+  {
+   "text": "and gets a quote that works exactly once.",
+   "start": 37.733,
+   "end": 40.456
+  },
+  {
+   "text": "It extracts an invoice. Reusing the quote fails.",
+   "start": 40.756,
+   "end": 44.394
+  },
+  {
+   "text": "Then it settles, with one shielded payment, from its own wallet.",
+   "start": 44.694,
+   "end": 48.57
+  },
+  {
+   "text": "Nobody clicked approve. The owner signed the rules once.",
+   "start": 48.87,
+   "end": 52.159
+  },
+  {
+   "text": "Then it keeps calling the API.",
+   "start": 52.5,
+   "end": 53.829
+  },
+  {
+   "text": "Every call adds a thousand zatoshi to the meter.",
+   "start": 54.029,
+   "end": 56.978
+  },
+  {
+   "text": "At eleven thousand, it tries to settle.",
+   "start": 57.278,
+   "end": 59.476
+  },
+  {
+   "text": "The limit is ten thousand. Refused.",
+   "start": 59.776,
+   "end": 62.37
+  },
+  {
+   "text": "Before a transaction is even built.",
+   "start": 62.62,
+   "end": 64.783
+  },
+  {
+   "text": "Any business can sell its own API this way:",
+   "start": 65.3,
+   "end": 68.184
+  },
+  {
+   "text": "a price per call, paid privately, over HTTP 402.",
+   "start": 68.334,
+   "end": 72.776
+  },
+  {
+   "text": "Streams pay someone by the second, like a salary. Earnings grow live.",
+   "start": 73.3,
+   "end": 77.453
+  },
+  {
+   "text": "Money moves only in payouts the owner approves, each one shielded.",
+   "start": 77.703,
+   "end": 82.106
+  },
+  {
+   "text": "This stream paid out on mainnet.",
+   "start": 82.406,
+   "end": 84.166
+  },
+  {
+   "text": "Subscriptions send a fresh shielded invoice every period.",
+   "start": 86.5,
+   "end": 90.604
+  },
+  {
+   "text": "Subscribers pay from their own wallet.",
+   "start": 90.854,
+   "end": 92.683
+  },
+  {
+   "text": "No auto-debit. Lute never pulls funds.",
+   "start": 92.883,
+   "end": 95.487
+  },
+  {
+   "text": "And a whole team gets paid in one transaction, each with a private payslip.",
+   "start": 97.0,
+   "end": 101.511
+  },
+  {
+   "text": "Every claim links to its evidence.",
+   "start": 104.3,
+   "end": 106.169
+  },
+  {
+   "text": "Two hundred seventy-seven passing tests.",
+   "start": 106.419,
+   "end": 108.833
+  },
+  {
+   "text": "Lute. Programmable privacy, for people, businesses, and AI agents.",
+   "start": 110.6,
+   "end": 116.296
+  }
+ ]
+}

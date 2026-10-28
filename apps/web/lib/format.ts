@@ -16,9 +16,12 @@ export function when(unix: number): string {
 
 export const short = (s: string, n = 8) => (s.length > 2 * n + 1 ? `${s.slice(0, n)}…${s.slice(-n)}` : s);
 
-/** Block explorer link (a plain link: the page itself never contacts third parties, U5). */
-export function explorer(txid: string, network: string): string | null {
-  if (network === 'main') return `https://blockchair.com/zcash/transaction/${txid}`;
+/**
+ * No block explorer links: opening one would tell a third party the user's IP address together with
+ * the transaction they care about. The txid is shown (hover for the full id) so users can look it up
+ * through a channel of their choosing.
+ */
+export function explorer(_txid: string, _network: string): string | null {
   return null;
 }
 

@@ -9,10 +9,10 @@ describe('web formatting', () => {
     expect(zec(-15250)).toBe('-0.00015250');
   });
 
-  it('shortens long ids and links only mainnet txids', () => {
+  it('shortens long ids and never links a txid to a third-party explorer', () => {
     expect(short('a'.repeat(64), 4)).toBe('aaaa…aaaa');
     expect(explorer('ab', 'regtest')).toBeNull();
-    expect(explorer('ab', 'main')).toContain('/ab');
+    expect(explorer('ab', 'main')).toBeNull();
   });
 });
 

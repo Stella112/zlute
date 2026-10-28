@@ -14,7 +14,7 @@ export default function ActivityPage() {
   return (
     <>
       <h1 className="mb-1 font-display text-[2rem] leading-tight">Activity</h1>
-      <p className="mb-6 text-sm text-muted">Payments in and out. Tap a payment to see it on the Zcash explorer.</p>
+      <p className="mb-6 text-sm text-muted">Payments in and out. Lute links to no block explorer: looking a transaction up there would tell that site your IP address and which payment is yours.</p>
       <section className="rounded-2xl border border-line bg-surface px-5">
         <ActivityList
           items={items}

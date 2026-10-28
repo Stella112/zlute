@@ -125,7 +125,40 @@ Lute pays from your **payout** wallet if it has enough, otherwise from **merchan
 
 ---
 
-## 4. AI agents and MCP
+## 4. Payroll and teams
+
+### Pay a team in one transaction (BatchPay)
+1. **Payroll → New payroll**: add up to 10 people, each with a shielded address, an amount and an
+   optional label. **Review** shows every line, the total and one network fee.
+2. Approve it like any payment. Lute sends **one** shielded transaction with one output per person;
+   each person gets their amount and, in their own shielded memo, the id of their payslip.
+3. **Payroll runs** shows each run: Proposed, Submitted, then Confirmed.
+
+On the chain the batch reveals only how many outputs it has, not who was paid or how much.
+
+### Private payslips
+Each person gets a private payslip link (**Copy private payslip link**). The page shows only their
+own line: amount, network, transaction and a signature from Lute's receipt key, and turns **Paid**
+once the payment is confirmed. Nobody on the payroll sees anyone else's pay.
+
+### Saved payrolls (templates)
+Save a payroll to run it again next month. Every run still needs your approval and signature.
+
+### Pay what your streams owe
+Streams that have accrued earnings can be paid together in one payroll run; each stream records its
+share as paid once the run confirms.
+
+### Team roles
+**Payroll → Team**: add another Lute user as
+- **admin**: can prepare payrolls and edit saved ones;
+- **operator**: can only run saved payrolls.
+
+Only you, the owner, approve and sign. Neither role can approve, sign or change who gets paid
+without it showing in the approval you sign.
+
+---
+
+## 5. AI agents and MCP
 
 An agent can pay for a metered service on its own, inside a budget you sign once. It never holds an
 address or a key and cannot pay anyone else.
@@ -221,7 +254,7 @@ recovery sweep (at start and every 5 minutes) asks the wallet service what actua
 sent payment is marked sent with its transaction id, one that was never sent is marked failed
 (`RECOVERED_NOT_SENT`), so nothing is paid twice.
 
-## 5. The API
+## 6. The API
 
 Base URL `https://uselute.xyz`. The app uses a session cookie; agents use
 `Authorization: Bearer lute_agent_…`. Requests that change state need an `Idempotency-Key` header
@@ -283,7 +316,7 @@ lute-approve-v1|<network>|<proposal hash>
 
 ---
 
-## 6. Limits, fees and custody
+## 7. Limits, fees and custody
 
 - **Limits:** 0.02 ZEC per payment and 0.05 ZEC per day per wallet; agent mandates at most 48 hours.
 - **Fees:** Lute adds none. The Zcash network fee is about 0.0001 ZEC per payment.
@@ -294,7 +327,7 @@ lute-approve-v1|<network>|<proposal hash>
   transactions, and every known limit (for example, the light-wallet server sees the server's IP and
   sync timing).
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Problem | Fix |
 |---|---|

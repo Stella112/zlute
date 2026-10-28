@@ -325,3 +325,121 @@ body {
     margin-bottom: 0.5rem;
   }
 }
+
+/* ---------------- Landing: liquid glass, drifting light, motion ---------------- */
+.glass {
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
+    0 30px 80px -30px rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+}
+.liquid {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: liquid-drift 18s ease-in-out infinite alternate;
+}
+.liquid-a { background: radial-gradient(circle at 30% 30%, var(--accent), transparent 65%); }
+.liquid-b { background: radial-gradient(circle at 60% 40%, color-mix(in srgb, var(--accent) 55%, #6a7cff), transparent 65%); animation-duration: 24s; animation-delay: -6s; }
+.liquid-c { background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--silver) 70%, transparent), transparent 65%); animation-duration: 30s; animation-delay: -12s; }
+@keyframes liquid-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+  50% { transform: translate3d(6%, -8%, 0) scale(1.12) rotate(40deg); border-radius: 58% 42% 38% 62% / 55% 37% 63% 45%; }
+  100% { transform: translate3d(-5%, 6%, 0) scale(0.95) rotate(80deg); border-radius: 40% 60% 55% 45% / 60% 50% 50% 40%; }
+}
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.reveal.in { opacity: 1; transform: none; }
+.float-slow { animation: float-y 7s ease-in-out infinite; }
+@keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.shimmer { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 35%, transparent), transparent); background-size: 200% 100%; animation: shimmer 2.4s linear infinite; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+@keyframes pulse-dot { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .liquid, .float-slow, .shimmer, .pulse-dot { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* Landing palette: black and polished silver in dark; the reverse (white and graphite chrome) in light. */
+.landing {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #070708;
+  --raised: #111113;
+  --line: #1f1f22;
+  --muted: #a3a3a9;
+  --text: #f7f7f8;
+  --accent: #e4e4e8;
+  --on-accent: #050505;
+  --accent-soft: rgb(228 228 232 / 0.1);
+  --silver: #d0d0d5;
+  --chrome: linear-gradient(100deg, #ffffff 0%, #9a9aa2 18%, #ffffff 32%, #c9c9cf 48%, #ffffff 58%, #8e8e96 76%, #ffffff 100%);
+  --button: linear-gradient(180deg, #ffffff 0%, #d9d9de 45%, #a9a9b0 100%);
+  --blob-a: #f2f2f5;
+  --blob-b: #8a8a92;
+  --blob-c: #4a4a50;
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme='light'] .landing {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #fbfbfc;
+  --raised: #f0f0f2;
+  --line: #e4e4e8;
+  --muted: #55555c;
+  --text: #050505;
+  --accent: #1a1a1d;
+  --on-accent: #ffffff;
+  --accent-soft: rgb(10 10 12 / 0.06);
+  --silver: #3a3a40;
+  --chrome: linear-gradient(100deg, #050505 0%, #6b6b73 18%, #0a0a0b 32%, #4a4a52 48%, #000000 58%, #7a7a82 76%, #050505 100%);
+  --button: linear-gradient(180deg, #3a3a40 0%, #141416 55%, #000000 100%);
+  --blob-a: #b9b9c0;
+  --blob-b: #d6d6dc;
+  --blob-c: #8f8f97;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .landing {
+    color-scheme: light;
+    --bg: #ffffff;
+    --surface: #fbfbfc;
+    --raised: #f0f0f2;
+    --line: #e4e4e8;
+    --muted: #55555c;
+    --text: #050505;
+    --accent: #1a1a1d;
+    --on-accent: #ffffff;
+    --accent-soft: rgb(10 10 12 / 0.06);
+    --silver: #3a3a40;
+    --chrome: linear-gradient(100deg, #050505 0%, #6b6b73 18%, #0a0a0b 32%, #4a4a52 48%, #000000 58%, #7a7a82 76%, #050505 100%);
+    --button: linear-gradient(180deg, #3a3a40 0%, #141416 55%, #000000 100%);
+    --blob-a: #b9b9c0;
+    --blob-b: #d6d6dc;
+    --blob-c: #8f8f97;
+  }
+}
+.landing .liquid { opacity: 0.4; }
+.landing .liquid-a { background: radial-gradient(circle at 30% 30%, var(--blob-a), transparent 62%); }
+.landing .liquid-b { background: radial-gradient(circle at 60% 40%, var(--blob-b), transparent 62%); }
+.landing .liquid-c { background: radial-gradient(circle at 50% 50%, var(--blob-c), transparent 62%); }
+.landing .text-silver-gradient {
+  background: var(--chrome);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: silver-sheen 6s linear infinite;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--text) 12%, transparent));
+}
+@keyframes silver-sheen { to { background-position: 220% center; } }
+.landing .bg-accent {
+  background: var(--button);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 8px 30px -8px color-mix(in srgb, var(--text) 35%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .landing .text-silver-gradient { animation: none; } }

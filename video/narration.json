@@ -1,0 +1,8 @@
+[
+  { "id": "s1", "text": "Zcash makes payments private. Lute makes private payments programmable." },
+  { "id": "s2", "text": "Request a payment with a link or a QR code; your payer uses any shielded Zcash wallet. On chain, the sender, recipient, amount and memo stay hidden. New accounts keep their recovery phrase in the browser, which checks and signs every payout. Lute holds no key that can move your money." },
+  { "id": "s3", "text": "Pay a whole team in one shielded transaction: one approval, one network fee. Each person sees only their own pay, with a private, signed payslip. Admins prepare, operators run saved payrolls, and only the owner signs." },
+  { "id": "s4", "text": "Now, AI agents. This agent needs a paid API: document extraction. It gets a one-time quote, extracts the invoice, and pays from its own wallet, inside a mandate the owner signed once. One payee. A per-payment limit. A total budget. An expiry. The agent only expresses intent. LuteGuard decides. When the agent tries to pay more than its limit, the payment is refused, before a transaction is even built." },
+  { "id": "s5", "text": "The same engine runs checkout with signed receipts and capped refunds, recurring invoices with no auto-debit, and streams that pay by the second." },
+  { "id": "s6", "text": "Every claim links to its evidence: mainnet transactions audited as fully shielded, and two hundred seventy-seven passing tests. Lute. Programmable privacy for people, businesses and AI agents." }
+]

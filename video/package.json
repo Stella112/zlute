@@ -1,0 +1,14 @@
+{
+  "name": "lute-demo-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "remotion render src/index.ts LuteDemo out/final-video.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.290",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.290"
+  }
+}
