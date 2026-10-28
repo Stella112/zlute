@@ -28,7 +28,8 @@ const tests = [];
 
 function vitest(name, dir) {
   const out = join(tmp, `${name}.json`);
-  spawnSync('pnpm', ['exec', 'vitest', 'run', '--reporter=json', `--outputFile=${out}`], { cwd: join(ROOT, dir), stdio: 'inherit', shell: true });
+  // Explicit timeouts: in-memory Postgres setup per test is slow under load (defaults are 5 s / 10 s).
+  spawnSync('pnpm', ['exec', 'vitest', 'run', '--reporter=json', '--testTimeout=120000', '--hookTimeout=120000', `--outputFile=${out}`], { cwd: join(ROOT, dir), stdio: 'inherit', shell: true });
   if (!existsSync(out)) {
     suites.push({ name, passed: 0, failed: 0, skipped: 0, missing: true });
     return;
