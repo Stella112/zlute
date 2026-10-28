@@ -443,3 +443,14 @@ body {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 8px 30px -8px color-mix(in srgb, var(--text) 35%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .landing .text-silver-gradient { animation: none; } }
+
+/* The Lute mark: polished silver tile with a black L (dark), glossy black with a white L (light). */
+.logo-tile {
+  background: linear-gradient(145deg, #ffffff 0%, #c9c9cf 45%, #8d8d95 100%);
+  color: #050505;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 4px 14px -4px rgb(0 0 0 / 0.5);
+}
+:root[data-theme='light'] .logo-tile { background: linear-gradient(145deg, #4a4a52 0%, #141416 55%, #000000 100%); color: #ffffff; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 4px 14px -4px rgb(0 0 0 / 0.35); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .logo-tile { background: linear-gradient(145deg, #4a4a52 0%, #141416 55%, #000000 100%); color: #ffffff; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 4px 14px -4px rgb(0 0 0 / 0.35); }
+}

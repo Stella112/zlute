@@ -35,6 +35,8 @@ const config: NextConfig = {
           { key: 'Content-Security-Policy', value: csp },
           { key: 'Referrer-Policy', value: 'no-referrer' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Browsers only ever reach Lute over HTTPS (Caddy redirects plain HTTP).
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
         ],
       },
     ];

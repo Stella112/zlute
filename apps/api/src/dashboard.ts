@@ -129,7 +129,9 @@ export function registerDashboardRoutes(app: FastifyInstance, d: DashboardDeps):
     if (!u) return reply.code(401).send({ error: 'UNAUTHENTICATED' });
     if (u === 'forbidden' || !(WALLET_ROLES as readonly string[]).includes(req.params.w)) return reply.code(404).send({ error: 'NOT_FOUND' });
     const w = walletOf(u, req.params.w as WalletRole);
-    await fresh(w);
+    // Answer from the last synced state at once; the sync runs in the background so a slow light
+    // server never leaves the dashboard waiting. Only a wallet that has never synced waits below.
+    void fresh(w);
     try {
       return await d.sidecar.balance(w);
     } catch {

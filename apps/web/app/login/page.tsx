@@ -65,7 +65,7 @@ export default function LoginPage() {
     <div className="bg-grid flex min-h-screen flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
         <Link href="/welcome" className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-display text-[1.05em] text-on-accent">L</span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg logo-tile text-sm font-display text-[1.05em] ">L</span>
           <span className="font-display text-xl">Lute</span>
         </Link>
         <ThemeToggle />

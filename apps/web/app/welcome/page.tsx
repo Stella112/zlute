@@ -129,7 +129,7 @@ export default function Welcome() {
       <header className="sticky top-0 z-30 border-b border-line/50 bg-bg/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5">
           <Link href="/welcome" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent font-display text-[1.05em] text-on-accent">L</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg logo-tile font-display text-[1.05em] ">L</span>
             <span className="font-display text-xl">Lute</span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-muted lg:flex">
@@ -756,7 +756,7 @@ sig  ed25519 · 4be0…91a`}</pre>
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 text-sm md:grid-cols-5">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-md bg-accent font-display text-[1.05em] text-on-accent">L</span>
+              <span className="grid h-7 w-7 place-items-center rounded-md logo-tile font-display text-[1.05em] ">L</span>
               <span className="font-semibold">Lute</span>
             </div>
             <p className="mt-3 max-w-sm text-muted">Programmable private payments on Zcash, for people, businesses and AI agents. Built for ZECATHON 2026.</p>

@@ -77,8 +77,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <MeCtx.Provider value={me}>
       <div className="flex min-h-screen">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-4 py-6 md:flex">
-          <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-display text-[1.05em] text-on-accent">L</span>
+          <Link href="/welcome" className="mb-8 flex items-center gap-2.5 px-2" title="Lute website">
+            <span className="grid h-8 w-8 place-items-center rounded-lg logo-tile text-sm font-display text-[1.05em] ">L</span>
             <span className="font-display text-xl">Lute</span>
           </Link>
           <nav className="flex flex-1 flex-col gap-6 overflow-y-auto">

@@ -205,11 +205,12 @@ function cells(row: string): string[] {
   return out.slice(1, -1);
 }
 
-/** Repository paths become links to the file on GitHub; mainnet txids link to a block explorer. */
-function linkify(html: string, mainnet: boolean): string {
-  let h = html.replace(/(?<![\w/.-])((?:evidence|docs|infrastructure|apps|services|tools|packages)\/[\w./-]+[\w/])/g, (m) => `<a href="${BLOB}/${m}">${m}</a>`);
-  if (mainnet) h = h.replace(/(?<![\w/])([0-9a-f]{64})(?![\w])/g, (t) => `<a href="https://blockchair.com/zcash/transaction/${t}">${t}</a>`);
-  return h;
+/**
+ * Repository paths become links to the file on GitHub. Mainnet txids stay plain text, ready to copy:
+ * Lute links to no block explorer (opening one tells a third party who is looking at which payment).
+ */
+function linkify(html: string, _mainnet: boolean): string {
+  return html.replace(/(?<![\w/.-])((?:evidence|docs|infrastructure|apps|services|tools|packages)\/[\w./-]+[\w/])/g, (m) => `<a href="${BLOB}/${m}">${m}</a>`);
 }
 
 /** The evidence register is one wide table in the repo; on the site each row is a card with an anchor (#e-011). */
@@ -287,7 +288,7 @@ export default async function DocsPage({ params }: { params: Promise<{ slug?: st
       <header className="sticky top-0 z-30 border-b border-line/60 bg-bg/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5">
           <Link href="/welcome" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-display text-[1.05em] text-on-accent">L</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg logo-tile text-sm font-display text-[1.05em] ">L</span>
             <span className="font-display text-lg tracking-tight">Lute</span>
           </Link>
           <span className="hidden text-sm text-muted sm:inline">Documentation</span>

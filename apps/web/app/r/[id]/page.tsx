@@ -56,7 +56,7 @@ export default function PayPage() {
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8">
       <div className="mb-6 flex items-center gap-2 text-sm text-muted">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-xs font-display text-[1.05em] text-on-accent">L</span>
+        <span className="grid h-6 w-6 place-items-center rounded-md logo-tile text-xs font-display text-[1.05em] ">L</span>
         Private payment via Lute
       </div>
       <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-6 text-center">
