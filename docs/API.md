@@ -1,6 +1,6 @@
 # API contracts
 
-Codex and `apps/*` build against these contracts only. Never invent endpoints; request missing ones in `docs/QUESTIONS.md`.
+The apps (`apps/*`) build against these contracts only. Never invent endpoints; request missing ones in `docs/QUESTIONS.md`.
 
 ## 1. Sidecar API (internal; only `apps/api` may call it)
 

@@ -54,6 +54,6 @@ Status legend for each control: **enforced** (in code, tested), **planned** (not
 7. **Light-server surveillance.** Accepted and documented; Tor planned.
 
 ## Open items before claiming PROVEN for any module
-- Codex independent review (not yet engaged; self-review only).
+- Independent review (not yet engaged; self-review only).
 - U1 (log scan after e2e), U2 (fragment key never sent), U5 (no third-party requests), U8 (no viewing-key export path), U10/U11: need the web app.
 - PRIVACY-MATRIX.md per feature, as modules are built.

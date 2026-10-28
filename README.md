@@ -1,128 +1,134 @@
 # Lute
 
-**Private payments on Zcash, with a policy engine that fails closed.**
+**Private payments on Zcash: get paid, pay your team, and let AI agents pay for services, all shielded.**
 
-Lute lets a merchant or creator take shielded payments, stream earnings per second, and pay people
-out, all on Zcash mainnet, without ever falling back to a transparent or cross-pool transaction.
-Every spend goes through one engine: **LuteGuard** checks the exact transaction the wallet built,
-the owner signs that exact proposal on their own machine, and only then does the wallet sidecar
-broadcast it. If privacy can't be kept, nothing happens.
+Live on Zcash mainnet at **https://uselute.xyz**. Built for ZECATHON 2026 (Shielded Payments track).
 
-Built for ZECATHON 2026 (Shielded Payments track).
+Every payment stays inside one shielded pool (Ironwood) with nothing transparent. Every spend goes
+through one engine, **LuteGuard**, which checks the exact transaction the wallet built before
+anything is signed. If privacy can't be kept, nothing is sent. New accounts are **non-custodial**:
+the wallet's recovery phrase is created in the browser, and every payout is signed there.
 
-> Status is **computed, never chosen**: the Privacy Center derives each module's status from the
+> Status is **computed, never chosen.** The Privacy page derives each module's status from the
 > latest test run (`evidence/results.json`) and on-chain evidence (`docs/PRIVACY-EVIDENCE.md`).
-> Only PROVEN is presented as working.
+> Claims never go beyond the evidence.
 
-## What works (PROVEN)
+## What it does
 
-| Module | Evidence | Mainnet txids |
+| Feature | What you get | Evidence |
 |---|---|---|
-| **Send**: owner-approved shielded payouts, single pool (Ironwood), zero transparent | E-002, E-005, E-006, E-007 | `3c129cfbbe5d142e96512f4fd7e26db7f27e7574a95947fccab74414fc73f142`, `546a16b489400b415eb382b43ee5d5ff489e7e6b6eb212927a241b6ea57682bd` |
-| **Receive and payment requests**: a Zodl wallet pays a Lute request; matched by unique address **and** memo, PAID only after 3 confirmations | E-004 | `a25de13d03273f581df7799254a4deb9c3ddc031d316d59456fa2c8e0335f250` |
-| **Per-second streams**: accrual on the server clock, owner-approved shielded settlements, earned and paid shown separately | E-008 (mainnet), E-009 (regtest) | `0517b048d4830f00dd27a35919443c4a1931164329f7c41893853296bbf2a49c`, `aa5294dd01a59b788dacbd562afca471d3cdfccb11a21d22457c89898be72f7d` |
-| **LuteGuard**: mandatory, deterministic policy engine (transaction, metadata, authorization, settlement, integration policies); ALLOW recorded before authorization | E-006 | (same as Send) |
-| **Privacy Center**: computed status, stored decisions, limitations | test suite | — |
+| **Payment links** | A link or QR code; a new shielded address and memo reference per request; *Partially paid / Confirming / Paid* (3 confirmations) | E-004 (mainnet) |
+| **Send** | Shielded payouts with a fee preview; you approve every payout | E-005, E-006, E-017 (mainnet) |
+| **Non-custodial accounts** | 24-word recovery phrase kept in the browser; Lute gets viewing keys only; the browser checks and signs each transaction; the backup restores the wallet in Zodl | E-016 (regtest), E-017 (mainnet) |
+| **Payroll / BatchPay** | Up to 10 people in **one** shielded transaction: one approval, one fee, each person sees only their own pay; private signed payslips; templates; team roles; pay what streams owe | E-019 (regtest), E-020 (mainnet) |
+| **Streams** | Pay by the second; earned and paid kept separate; payouts you approve | E-008 (mainnet), E-009 |
+| **Checkout** | Orders with signed receipts (salted item hash) and capped refunds | E-012 (regtest) |
+| **Subscriptions and split bills** | A private invoice each period (never auto-debit); a link per person for their share | E-013 (regtest) |
+| **AI agents (MCP)** | Sign a budget once: one payee, per-payment cap, total, expiry. The agent pays a metered API (document extraction, one-time quotes), outside APIs' invoices (only at the address you signed), HTTP 402 APIs, or another Lute account's service. Over budget is refused before anything is built. | E-010, E-011, E-015, E-018 (mainnet) |
+| **Privacy page** | Who can see what; LuteGuard decisions; computed module status; every claim linked to its evidence | E-014: every mainnet transaction audited `SHIELDED_SINGLE_POOL` |
 
-Latest run: 207/207 tests pass (luteguard 50, core 58, api 35, sidecar 60, lute-owner 4).
-
-Streams are **payer-controlled, not trustless**. Payouts stop if the payer stops authorizing.
-
-## What is not (and how it is labeled)
-
-| Module | Status | Why |
-|---|---|---|
-| Cross-chain route classification | PARTIAL | The classifier works; no route is classified `STRICT_PRIVATE_VERIFIED`, so execution is off |
-| Commerce and refunds, Groups, Metered billing, Subscriptions | ROADMAP | Not available in this build: no route, SDK method or MCP tool reaches them |
-| Agent mandates (SDK and MCP spends) | ROADMAP | No mandates in this build, so LuteGuard denies any agent spend (fails closed) |
+Latest run (`evidence/results.json`): **277 tests pass**: LuteGuard 50, core 64, API 75, MCP 7,
+web 5, wallet sidecar 70, lute-owner 6.
 
 ## How a payment flows
 
 ```mermaid
 flowchart LR
-  subgraph Laptop["Owner's laptop"]
-    B[Browser] -->|SSH tunnel| W
-    K[lute-owner<br/>Ed25519 key] 
+  subgraph Browser["User's browser"]
+    UI[Web app] --- SG[WebAssembly signer<br/>recovery phrase]
   end
-  subgraph VPS["VPS (all ports 127.0.0.1)"]
-    W[apps/web<br/>Next.js] -->|/v1 proxy| A[apps/api<br/>Fastify]
-    A --> E[executeAction]
+  subgraph Server["Lute server (all ports 127.0.0.1)"]
+    A[API<br/>Fastify] --> E[executeAction]
     E --> G[LuteGuard]
-    E -->|HMAC, loopback| S[wallet-sidecar<br/>Rust, holds keys]
+    E -->|HMAC, loopback| S[wallet sidecar<br/>Rust, librustzcash]
     A --> P[(Postgres<br/>encrypted fields)]
   end
-  S -->|gRPC TLS| L[light server<br/>zec.rocks]
-  B -. copy proposal .-> K
-  K -. signature .-> B
+  UI -->|HTTPS| A
+  S -->|unsigned PCZT| SG
+  SG -->|spend signatures| S
+  S -->|gRPC TLS| L[light server]
 ```
 
-1. The API creates an action. `executeAction` (the only path to a spend) asks the sidecar to **inspect** the recipient and build a **proposal**.
-2. **LuteGuard** evaluates that exact proposal: shielded recipient, single pool, no transparent or Orchard inputs, fee from the library, opaque memo, network, idempotency, caps. The decision (reason codes only) is stored.
-3. The owner reviews the proposal on their laptop with `lute-owner`. It recomputes the proposal hash and signs only after a typed confirmation (`approve <hash8>`). The key never leaves the laptop.
-4. The sidecar independently re-checks policy, the signature, hash binding, one-use approval, TTL (300 s) and caps (2,000,000 zat per tx, 5,000,000 zat per day), then signs and broadcasts **once**.
-5. Payments count as paid only after confirmations.
+1. The API creates an action; `executeAction`, the only path to a spend, has the sidecar inspect each
+   recipient and build a proposal.
+2. **LuteGuard** evaluates that exact proposal: shielded recipients, one pool, nothing transparent,
+   fee from the library, memo rules, network, caps, budgets. Its decision is stored with reason codes.
+3. The owner approves the exact proposal hash. For non-custodial accounts the browser also checks the
+   unsigned transaction (recipients, amounts, only the fee leaving the pool) and signs it.
+4. The sidecar re-checks policy, approval (one use, 5-minute expiry), hash binding and caps
+   (0.02 ZEC per payment, 0.05 ZEC per day), verifies the signatures, and broadcasts **once**.
+5. A payment counts as paid only after confirmations. Interrupted operations are recovered from the
+   sidecar's record, never resent.
 
-## Privacy: who learns what
+## Who can see what
 
-| Party | Learns |
-|---|---|
-| Public chain observer | That a shielded transaction happened in the Ironwood pool, and its fee. Not sender, recipient, amount or memo. |
-| Payer | Amount and the merchant's request address for that one request. |
-| Recipient | Amount and memo of what they received. |
-| Lute server (operator) | Its own wallets' activity. Recipients and memos are stored encrypted at rest (AES-256-GCM); request notes are encrypted in the browser with a key that stays in the link's `#fragment`. |
-| Light server (zec.rocks) | The wallet's IP and timing, its birthday height, and, when Lute checks a specific transaction, that this txid interests the wallet. Never keys, amounts or memos. See `docs/PRIVACY.md`. |
+| Who | Can see | Cannot see |
+|---|---|---|
+| Anyone reading the blockchain | That a shielded transaction happened, when, its fee and size | Sender, recipient, amount, memo |
+| Light-wallet server | The server's IP, sync timing, transactions it broadcasts or looks up | Amounts, addresses, memos, keys |
+| Payer / payee | Their own payment: amount and memo | Your balance and other payments |
+| Lute operator, non-custodial accounts | Payments in and out, amounts, timing (viewing keys) | Your keys: it holds no key that can move your money |
+| Lute operator, agent wallets and accounts created before 27 Oct 2026 | All of the above | Nothing more: these wallets are Lute-held (custodial) |
 
-**Custody disclosure.** The `merchant` and `payout` wallets are **operator-custodied hot wallets** on the server (each in its own wallet database and sealed key file, kept at or below 0.1 ZEC; the sidecar warns above that). Customers pay from their own wallets (e.g. Zodl); Lute never touches payer keys. Lute's software releases a spend from a Lute wallet only with the owner's signature (or a signed agent mandate); this is enforced by software, not by the chain, so the operator can bypass it. There is no independent recovery yet. See [docs/CUSTODY.md](docs/CUSTODY.md).
-
-**Shipped 2026-10-27: browser-signed, non-custodial accounts.** New sign-ups keep a 24-word recovery phrase in the browser; Lute prepares each payment and only the browser can sign it, so Lute holds no key that can move their funds (viewing keys only; evidence E-016 regtest, E-017 mainnet). The paragraph above applies to accounts created before that date and to agent wallets. Caveat: Lute serves the signer code. Design in [docs/CUSTODY.md](docs/CUSTODY.md#next-browser-signed-non-custodial-payments).
+Details: [docs/CUSTODY.md](docs/CUSTODY.md), [docs/PRIVATE-PAID-APIS.md](docs/PRIVATE-PAID-APIS.md),
+[docs/PRIVACY.md](docs/PRIVACY.md). Caveat: Lute serves the signer code; the non-custodial guarantee
+holds against a passive or compromised server, not against an operator who ships different code.
 
 ## Repository
 
 ```
-services/wallet-sidecar   Rust: the only component with keys. Inspect, propose, approve, execute, sync, verify (librustzcash)
-tools/lute-owner          Rust: owner Ed25519 key tool (init, pubkey, sign with typed confirmation)
+services/wallet-sidecar   Rust: the only component with keys or Zcash state. Inspect, propose (single or batch),
+                          approve, execute, PCZT build/prove/finalize for browser-signed wallets, sync, verify
+services/lute-signer      Rust → WebAssembly: browser signer. Derives viewing keys, checks and signs PCZTs
+tools/lute-owner          Rust: owner Ed25519 key tool (sign payments and agent mandates with typed confirmation)
 packages/luteguard        TS: policy engine (pure, deterministic)
-packages/core             TS: action state machine, executeAction, exact money math, streams, computed status
-apps/api                  TS: Fastify + Drizzle + Postgres 16; auth, actions, requests, streams, Privacy Center feed
-apps/web                  TS: Next.js dashboard, pay page, Privacy Center
-infrastructure/           Z3 regtest overlay and evidence scripts, VPS deploy (loopback only, capped logs)
-evidence/                 regtest and mainnet logs, results.json (generated by pnpm test:evidence)
-docs/                     mandate, decisions, threat model, privacy analysis, evidence table, build status
+packages/core             TS: action state machine, executeAction, money math, streams, computed status
+apps/api                  TS: Fastify + Drizzle + Postgres: auth, payments, requests, streams, commerce,
+                          subscriptions, groups, payroll, agents and metered APIs, x402, recovery
+apps/web                  TS: Next.js app, public pay/receipt/payslip pages, docs, Privacy page
+apps/mcp                  TS: MCP server for agents (budget, sessions, quotes, extraction, invoices, settlement)
+infrastructure/           Regtest (Z3) evidence scripts, deployment (loopback only, capped logs)
+evidence/                 Regtest and mainnet records, results.json
+docs/                     User guide, custody, privacy analysis, evidence register, demo script, decisions
 ```
 
 ## Run it
 
-Requirements: Node 24, pnpm 10, Rust stable, Docker (for Z3 regtest and Postgres).
+Requirements: Node 24, pnpm 10, Rust stable, Docker (Z3 regtest and Postgres).
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm -r build && pnpm -r test          # TS suites (PGlite, no services needed)
+pnpm -r build && pnpm -r test          # TypeScript suites (in-memory Postgres, no services needed)
 cd services/wallet-sidecar && cargo test --locked
-pnpm test:evidence                     # runs everything, writes evidence/results.json
+node tools/evidence/collect.mjs        # runs everything, writes evidence/results.json
 ```
 
-Regtest (Z3: Zebra 6.2.3 + Zaino 0.10.2, NU6.3 active): see `infrastructure/z3/` (`setup-vps.sh`,
-`fund-fixture.sh`, `w17-send-receive.sh`, `approvals-evidence.sh`, `streams-regtest.sh`).
+Regtest (Z3: Zebra + Zaino, NU6.3 active): `infrastructure/z3/` (`noncustodial-regtest.sh`,
+`batchpay-regtest.sh`, `agent-regtest.sh`, `streams-regtest.sh`, `commerce-regtest.sh`, …).
+Deployment: `infrastructure/api/` (Postgres, API and web on 127.0.0.1) and the sidecar as a systemd
+unit (`infrastructure/sidecar/`); CI builds the Rust binaries and the WebAssembly signer.
 
-Deployment used for the evidence: `infrastructure/api/` (Postgres, API, web on 127.0.0.1) and the
-sidecar as a systemd unit (`infrastructure/sidecar/`), reached by the owner over an SSH tunnel.
-`tools/lute-pay.ps1` is the owner's helper for paying and streaming from the terminal.
+Using it: [docs/USER-GUIDE.md](docs/USER-GUIDE.md) (also at https://uselute.xyz/docs), including how
+to connect an MCP client. Demo walkthrough: [docs/DEMO.md](docs/DEMO.md).
 
 ## Limitations
 
-- Lute's wallets are hot wallets on one server; field encryption is at rest, not end-to-end.
-- The light server learns network-level metadata (above). A self-hosted Zebra + Zaino removes the third party but not the server's own view.
-- Each settlement is a full shielded transaction with a 10,000 zat fee, so small streams should settle rarely. A settlement needs confirmed notes; back-to-back settlements wait for change to confirm.
-- No external security review yet (self-review only).
-- Agent spends, metered billing, subscriptions, groups and commerce are not in this build.
+- Agent wallets and accounts created before 27 Oct 2026 are custodial (Lute-held hot wallets, kept
+  small). New accounts are non-custodial.
+- The light server learns network metadata (IP, timing). A self-hosted Zebra + Zaino removes the
+  third party.
+- Each payout is a full shielded transaction (fee about 0.0001 ZEC); BatchPay shares one fee across a
+  team, and streams should settle rarely.
+- Outside APIs must invoice to one fixed shielded address (a signed budget names its payee in advance).
+- No external security audit yet.
 
 ## Attributions
 
-- [librustzcash](https://github.com/zcash/librustzcash): `zcash_client_backend` 0.24, `zcash_client_sqlite` 0.22, `zcash_keys`, `zcash_primitives`, `zcash_proofs`, `zcash_address`, `zcash_protocol`, `zip321`
-- [zcash-devtool](https://github.com/zcash/zcash-devtool): reference for crate usage (not used to sign)
-- Z3 (Zebra, Zaino) for regtest
-- Zodl as the payer wallet in the mainnet evidence
-- zec.rocks light servers
+- [librustzcash](https://github.com/zcash/librustzcash): `zcash_client_backend`, `zcash_client_sqlite`,
+  `zcash_keys`, `zcash_primitives`, `zcash_proofs`, `pczt`, `orchard`, `zip321`
+- [zcash-devtool](https://github.com/zcash/zcash-devtool) as a reference for crate usage
+- Z3 (Zebra, Zaino) for regtest; zec.rocks light servers; Zodl as the payer wallet in the evidence
+- [@scure/bip39](https://github.com/paulmillr/scure-bip39) for recovery phrases
 
 ## License
 

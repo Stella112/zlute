@@ -1,6 +1,6 @@
 # Environment audit (P0)
 
-Audited 2026-10-20 by Claude Code. No secret values recorded.
+Audited 2026-10-20. No secret values recorded.
 
 ## Host (Windows)
 
