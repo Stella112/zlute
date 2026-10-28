@@ -1,5 +1,43 @@
 # Build status
 
+## 2026-10-28 — Claude Code — non-custodial accounts, agents beyond your account, payroll; crosscheck
+IMPLEMENTED:
+- Non-custodial accounts (new sign-ups since 2026-10-27):
+  - The browser keeps a 24-word BIP-39 recovery phrase; Lute receives viewing keys only.
+  - The sidecar builds and proves the PCZT; the WebAssembly signer (services/lute-signer) checks it and signs; the sidecar runs `execute_signed`.
+  - The agent wallet and older accounts remain custodial.
+- Agents:
+  - One-time quotes.
+  - Document extraction.
+  - (A) pays external payees' ZIP-321 invoices, only at the signed address.
+  - (B) HTTP 402 provider and the `lute_fetch_paid` tool.
+  - (C) pays other accounts' listed services.
+- Payroll:
+  - BatchPay: one transaction for up to 10 people.
+  - Streams to payroll.
+  - Signed private payslips.
+  - Templates.
+  - Roles: owner, admin, operator.
+- Recoverable operations: a recovery sweep runs from the sidecar's spend record.
+- Fee preview and a disclosure matrix.
+- The evidence collector uses explicit test timeouts.
+VERIFIED:
+- Mainnet:
+  - E-017: browser-signed payout.
+  - E-018: agent paid for extraction via MCP with a quote; an over-cap payment was refused.
+  - E-020: payroll batch, two people in one transaction.
+- Regtest:
+  - E-016: non-custodial refusal cases.
+  - E-019: BatchPay with three recipients; a tampered line was refused.
+- Crosscheck (2026-10-28):
+  - All 11 mainnet evidence txids re-inspected on chain: all SHIELDED_SINGLE_POOL.
+  - The live signer matches the repo hash.
+  - Public wording tightened to "Lute holds no key that can move your money".
+TEST RESULTS: evidence/results.json at 69a5866: luteguard 50, core 64, api 75, mcp 7, web 5, sidecar 70, lute-owner 6; all pass.
+NOT DONE:
+- Live mainnet runs of agent A/B/C. These need test1 clicks, owner signatures, and Zodl for B.
+- Owner tasks: the video (docs/DEMO.md), sweeping wallets to Zodl, making the repo public, and submitting by Oct 28 20:00 WAT.
+
 ## 2026-10-26 23:30 WAT — Claude Code — external review addressed: custody, claims, restrictions, useful MCP service, UI
 IMPLEMENTED:
 - Custody: docs/CUSTODY.md. Hosted Lute is custodial: the seed and its key file live on the server, approvals are enforced by software, and there is no independent recovery yet. All public claims were rewritten to match, including the operator-visibility disclosure (landing page, sign-up, guide, paid-API leak trace, README).

@@ -1,7 +1,7 @@
 {
  "schema": "lute-results/1",
- "generated_at": "2026-10-26T21:41:36.517Z",
- "commit": "417f8fa235455dda1c56dd8072e214f26be3f3ff",
+ "generated_at": "2026-10-28T12:05:24.002Z",
+ "commit": "69a586682612f006bce7f304a8a00c2a1c74f99d",
  "dirty": false,
  "suites": [
   {
@@ -21,7 +21,7 @@
   {
    "name": "api",
    "source": "local",
-   "passed": 63,
+   "passed": 75,
    "failed": 0,
    "skipped": 0
   },
@@ -41,14 +41,14 @@
   },
   {
    "name": "sidecar",
-   "source": "ci run 40400288981 @ 1e98c0b",
-   "passed": 69,
+   "source": "ci run 40538668499 @ 2017459",
+   "passed": 70,
    "failed": 0,
    "skipped": 0
   },
   {
    "name": "lute-owner",
-   "source": "ci run 40321745278 @ 4779458",
+   "source": "ci run 40536099107 @ 09b6fb3",
    "passed": 6,
    "failed": 0,
    "skipped": 0
@@ -790,6 +790,30 @@
   {
    "suite": "api",
    "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) one-time quotes: bound to price, service, session and the exact text; single use; expire",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) C: an agent can be given a budget for another Lute account's listed service, never an unlisted one",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) A: pays an external payee's invoice only at the signed address, once per invoice, with only a short reference memo",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
+   "name": "agents and metered billing (A group, §19.6/§19.8) B: a listed service sells over HTTP 402: invoice, pay, then serve once for that exact request",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/agents.test.ts",
    "name": "agents and metered billing (A group, §19.6/§19.8) R1: simultaneous settlements of one session pay the usage once",
    "status": "passed"
   },
@@ -928,7 +952,19 @@
   {
    "suite": "api",
    "file": "apps/api/test/app.test.ts",
+   "name": "self-serve sign-up (public deployment) non-custodial sign-up: merchant and payout get only viewing keys; payouts are signed in the browser",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
    "name": "self-serve sign-up (public deployment) is absent when sign-up is not enabled; the second configured origin is accepted",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/app.test.ts",
+   "name": "recoverable operations (crash between approval and result) settles each from the sidecar record, never by retrying: sent -> SUBMITTED, not sent -> FAILED, in progress -> unchanged",
    "status": "passed"
   },
   {
@@ -1019,6 +1055,42 @@
    "suite": "api",
    "file": "apps/api/test/commerce.test.ts",
    "name": "commerce: checkout, signed receipts, refunds (§19.3, U10) other users get 404; unknown receipts are 404",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/payroll.test.ts",
+   "name": "payroll: BatchPay, payslips, templates, streams, roles (6) BatchPay: one transaction, every line in the approved summary, each person with their own memo; nothing readable at rest",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/payroll.test.ts",
+   "name": "payroll: BatchPay, payslips, templates, streams, roles (8) payslips: each shows only its own line; signed once the batch is confirmed",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/payroll.test.ts",
+   "name": "payroll: BatchPay, payslips, templates, streams, roles LuteGuard checks every line: a transparent recipient anywhere in the batch rejects the whole run; at most 10 lines",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/payroll.test.ts",
+   "name": "payroll: BatchPay, payslips, templates, streams, roles (9) templates: each run is a fresh proposal needing a fresh approval",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/payroll.test.ts",
+   "name": "payroll: BatchPay, payslips, templates, streams, roles (10) roles: an operator runs saved templates only; an admin prepares; only the owner approves",
+   "status": "passed"
+  },
+  {
+   "suite": "api",
+   "file": "apps/api/test/payroll.test.ts",
+   "name": "payroll: BatchPay, payslips, templates, streams, roles (7) streams to payroll: what each stream owes, in one batch; each stream records its share",
    "status": "passed"
   },
   {
@@ -1306,6 +1378,12 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::spend_for_proposal_reports_what_happened",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
    "name": "control::tests::w12_expired_proposal_denied",
    "status": "passed"
   },
@@ -1318,13 +1396,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w14_per_tx_cap",
+   "name": "control::tests::r1_concurrent_mandate_spends_cannot_exceed_budget",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::w14_w15_daily_cap",
+   "name": "control::tests::w14_per_tx_cap",
    "status": "passed"
   },
   {
@@ -1347,6 +1425,12 @@
   },
   {
    "suite": "sidecar",
+   "file": "services/wallet-sidecar::control::tests",
+   "name": "control::tests::w14_w15_daily_cap",
+   "status": "passed"
+  },
+  {
+   "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
    "name": "inspect::tests::orchard_only_ua_pays_ironwood",
    "status": "passed"
@@ -1355,12 +1439,6 @@
    "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
    "name": "inspect::tests::sapling_address_allowed",
-   "status": "passed"
-  },
-  {
-   "suite": "sidecar",
-   "file": "services/wallet-sidecar::inspect::tests",
-   "name": "inspect::tests::shielded_ua_allowed_ironwood_first",
    "status": "passed"
   },
   {
@@ -1390,19 +1468,19 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
-   "name": "inspect::tests::w3_ua_with_transparent_receiver_pays_only_shielded",
+   "name": "inspect::tests::shielded_ua_allowed_ironwood_first",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::inspect::tests",
-   "name": "inspect::tests::w9_wrong_network_denied",
+   "name": "inspect::tests::w3_ua_with_transparent_receiver_pays_only_shielded",
    "status": "passed"
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::control::tests",
-   "name": "control::tests::r1_concurrent_mandate_spends_cannot_exceed_budget",
+   "file": "services/wallet-sidecar::mandate::tests",
+   "name": "mandate::tests::bounds_are_enforced_even_when_signed",
    "status": "passed"
   },
   {
@@ -1414,7 +1492,7 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::mandate::tests",
-   "name": "mandate::tests::bounds_are_enforced_even_when_signed",
+   "name": "mandate::tests::valid_mandate_verifies",
    "status": "passed"
   },
   {
@@ -1533,8 +1611,8 @@
   },
   {
    "suite": "sidecar",
-   "file": "services/wallet-sidecar::mandate::tests",
-   "name": "mandate::tests::valid_mandate_verifies",
+   "file": "services/wallet-sidecar::inspect::tests",
+   "name": "inspect::tests::w9_wrong_network_denied",
    "status": "passed"
   },
   {
@@ -1552,13 +1630,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::missing_or_zero_amount_rejected",
+   "name": "zip321req::tests::build_parse_roundtrip",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::build_parse_roundtrip",
+   "name": "zip321req::tests::missing_or_zero_amount_rejected",
    "status": "passed"
   },
   {
@@ -1594,13 +1672,13 @@
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::opaque_ref_must_be_opaque",
+   "name": "zip321req::tests::wrong_network_denied",
    "status": "passed"
   },
   {
    "suite": "sidecar",
    "file": "services/wallet-sidecar::zip321req::tests",
-   "name": "zip321req::tests::wrong_network_denied",
+   "name": "zip321req::tests::opaque_ref_must_be_opaque",
    "status": "passed"
   },
   {
@@ -1768,6 +1846,52 @@
    "claim": "Payment restrictions hold under concurrency and retries: simultaneous settlements cannot exceed a budget, a retried settlement charges once, a changed recipient is rejected, an expired or revoked grant pays nothing, a payout without approval never executes, a transparent destination is rejected before any proposal",
    "txids": [],
    "limits": "The API tests use a fake wallet sidecar (the sidecar's own checks are tested separately in Rust, against real SQLite connections on threads). In-process settlement serialization covers one API process; across processes the sidecar's `BEGIN IMMEDIATE` mandate reservation is the backstop (R1 sidecar). Mainnet demonstration of R1/R2 was not run (it would spend the owner's funds)."
+  },
+  {
+   "id": "E-016",
+   "env": "regtest",
+   "claim": "Non-custodial (browser-signed) payout: the server holds only a viewing key and cannot spend; the payment is built and proved by the server, checked and signed by the user's signer, and delivered in a single shielded pool",
+   "txids": [
+    "f39241879a622c6b8ced94436b5d815b8a72900f6d0833a5b230db28a2bd7ead"
+   ],
+   "limits": "Regtest only; a mainnet browser-signed payout needs a new account funded by a user. The signer is served by Lute, so the guarantee holds against a passive or compromised server, not an operator who ships different code. The operator still sees payments through the viewing key. The agent wallet stays Lute-held."
+  },
+  {
+   "id": "E-017",
+   "env": "mainnet",
+   "claim": "Mainnet: a non-custodial (browser-signed) account receives from Zodl and pays out, with the transaction signed in the user's browser; Lute's server holds no seed or key file for the wallet",
+   "txids": [
+    "e8f1de04ad16626de3ab13d01c91e322f842e2f2ee097fc6302ca1c07ebe887a"
+   ],
+   "limits": "The signer code is served by Lute (guarantee against a passive or compromised server, not an operator shipping different code). The operator still sees payments through the viewing key. Agent wallets and older accounts stay custodial."
+  },
+  {
+   "id": "E-018",
+   "env": "mainnet",
+   "claim": "Mainnet: an AI agent (MCP) pays for a useful metered API (document extraction) with a one-time quote, inside an owner-signed mandate, in batched shielded settlements; a payment over the signed per-payment cap is refused",
+   "txids": [
+    "4184a5aa3062690a92b393d1a70a0573ee573d5f0914f1e8be8547f8700ae3dd",
+    "e47108f4af0efdf4323f45b3fd07fee8ca8e24bc0c71f29a1aa4f020937f68e9"
+   ],
+   "limits": "The first settlement reached the agent as HTTP 500 (web proxy timeout during proving) although it succeeded; fixed (proxyTimeout 180 s); a retry would have reused the same action (idempotency key). 5 of 11 rapid calls were rate-limited. The agent wallet is Lute-held (custodial) by design; the service is operator-run."
+  },
+  {
+   "id": "E-019",
+   "env": "regtest",
+   "claim": "BatchPay: one shielded transaction pays several people from a browser-signed wallet; every line is in the approved hash and checked by the signer; each recipient receives exactly its amount and its own memo; single Ironwood pool",
+   "txids": [
+    "04b14b85da122b6f7f374c1340c69683af22a979c5075303c8ba6dcbbff5faab"
+   ],
+   "limits": "Regtest only; a mainnet payroll run needs the owner to approve one. A batch shows its number of outputs on chain (4 actions here), not who or how much."
+  },
+  {
+   "id": "E-020",
+   "env": "mainnet",
+   "claim": "Mainnet BatchPay: a payroll of two people paid in one shielded transaction, every line in the owner's approval, each person receiving their amount and their own payslip id as memo",
+   "txids": [
+    "26c815f9600a9e9a2639dff965c304e03506218850ee4cb7fd4ae411e13ca9be"
+   ],
+   "limits": "Recipients were the owner's own wallets (a real team would use their addresses). The batch reveals its output count on chain (3 actions), not who or how much. Payslip status turns Paid when the payment's confirmations are recorded (on the next activity refresh)."
   }
  ],
  "findings": [],
