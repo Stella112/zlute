@@ -44,7 +44,7 @@ export interface Results {
   tests: TestResult[];
   evidence: EvidenceRow[];
   findings: Finding[];
-  /** Whether an external (Codex) review has been run at all. */
+  /** Whether an independent review has been run at all. */
   reviewed: boolean;
 }
 
